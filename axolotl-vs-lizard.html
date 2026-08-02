@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splat Battle: Axolotl vs. Lizard</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #0d0f1f;
+    font-family: 'Trebuchet MS', 'Comic Sans MS', 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+  #app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+  canvas#game {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #222;
+  }
+  .overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    background: rgba(10, 12, 30, 0.55);
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h1 {
+    font-size: 42px;
+    margin: 0 0 6px 0;
+    text-shadow: 0 3px 0 rgba(0,0,0,0.35);
+  }
+  .overlay .sub {
+    font-size: 17px;
+    margin: 0 0 22px 0;
+    opacity: 0.9;
+  }
+  .menuButtons {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  button {
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(#ff8fc0, #e0559a);
+    border: 3px solid #ffd6ec;
+    border-radius: 14px;
+    padding: 14px 22px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.25);
+    transition: transform 0.08s ease;
+  }
+  button:hover { transform: translateY(-2px) scale(1.03); }
+  button:active { transform: translateY(2px) scale(0.98); }
+  button small { display: block; font-weight: normal; font-size: 12px; opacity: 0.85; }
+  #btn2p { background: linear-gradient(#8fd6ff, #4fa8e0); border-color: #d6f0ff; }
+  .menuToggles {
+    display: flex;
+    gap: 22px;
+    font-size: 15px;
+    margin-bottom: 18px;
+  }
+  .menuToggles label { cursor: pointer; user-select: none; }
+  .howto {
+    font-size: 14px;
+    opacity: 0.85;
+    margin: 0;
+  }
+  #winnerText { font-size: 40px; margin-bottom: 22px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="menuOverlay" class="overlay">
+    <h1>🩷 Splat Battle 🦎</h1>
+    <p class="sub">Axolotl vs. Lizard — dodge, aim, and don't run out of hearts!</p>
+    <div class="menuButtons">
+      <button id="btn1p">🎮 1 Player<small>vs. Lizard AI</small></button>
+      <button id="btn2p">👥 2 Players<small>take turns</small></button>
+    </div>
+    <div class="menuToggles">
+      <label><input type="checkbox" id="helperToggle" checked> ✨ Helper Aim Line</label>
+      <label><input type="checkbox" id="muteToggle"> 🔇 Mute Sounds</label>
+    </div>
+    <p class="howto">← → Angle &nbsp;·&nbsp; ↑ ↓ Power &nbsp;·&nbsp; A / D Change Ammo &nbsp;·&nbsp; SPACE Throw!</p>
+  </div>
+
+  <div id="gameOverOverlay" class="overlay hidden">
+    <h1 id="winnerText">🎉 Winner! 🎉</h1>
+    <button id="btnAgain">🔁 Play Again</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- 1. CONFIG & CONSTANTS ----------
+  const REF_H = 540; // reference design height used to tune all the *_BASE numbers below
+  let CW = 0, CH = 0, SCALE = 1;
+
+  const GRAVITY_BASE = 0.42;
+  const WIND_ACCEL_BASE = 0.007;
+  const SPEED_MIN_BASE = 9, SPEED_MAX_BASE = 24;
+  const HIT_RADIUS_BASE = 24;
+  const CHAR_SCALE = 0.66;      // shrinks the drawn creatures (they were too big)
+  const BODY_CY = 18;           // local-space vertical centre of a creature body
+  const MAX_HEARTS = 5;
+  const ANGLE_MIN = 10, ANGLE_MAX = 80;
+  const POWER_MIN = 5, POWER_MAX = 100;
+  const ANGLE_SPEED = 45; // deg/sec
+  const POWER_SPEED = 70; // units/sec
+  const STEP_MS = 1000 / 60;
+  const CLOUD_WIND_PX = 0.15; // cloud drift per wind unit, per 16.67ms tick (before SCALE)
+  const GROUND_MIN_FRAC = 0.40, GROUND_MAX_FRAC = 0.88;
+  const MAX_DIG_BASE = 150;      // cap on cumulative dig depth per terrain point
+  const MAX_BUILD_BASE = 90;     // cap on how high mud can pile a terrain point up
+  const DIG_DEPTH_BASE = 20;     // dig added per single ground impact
+  const FALL_GRAVITY_BASE = 0.55;
+  const FALL_GAP_THRESHOLD_BASE = 6;
+  const FALL_DAMAGE_MIN_DIST_BASE = 32;
+  const FALL_DAMAGE_BIG_DIST_BASE = 95;
+
+  // live (scaled) physics values, recomputed by applyScale()
+  let GRAVITY, WIND_ACCEL, SPEED_MIN, SPEED_MAX, HIT_RADIUS;
+  let GROUND_MIN, GROUND_MAX, TERRAIN_FLOOR, TERRAIN_CEIL, MAX_DIG, MAX_BUILD;
+  let FALL_GRAVITY, FALL_GAP_THRESHOLD, FALL_DAMAGE_MIN_DIST, FALL_DAMAGE_BIG_DIST;
+
+  // terrain: how the shot reshapes the ground on impact —
+  //   'build' raises it (mud piles up), 'dig' carves a small pit,
+  //   'scoop' carves a big pit, 'none' leaves the ground untouched (just splashes).
+  // gravMul tweaks flight: heavy things (mud) drop fast & short, light things (pine) float far.
+  const AMMO = [
+    { id: 'mud',     name: 'Mud Ball',       emoji: '🟤', windMul: 0.4, gravMul: 1.30, splash: 0,  bounce: false, freeze: false, damage: 1, terrain: 'build', unlockAt: 0,  desc: 'Heavy & short — piles up mud' },
+    { id: 'pine',    name: 'Pine Cone',      emoji: '🌰', windMul: 1.6, gravMul: 0.78, splash: 0,  bounce: false, freeze: false, damage: 1, terrain: 'dig',   unlockAt: 0,  desc: 'Light, wind-blown — carves a groove' },
+    { id: 'acorn',   name: 'Acorn',          emoji: '🥜', windMul: 1.0, gravMul: 1.00, splash: 0,  bounce: false, freeze: false, damage: 1, terrain: 'scoop', unlockAt: 0,  desc: 'Balanced all-rounder — scoops a deep pit' },
+    { id: 'water',   name: 'Water Balloon',  emoji: '💧', windMul: 0.9, gravMul: 1.05, splash: 30, bounce: false, freeze: false, damage: 1, terrain: 'none',  unlockAt: 0,  desc: 'Big splash — leaves the ground untouched' },
+    { id: 'berry',   name: 'Bouncy Berry',   emoji: '🫐', windMul: 1.0, gravMul: 0.95, splash: 10, bounce: true,  freeze: false, damage: 1, terrain: 'dig',   unlockAt: 20, desc: 'Bounces once off the ground' },
+    { id: 'snow',    name: 'Snowball',       emoji: '❄️', windMul: 1.0, gravMul: 0.90, splash: 14, bounce: false, freeze: true,  damage: 1, terrain: 'build', unlockAt: 40, desc: 'Freezes foes & builds a snowdrift' },
+    { id: 'pepper',  name: 'Spicy Pepper',   emoji: '🌶️', windMul: 1.0, gravMul: 1.10, splash: 28, bounce: false, freeze: false, damage: 2, terrain: 'scoop', unlockAt: 60, desc: 'Big splash, double damage!' },
+    { id: 'rainbow', name: 'Rainbow Blaster',emoji: '🌈', windMul: 0.7, gravMul: 0.88, splash: 24, bounce: false, freeze: false, damage: 1, terrain: 'dig',   unlockAt: 80, fullArc: true, desc: 'Shows the full arc — huge splash' },
+  ];
+  const STARTER_AMMO = ['mud', 'pine', 'acorn', 'water'];
+
+  const SPLAT_COLORS = {
+    mud: '#7a5230', pine: '#6b4226', acorn: '#a97c50', water: '#4fb0ff',
+    berry: '#7a4fd6', snow: '#ffffff', pepper: '#ff5a3c', rainbow: '#ff4dd2',
+  };
+
+  const THEMES = [
+    { name: 'Sunny Meadow', icon: '☀️', sky: ['#8ed6ff', '#c9f2ff'], ground: ['#8ed15f', '#5a9c3e', '#3f6f2b'], cap: '#a8e878', decor: 'meadow', detailKind: 'tuft' },
+    { name: 'Swamp',        icon: '🐸', sky: ['#7c9a7a', '#a9c6a0'], ground: ['#5a6b3e', '#3f4d2a', '#242c17'], cap: '#748f4a', decor: 'swamp',  detailKind: 'tuft' },
+    { name: 'Snowy Peaks',  icon: '❄️', sky: ['#c9dcf0', '#eef5fc'], ground: ['#eef5fc', '#c7d9ee', '#a9c2e0'], cap: '#ffffff', decor: 'snow',   detailKind: 'pebble' },
+    { name: 'Desert',       icon: '🌵', sky: ['#ffd89a', '#ffb974'], ground: ['#e0b25c', '#b9853a', '#93672c'], cap: '#f0cd82', decor: 'desert', detailKind: 'pebble' },
+    { name: 'Starry Night', icon: '🌙', sky: ['#0b1030', '#2a3570'], ground: ['#2e2540', '#171225', '#0d0a17'], cap: '#4a3c66', decor: 'night',  detailKind: 'sparkle' },
+  ];
+
+  const HIT_MESSAGES = ['Direct hit! 🎯', 'Splat! Nice shot!', 'Bullseye-ish! 🌟', 'Gotcha! 😄', 'Ka-splat!'];
+  const MISS_MESSAGES = ['So close! Try again!', 'Almost! 🎯', 'Ooh, just missed!', 'Nice try! 💪', 'So close!'];
+
+  // ---------- 2. UTILITIES ----------
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function randInt(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
+  function randRange(min, max) { return min + Math.random() * (max - min); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  function ammoById(id) { return AMMO.find(a => a.id === id); }
+  function bodyCenterY(p) { return p.y - BODY_CY * SCALE * CHAR_SCALE; }
+  function throwOriginY(p) { return p.y - (BODY_CY + 6) * SCALE * CHAR_SCALE; }
+  function hexToRgb(hex) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+  }
+
+  function applyScale() {
+    SCALE = clamp(CH / REF_H, 0.75, 2.2);
+    GRAVITY = GRAVITY_BASE * SCALE;
+    WIND_ACCEL = WIND_ACCEL_BASE * SCALE;
+    SPEED_MIN = SPEED_MIN_BASE * SCALE;
+    SPEED_MAX = SPEED_MAX_BASE * SCALE;
+    HIT_RADIUS = HIT_RADIUS_BASE * SCALE;
+    GROUND_MIN = CH * GROUND_MIN_FRAC;
+    GROUND_MAX = CH * GROUND_MAX_FRAC;
+    TERRAIN_FLOOR = CH - 14 * SCALE;
+    TERRAIN_CEIL = 70 * SCALE; // highest a built-up mound may reach (below the HUD)
+    MAX_DIG = MAX_DIG_BASE * SCALE;
+    MAX_BUILD = MAX_BUILD_BASE * SCALE;
+    FALL_GRAVITY = FALL_GRAVITY_BASE * SCALE;
+    FALL_GAP_THRESHOLD = FALL_GAP_THRESHOLD_BASE * SCALE;
+    FALL_DAMAGE_MIN_DIST = FALL_DAMAGE_MIN_DIST_BASE * SCALE;
+    FALL_DAMAGE_BIG_DIST = FALL_DAMAGE_BIG_DIST_BASE * SCALE;
+  }
+
+  // ---------- 3. STATE ----------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const G = {
+    state: 'MENU', // MENU, AIMING, AI_THINKING, FLYING, RESOLVING, GAME_OVER
+    mode: '2P',
+    theme: THEMES[0],
+    terrainBase: [],
+    terrainDug: [],
+    terrainSnow: [],
+    terrainMud: [],
+    terrain: [],
+    terrainDetail: [],
+    players: [],
+    currentPlayerIndex: 0,
+    wind: 0,
+    heartPickup: null,
+    decor: [],
+    particles: [],
+    projectile: null,
+    toast: null,
+    toastQueue: [],
+    helperArc: true,
+    muted: false,
+    ai: null,
+    aiAccuracy: 0.55,
+    resolveTimer: 0,
+    physAccum: 0,
+    keys: new Set(),
+    t: 0,
+  };
+
+  function makePlayer(index, name) {
+    return {
+      index, name,
+      hearts: MAX_HEARTS,
+      points: 0,
+      angle: 45,
+      power: 55,
+      unlocked: STARTER_AMMO.slice(),
+      ammoId: 'mud',
+      frozen: false,
+      hitTimer: 0,
+      falling: false,
+      fallVy: 0,
+      fallStartY: 0,
+      x: 0, y: 0,
+    };
+  }
+
+  // ---------- 4. TERRAIN (destructible) ----------
+  function generateTerrainBase() {
+    // Higher segment density = finer, crinklier detail than the old 1/22 sampling.
+    const segs = Math.max(60, Math.round(CW / 12));
+    const pts = new Array(segs + 1).fill(0);
+
+    // 5 octaves of sine noise: big rolling shape down to fine surface crinkle.
+    const octaves = [
+      { amp: 55 + Math.random() * 55, freq: 0.6 + Math.random() * 1.1 },
+      { amp: 30 + Math.random() * 35, freq: 1.6 + Math.random() * 1.6 },
+      { amp: 16 + Math.random() * 20, freq: 3.2 + Math.random() * 2.4 },
+      { amp: 8 + Math.random() * 12,  freq: 6.5 + Math.random() * 4.0 },
+      { amp: 3 + Math.random() * 6,   freq: 12 + Math.random() * 8.0 },
+    ].map(o => ({ amp: o.amp * SCALE, freq: o.freq, phase: Math.random() * Math.PI * 2 }));
+
+    // Gentle overall tilt so the two sides sit at different elevations.
+    const tilt = randRange(-0.18, 0.18) * (GROUND_MAX - GROUND_MIN);
+    const baseline = GROUND_MIN + (GROUND_MAX - GROUND_MIN) * (0.35 + Math.random() * 0.3);
+
+    // 1-2 dramatic features: a tall peak or a deep valley placed away from the spawn zones.
+    const features = [];
+    const featureCount = 1 + (Math.random() < 0.6 ? 1 : 0);
+    for (let f = 0; f < featureCount; f++) {
+      features.push({
+        center: randRange(0.28, 0.72),
+        width: randRange(0.05, 0.13),
+        height: (Math.random() < 0.5 ? -1 : 1) * randRange(60, 130) * SCALE,
+      });
+    }
+
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      let h = baseline + tilt * (t - 0.5) * 2;
+      for (const o of octaves) h += Math.sin(t * Math.PI * o.freq + o.phase) * o.amp;
+      for (const ft of features) {
+        const d = (t - ft.center) / ft.width;
+        h += ft.height * Math.exp(-d * d); // gaussian bump/dip
+      }
+      pts[i] = h;
+    }
+
+    // Single light smoothing pass — keeps the fine crinkle instead of flattening it out.
+    const smoothed = pts.slice();
+    for (let i = 1; i < pts.length - 1; i++) smoothed[i] = (pts[i - 1] + pts[i] * 2 + pts[i + 1]) / 4;
+    for (let i = 0; i < smoothed.length; i++) smoothed[i] = clamp(smoothed[i], GROUND_MIN, GROUND_MAX);
+    return smoothed;
+  }
+
+  function rebuildTerrainFromDug() {
+    // dug > 0 lowers the surface (bigger y), dug < 0 raises it (smaller y)
+    G.terrain = G.terrainBase.map((h, i) => clamp(h + G.terrainDug[i], TERRAIN_CEIL, TERRAIN_FLOOR));
+  }
+
+  function heightAt(x) {
+    const segW = CW / (G.terrain.length - 1);
+    let idx = clamp(x / segW, 0, G.terrain.length - 1.0001);
+    const i0 = Math.floor(idx), i1 = i0 + 1;
+    const frac = idx - i0;
+    return G.terrain[i0] * (1 - frac) + G.terrain[i1] * frac;
+  }
+
+  function dugAt(x) { return sampleAt(G.terrainDug, x); }
+
+  // Interpolated sample of any per-segment terrain array (dug depth, material amount, ...).
+  function sampleAt(arr, x) {
+    const segW = CW / (arr.length - 1);
+    let idx = clamp(x / segW, 0, arr.length - 1.0001);
+    const i0 = Math.floor(idx), i1 = i0 + 1;
+    const frac = idx - i0;
+    return arr[i0] * (1 - frac) + arr[i1] * frac;
+  }
+
+  // delta > 0 digs the ground out, delta < 0 piles it up.
+  function reshapeTerrain(x, radius, delta) {
+    const segW = CW / (G.terrainBase.length - 1);
+    for (let i = 0; i < G.terrainBase.length; i++) {
+      const sx = i * segW, dx = sx - x;
+      if (Math.abs(dx) < radius) {
+        const falloff = 1 - (dx / radius) * (dx / radius);
+        G.terrainDug[i] = clamp(G.terrainDug[i] + delta * falloff, -MAX_BUILD, MAX_DIG);
+      }
+    }
+    rebuildTerrainFromDug();
+  }
+
+  // Adds to a cosmetic overlay array (e.g. how much snow vs. mud sits at each point)
+  // using the same falloff shape as reshapeTerrain, so the visual matches the mound.
+  function applyMaterialOverlay(arr, x, radius, amount) {
+    const segW = CW / (arr.length - 1);
+    for (let i = 0; i < arr.length; i++) {
+      const sx = i * segW, dx = sx - x;
+      if (Math.abs(dx) < radius) {
+        const falloff = 1 - (dx / radius) * (dx / radius);
+        arr[i] = clamp(arr[i] + amount * falloff, 0, MAX_BUILD);
+      }
+    }
+  }
+
+  // Applies an ammo's characteristic ground effect at the impact point.
+  function terrainImpact(ammo, x, onGround) {
+    if (ammo.terrain === 'none') return;
+    const baseR = (24 + ammo.splash * 0.4) * SCALE;
+    let delta = DIG_DEPTH_BASE * SCALE;
+    let radius = baseR;
+    if (ammo.terrain === 'build') { delta = -DIG_DEPTH_BASE * SCALE * 1.3; radius = baseR * 1.15; }
+    else if (ammo.terrain === 'scoop') { delta = DIG_DEPTH_BASE * SCALE * 1.7; radius = baseR * 1.15; }
+    else if (ammo.terrain === 'dig') { delta = DIG_DEPTH_BASE * SCALE * 0.9; }
+    if (!onGround) delta *= 0.5; // a glancing body hit disturbs the ground less
+    reshapeTerrain(x, radius, delta);
+    if (delta < 0) {
+      // building up the ground — tint the mound with the material that made it
+      const overlayArr = ammo.id === 'snow' ? G.terrainSnow : G.terrainMud;
+      applyMaterialOverlay(overlayArr, x, radius, -delta);
+    }
+  }
+
+  function placePlayers() {
+    const p0x = CW * (0.09 + Math.random() * 0.13);
+    const p1x = CW * (1 - (0.09 + Math.random() * 0.13));
+    G.players[0].x = p0x; G.players[0].y = heightAt(p0x);
+    G.players[1].x = p1x; G.players[1].y = heightAt(p1x);
+  }
+
+  // A floating heart, randomly placed in the air — hit it to heal one heart.
+  // Kept a safe distance from both players and biased toward the center strip
+  // between them, so it never spawns hugging either side.
+  function spawnHeartPickup() {
+    const margin = CW * 0.12;
+    const p0x = G.players[0] ? G.players[0].x : CW * 0.2;
+    const p1x = G.players[1] ? G.players[1].x : CW * 0.8;
+    let minX = Math.max(CW * 0.32, p0x + margin);
+    let maxX = Math.min(CW * 0.68, p1x - margin);
+    if (minX > maxX) { const mid = (minX + maxX) / 2; minX = mid - CW * 0.05; maxX = mid + CW * 0.05; }
+    // average two draws so the result clusters toward the middle of the safe band
+    const x = clamp((randRange(minX, maxX) + randRange(minX, maxX)) / 2, minX, maxX);
+
+    const gy = heightAt(x);
+    const hudBottom = 70 * SCALE;
+    const minY = hudBottom + 30 * SCALE;
+    const maxY = gy - 60 * SCALE;
+    const y = clamp(randRange(minY, Math.max(minY, maxY)), minY, CH - 40 * SCALE);
+    G.heartPickup = { x, baseY: y, y, active: true, bob: Math.random() * Math.PI * 2 };
+  }
+
+  function updateHeartPickup() {
+    const hp = G.heartPickup;
+    if (!hp || !hp.active) return;
+    hp.y = hp.baseY + Math.sin(G.t * 0.004 + hp.bob) * 8 * SCALE;
+  }
+
+  function spawnHeartBurst(x, y) {
+    for (let i = 0; i < 14; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = (1 + Math.random() * 2.5) * SCALE;
+      G.particles.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - SCALE, life: 700 + Math.random() * 400, max: 1100, color: pick(['#ff5b8a', '#ff9ec4', '#ffd0e0']), size: (3 + Math.random() * 4) * SCALE, shape: 'circle', gravity: -0.02 * SCALE });
+    }
+  }
+
+  function buildTerrainDetail(theme) {
+    const list = [];
+    const count = Math.max(22, Math.round(CW / 26));
+    for (let i = 0; i < count; i++) {
+      const x = clamp((i + 0.5) * (CW / count) + randRange(-8, 8) * SCALE, 4, CW - 4);
+      list.push({ x, kind: theme.detailKind, seed: Math.random() * 10, sizeVar: 0.7 + Math.random() * 0.7 });
+    }
+    return list;
+  }
+
+  // ---------- 5. DECOR ----------
+  function buildDecor(theme) {
+    const list = [];
+    if (theme.decor === 'meadow') {
+      for (let i = 0; i < 5; i++) list.push({ type: 'cloud', x: Math.random() * CW, y: (40 + Math.random() * 70) * SCALE, scale: (0.6 + Math.random() * 0.8) * SCALE });
+      for (let i = 0; i < 6; i++) list.push({ type: 'flower', x: Math.random() * CW });
+    } else if (theme.decor === 'swamp') {
+      for (let i = 0; i < 7; i++) list.push({ type: 'lily', x: Math.random() * CW });
+      for (let i = 0; i < 3; i++) list.push({ type: 'cloud', x: Math.random() * CW, y: (50 + Math.random() * 40) * SCALE, scale: 0.7 * SCALE });
+    } else if (theme.decor === 'snow') {
+      for (let i = 0; i < 5; i++) list.push({ type: 'rock', x: Math.random() * CW, scale: (0.8 + Math.random() * 0.6) * SCALE });
+    } else if (theme.decor === 'desert') {
+      for (let i = 0; i < 6; i++) list.push({ type: 'cactus', x: Math.random() * CW, scale: (0.7 + Math.random() * 0.6) * SCALE });
+    } else if (theme.decor === 'night') {
+      const starCount = Math.round(CW / 16);
+      for (let i = 0; i < starCount; i++) list.push({ type: 'star', x: Math.random() * CW, y: Math.random() * CH * 0.5, twinkle: Math.random() * Math.PI * 2 });
+      list.push({ type: 'moon', x: CW - 120 * SCALE, y: 70 * SCALE });
+    }
+    return list;
+  }
+
+  function updateDecor(elapsedMs) {
+    const scale = elapsedMs / 16.67;
+    // Clouds drift with the wind: same direction, and speed proportional to its strength.
+    const cloudDrift = G.wind * CLOUD_WIND_PX * SCALE * scale;
+    for (const d of G.decor) {
+      if (d.type === 'cloud') {
+        d.x += cloudDrift;
+        if (d.x > CW + 80) d.x = -80;
+        else if (d.x < -80) d.x = CW + 80;
+      }
+      if (d.type === 'star') d.twinkle += 0.03 * scale;
+    }
+  }
+
+  // ---------- 7. PARTICLES ----------
+  function spawnSplat(x, y, ammo) {
+    const color = SPLAT_COLORS[ammo.id] || '#cccccc';
+    for (let i = 0; i < 16; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = (1 + Math.random() * 3) * SCALE;
+      G.particles.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - SCALE, life: 500 + Math.random() * 300, max: 800, color, size: (3 + Math.random() * 4) * SCALE, shape: 'circle', gravity: 0.06 * SCALE });
+    }
+  }
+
+  function spawnDust(x, y) {
+    for (let i = 0; i < 10; i++) {
+      G.particles.push({ x, y, vx: randRange(-1.5, 1.5) * SCALE, vy: randRange(-1.5, -0.3) * SCALE, life: 400 + Math.random() * 200, max: 600, color: '#b8ac95', size: (2 + Math.random() * 3) * SCALE, shape: 'circle', gravity: -0.01 * SCALE });
+    }
+  }
+
+  function spawnConfetti() {
+    for (let i = 0; i < 70; i++) {
+      G.particles.push({
+        x: Math.random() * CW, y: -20 - Math.random() * 100,
+        vx: randRange(-1, 1) * SCALE, vy: (2 + Math.random() * 2) * SCALE,
+        life: 4000, max: 4000,
+        color: pick(['#ff4d6d', '#ffd93d', '#6bd1ff', '#8affc1', '#c77dff']),
+        size: (6 + Math.random() * 4) * SCALE, shape: 'rect',
+        rot: Math.random() * Math.PI, rotSpeed: randRange(-0.1, 0.1), gravity: 0.02 * SCALE,
+      });
+    }
+  }
+
+  function updateParticles(elapsedMs) {
+    const scale = elapsedMs / 16.67;
+    for (const p of G.particles) {
+      p.life -= elapsedMs;
+      p.x += p.vx * scale;
+      p.y += p.vy * scale;
+      p.vy += (p.gravity || 0) * scale;
+      if (p.rotSpeed) p.rot += p.rotSpeed * scale;
+    }
+    G.particles = G.particles.filter(p => p.life > 0);
+  }
+
+  function renderParticles() {
+    for (const p of G.particles) {
+      const alpha = clamp(p.life / p.max, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      if (p.shape === 'rect') {
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot || 0);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      } else {
+        ctx.beginPath();
+        ctx.fillStyle = p.color;
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  // ---------- 8. TOAST ----------
+  function showToast(text) { G.toastQueue.push(text); }
+  function updateToast(elapsedMs) {
+    if (!G.toast && G.toastQueue.length) G.toast = { text: G.toastQueue.shift(), life: 1800, max: 1800 };
+    if (G.toast) { G.toast.life -= elapsedMs; if (G.toast.life <= 0) G.toast = null; }
+  }
+
+  // ---------- 9. AUDIO ----------
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playNoiseBurst(duration, filterFreq, gainVal) {
+    const bufferSize = Math.floor(audioCtx.sampleRate * duration);
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = filterFreq;
+    const g = audioCtx.createGain();
+    g.gain.value = gainVal;
+    noise.connect(filter).connect(g).connect(audioCtx.destination);
+    noise.start();
+  }
+  function tone(freq0, freq1, dur, type, gainVal, startAt) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq0, startAt);
+    if (freq1 !== freq0) o.frequency.exponentialRampToValueAtTime(Math.max(1, freq1), startAt + dur * 0.8);
+    g.gain.setValueAtTime(0.0001, startAt);
+    g.gain.linearRampToValueAtTime(gainVal, startAt + Math.min(0.02, dur * 0.2));
+    g.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(startAt);
+    o.stop(startAt + dur + 0.02);
+  }
+  function playSfx(name) {
+    if (G.muted) return;
+    ensureAudio();
+    const t0 = audioCtx.currentTime;
+    switch (name) {
+      case 'whoosh': tone(600, 200, 0.28, 'sine', 0.15, t0); break;
+      case 'thud': tone(150, 60, 0.2, 'triangle', 0.3, t0); break;
+      case 'splat': tone(220, 90, 0.25, 'sine', 0.22, t0); playNoiseBurst(0.18, 1200, 0.18); break;
+      case 'boing': tone(220, 400, 0.24, 'sine', 0.2, t0); break;
+      case 'plink': tone(880, 880, 0.12, 'sine', 0.12, t0); break;
+      case 'freeze': tone(1200, 700, 0.3, 'triangle', 0.16, t0); break;
+      case 'thump': tone(110, 50, 0.3, 'sine', 0.28, t0); playNoiseBurst(0.16, 500, 0.15); break;
+      case 'unlock': [660, 880, 1100].forEach((f, i) => tone(f, f, 0.2, 'triangle', 0.18, t0 + i * 0.09)); break;
+      case 'heal': [523, 784, 1046, 1318].forEach((f, i) => tone(f, f, 0.22, 'sine', 0.16, t0 + i * 0.07)); break;
+      case 'cheer': [523, 659, 784, 1046].forEach((f, i) => tone(f, f, 0.32, 'square', 0.15, t0 + i * 0.12)); break;
+    }
+  }
+
+  // ---------- 10. PHYSICS ----------
+  function physicsStep(state, ammo) {
+    state.vx += G.wind * WIND_ACCEL * ammo.windMul;
+    state.vy += GRAVITY * (ammo.gravMul || 1);
+    state.x += state.vx;
+    state.y += state.vy;
+  }
+
+  function simulateTrajectory(startX, startY, angleDeg, power, dir, ammo, opponent) {
+    let speed = SPEED_MIN + (power / 100) * (SPEED_MAX - SPEED_MIN);
+    const rad = angleDeg * Math.PI / 180;
+    const state = { x: startX, y: startY, vx: Math.cos(rad) * speed * dir, vy: -Math.sin(rad) * speed };
+    const pts = [{ x: state.x, y: state.y }];
+    let bounced = false;
+    for (let i = 0; i < 500; i++) {
+      physicsStep(state, ammo);
+      pts.push({ x: state.x, y: state.y });
+      if (opponent) {
+        const dist = Math.hypot(state.x - opponent.x, state.y - bodyCenterY(opponent));
+        if (dist < HIT_RADIUS + ammo.splash * 0.5 * SCALE) return { points: pts, endX: state.x, endY: state.y, result: 'hit' };
+      }
+      const gY = heightAt(state.x);
+      if (state.y >= gY) {
+        if (ammo.bounce && !bounced) { bounced = true; state.y = gY - 1; state.vy = -state.vy * 0.5; state.vx *= 0.85; continue; }
+        return { points: pts, endX: state.x, endY: gY, result: 'ground' };
+      }
+      if (state.x < -30 || state.x > CW + 30 || state.y > CH + 80) return { points: pts, endX: state.x, endY: state.y, result: 'oob' };
+    }
+    return { points: pts, endX: state.x, endY: state.y, result: 'timeout' };
+  }
+
+  // ---------- 11. TURN FLOW ----------
+  function newMatch() {
+    G.theme = pick(THEMES);
+    G.terrainBase = generateTerrainBase();
+    G.terrainDug = new Array(G.terrainBase.length).fill(0);
+    G.terrainSnow = new Array(G.terrainBase.length).fill(0);
+    G.terrainMud = new Array(G.terrainBase.length).fill(0);
+    rebuildTerrainFromDug();
+    G.terrainDetail = buildTerrainDetail(G.theme);
+    G.players = [makePlayer(0, 'Axolotl'), makePlayer(1, 'Lizard')];
+    placePlayers();
+    G.wind = randInt(-6, 6);
+    spawnHeartPickup();
+    G.particles = [];
+    G.projectile = null;
+    G.toast = null;
+    G.toastQueue = [];
+    G.decor = buildDecor(G.theme);
+    G.aiAccuracy = 0.55;
+    G.currentPlayerIndex = 0;
+    G.physAccum = 0;
+  }
+
+  function startGame(mode) {
+    ensureAudio();
+    G.mode = mode;
+    // Deliberately do NOT call newMatch() here — the terrain/theme/heart already
+    // generated (and visible behind the menu) becomes the match you actually play.
+    document.getElementById('menuOverlay').classList.add('hidden');
+    document.getElementById('gameOverOverlay').classList.add('hidden');
+    beginTurn();
+  }
+
+  function returnToMenu() {
+    document.getElementById('gameOverOverlay').classList.add('hidden');
+    document.getElementById('menuOverlay').classList.remove('hidden');
+    G.state = 'MENU';
+    newMatch();
+  }
+
+  function beginTurn() {
+    if (G.mode === '1P' && G.currentPlayerIndex === 1) {
+      G.state = 'AI_THINKING';
+      startAiThink();
+    } else {
+      G.state = 'AIMING';
+    }
+  }
+
+  function cycleAmmo(p, dir) {
+    const list = p.unlocked;
+    let idx = list.indexOf(p.ammoId);
+    idx = (idx + dir + list.length) % list.length;
+    p.ammoId = list[idx];
+    playSfx('plink');
+  }
+
+  function checkUnlocks(player) {
+    for (const a of AMMO) {
+      if (a.unlockAt > 0 && player.points >= a.unlockAt && !player.unlocked.includes(a.id)) {
+        player.unlocked.push(a.id);
+        showToast(`🎉 ${player.name} unlocked ${a.emoji} ${a.name}!`);
+        playSfx('unlock');
+      }
+    }
+  }
+
+  function throwProjectile() {
+    const idx = G.currentPlayerIndex;
+    const p = G.players[idx];
+    const ammo = ammoById(p.ammoId);
+    const dir = idx === 0 ? 1 : -1;
+    const speed = SPEED_MIN + (p.power / 100) * (SPEED_MAX - SPEED_MIN);
+    const rad = p.angle * Math.PI / 180;
+    G.projectile = {
+      x: p.x, y: throwOriginY(p),
+      vx: Math.cos(rad) * speed * dir, vy: -Math.sin(rad) * speed,
+      ammo, owner: idx, bounced: false, trail: [], spin: 0,
+    };
+    G.physAccum = 0;
+    G.state = 'FLYING';
+    playSfx('whoosh');
+  }
+
+  function updateProjectileStep() {
+    const pr = G.projectile;
+    if (!pr) return;
+    physicsStep(pr, pr.ammo);
+    pr.spin += pr.vx * 0.012; // tumble in the air, faster when thrown harder
+    pr.trail.push({ x: pr.x, y: pr.y });
+    if (pr.trail.length > 18) pr.trail.shift();
+
+    const hp = G.heartPickup;
+    if (hp && hp.active) {
+      const hd = Math.hypot(pr.x - hp.x, pr.y - hp.y);
+      if (hd < HIT_RADIUS + pr.ammo.splash * 0.5 * SCALE) { resolveHeartHit(); return; }
+    }
+
+    const opp = G.players[1 - pr.owner];
+    const dist = Math.hypot(pr.x - opp.x, pr.y - bodyCenterY(opp));
+    if (dist < HIT_RADIUS + pr.ammo.splash * 0.5 * SCALE) { resolveImpact('hit', opp); return; }
+
+    const gY = heightAt(pr.x);
+    if (pr.y >= gY) {
+      if (pr.ammo.bounce && !pr.bounced) {
+        pr.bounced = true;
+        pr.y = gY - 1;
+        pr.vy = -pr.vy * 0.5;
+        pr.vx *= 0.85;
+        playSfx('boing');
+      } else {
+        resolveImpact('ground', null);
+      }
+      return;
+    }
+    if (pr.x < -30 || pr.x > CW + 30 || pr.y > CH + 80) resolveImpact('oob', null);
+  }
+
+  function resolveImpact(kind, opponent) {
+    const pr = G.projectile;
+    const shooter = G.players[pr.owner];
+    if (kind === 'hit') {
+      const ix = pr.x, iy = bodyCenterY(opponent);
+      if (pr.ammo.freeze) { opponent.frozen = true; playSfx('freeze'); }
+      opponent.hearts = Math.max(0, opponent.hearts - pr.ammo.damage);
+      shooter.points += 10 * pr.ammo.damage;
+      opponent.hitTimer = 900;
+      checkUnlocks(shooter);
+      spawnSplat(ix, iy, pr.ammo);
+      showToast(pick(HIT_MESSAGES));
+      playSfx('splat');
+      terrainImpact(pr.ammo, ix, false);
+    } else if (kind === 'ground') {
+      const ix = pr.x, iy = heightAt(pr.x);
+      terrainImpact(pr.ammo, ix, true);
+      if (pr.ammo.terrain === 'none') { spawnSplat(ix, iy, pr.ammo); playSfx('splat'); }
+      else { spawnDust(ix, iy); playSfx('thud'); }
+      showToast(pick(MISS_MESSAGES));
+      if (pr.owner === 1 && G.mode === '1P') G.aiAccuracy = Math.min(0.9, G.aiAccuracy + 0.12);
+    } else {
+      showToast('Whoosh! Off it went...');
+      if (pr.owner === 1 && G.mode === '1P') G.aiAccuracy = Math.min(0.9, G.aiAccuracy + 0.12);
+    }
+    G.projectile = null;
+    G.state = 'RESOLVING';
+    G.resolveTimer = 1300;
+  }
+
+  function resolveHeartHit() {
+    const pr = G.projectile;
+    const shooter = G.players[pr.owner];
+    const hp = G.heartPickup;
+    const beforeHearts = shooter.hearts;
+    shooter.hearts = clamp(shooter.hearts + 1, 0, MAX_HEARTS);
+    const healed = shooter.hearts > beforeHearts;
+    shooter.points += 5;
+    spawnHeartBurst(hp.x, hp.y);
+    checkUnlocks(shooter);
+    showToast(healed ? `💖 ${shooter.name} grabbed a heart! +1 ❤️ (${shooter.hearts}/${MAX_HEARTS})` : `💖 ${shooter.name} hit the heart (already full)!`);
+    playSfx('heal');
+    // A fresh heart always reappears at a new random spot once this one is used.
+    spawnHeartPickup();
+    G.projectile = null;
+    G.state = 'RESOLVING';
+    G.resolveTimer = 1300;
+  }
+
+  function nextTurn() {
+    if (G.players[0].hearts <= 0 || G.players[1].hearts <= 0) { endGame(); return; }
+    let next = 1 - G.currentPlayerIndex;
+    G.wind = randInt(-6, 6);
+    let guard = 0;
+    while (G.players[next].frozen && guard < 2) {
+      G.players[next].frozen = false;
+      showToast(`❄️ ${G.players[next].name} is frozen and skips this turn!`);
+      next = 1 - next;
+      guard++;
+    }
+    G.currentPlayerIndex = next;
+    beginTurn();
+  }
+
+  function endGame() {
+    G.state = 'GAME_OVER';
+    const winnerIdx = G.players[0].hearts <= 0 ? 1 : 0;
+    const winner = G.players[winnerIdx];
+    document.getElementById('winnerText').textContent = `${winnerIdx === 0 ? '🩷' : '🦎'} ${winner.name} wins! 🎉`;
+    document.getElementById('gameOverOverlay').classList.remove('hidden');
+    spawnConfetti();
+    playSfx('cheer');
+  }
+
+  // ---------- 12. FALLING / GROUND COLLAPSE ----------
+  function updateFalling(elapsedMs) {
+    const scale = elapsedMs / 16.67;
+    for (const p of G.players) {
+      const groundY = heightAt(p.x);
+      if (!p.falling) {
+        if (groundY - p.y > FALL_GAP_THRESHOLD) {
+          p.falling = true;
+          p.fallVy = 0;
+          p.fallStartY = p.y;
+        }
+      } else {
+        p.fallVy += FALL_GRAVITY * scale;
+        p.y += p.fallVy * scale;
+        const gY2 = heightAt(p.x);
+        if (p.y >= gY2) {
+          p.y = gY2;
+          const dist = p.y - p.fallStartY;
+          p.falling = false;
+          p.fallVy = 0;
+          if (dist > FALL_DAMAGE_MIN_DIST) {
+            const dmg = dist > FALL_DAMAGE_BIG_DIST ? 2 : 1;
+            p.hearts = Math.max(0, p.hearts - dmg);
+            p.hitTimer = 900;
+            spawnDust(p.x, p.y);
+            showToast(dmg > 1 ? `💥 ${p.name} took a big tumble into the hole!` : `😯 ${p.name} stumbled into a dip!`);
+            playSfx('thump');
+          }
+        }
+      }
+    }
+  }
+
+  // ---------- 13. AI ----------
+  function pickAiAim(ai) {
+    const opponent = G.players[0];
+    const dir = -1;
+    const ammoId = pick(ai.unlocked);
+    const searchAmmo = ammoById(ammoId);
+    const angles = [30, 40, 50, 60, 70];
+    let best = null;
+    for (const ang of angles) {
+      for (let pw = 20; pw <= 100; pw += 5) {
+        const sim = simulateTrajectory(ai.x, throwOriginY(ai), ang, pw, dir, searchAmmo, null);
+        const d = Math.abs(sim.endX - opponent.x);
+        if (!best || d < best.d) best = { ang, pw, d };
+      }
+    }
+    const acc = G.aiAccuracy;
+    const errAngle = (1 - acc) * 18;
+    const errPower = (1 - acc) * 26;
+    const angle = clamp(best.ang + randRange(-errAngle, errAngle), ANGLE_MIN, ANGLE_MAX);
+    const power = clamp(best.pw + randRange(-errPower, errPower), POWER_MIN, POWER_MAX);
+    return { angle, power, ammoId };
+  }
+
+  function startAiThink() {
+    const p = G.players[1];
+    const aim = pickAiAim(p);
+    p.ammoId = aim.ammoId;
+    G.ai = { fromAngle: p.angle, fromPower: p.power, targetAngle: aim.angle, targetPower: aim.power, elapsed: 0, duration: 800 + Math.random() * 400 };
+  }
+
+  function updateAiThink(elapsedMs) {
+    const ai = G.ai;
+    ai.elapsed += elapsedMs;
+    const t = clamp(ai.elapsed / ai.duration, 0, 1);
+    const e = easeInOut(t);
+    const p = G.players[1];
+    p.angle = lerp(ai.fromAngle, ai.targetAngle, e);
+    p.power = lerp(ai.fromPower, ai.targetPower, e);
+    if (t >= 1) throwProjectile();
+  }
+
+  // ---------- 14. INPUT ----------
+  window.addEventListener('keydown', (e) => {
+    const k = e.key;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(k)) e.preventDefault();
+
+    if (G.state === 'MENU') {
+      if (k === '1') startGame('1P');
+      else if (k === '2') startGame('2P');
+      return;
+    }
+    if (G.state === 'GAME_OVER') {
+      if (k === 'Enter' || k === ' ') returnToMenu();
+      return;
+    }
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) { G.keys.add(k); return; }
+    if (e.repeat) return;
+
+    const isHumanTurn = !(G.mode === '1P' && G.currentPlayerIndex === 1);
+    if (G.state !== 'AIMING' || !isHumanTurn) return;
+    const cur = G.players[G.currentPlayerIndex];
+    if (k === 'a' || k === 'A') cycleAmmo(cur, -1);
+    else if (k === 'd' || k === 'D') cycleAmmo(cur, 1);
+    else if (/^[1-9]$/.test(k)) {
+      const idx = parseInt(k, 10) - 1;
+      if (idx < cur.unlocked.length) { cur.ammoId = cur.unlocked[idx]; playSfx('plink'); }
+    } else if (k === ' ') {
+      throwProjectile();
+    }
+  });
+  window.addEventListener('keyup', (e) => { G.keys.delete(e.key); });
+
+  document.getElementById('btn1p').addEventListener('click', () => startGame('1P'));
+  document.getElementById('btn2p').addEventListener('click', () => startGame('2P'));
+  document.getElementById('btnAgain').addEventListener('click', returnToMenu);
+  document.getElementById('helperToggle').addEventListener('change', (e) => { G.helperArc = e.target.checked; });
+  document.getElementById('muteToggle').addEventListener('change', (e) => { G.muted = e.target.checked; });
+
+  // ---------- 15. RESIZE (full-viewport, responsive) ----------
+  function handleResize() {
+    const oldCW = CW, oldCH = CH;
+    CW = window.innerWidth;
+    CH = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(CW * dpr);
+    canvas.height = Math.round(CH * dpr);
+    canvas.style.width = CW + 'px';
+    canvas.style.height = CH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    applyScale();
+
+    if (oldCW && oldCH && G.terrainBase.length) {
+      const rx = CW / oldCW, ry = CH / oldCH;
+      for (let i = 0; i < G.terrainBase.length; i++) {
+        G.terrainBase[i] *= ry;
+        G.terrainDug[i] *= ry;
+        G.terrainSnow[i] *= ry;
+        G.terrainMud[i] *= ry;
+      }
+      rebuildTerrainFromDug();
+      for (const p of G.players) { p.x *= rx; p.y *= ry; }
+      if (G.projectile) { G.projectile.x *= rx; G.projectile.y *= ry; }
+      for (const d of G.decor) {
+        if (typeof d.x === 'number') d.x *= rx;
+        if (typeof d.y === 'number') d.y *= ry;
+      }
+      for (const d of G.terrainDetail) d.x *= rx;
+      for (const pt of G.particles) { pt.x *= rx; pt.y *= ry; }
+      if (G.heartPickup) { G.heartPickup.x *= rx; G.heartPickup.baseY *= ry; G.heartPickup.y *= ry; }
+    }
+  }
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(handleResize, 120);
+  });
+
+  // ---------- 16. UPDATE LOOP ----------
+  function update(elapsedMs) {
+    if (G.state !== 'GAME_OVER') {
+      updateFalling(elapsedMs);
+      if (G.players[0].hearts <= 0 || G.players[1].hearts <= 0) { endGame(); return; }
+    }
+
+    if (G.state === 'AIMING') {
+      const cur = G.players[G.currentPlayerIndex];
+      const rate = elapsedMs / 1000;
+      // The axolotl throws rightward and the lizard throws leftward, so the same
+      // angle delta spins their aim arrows in opposite screen directions unless
+      // we flip the sign for whichever player is facing left.
+      const facing = cur.index === 0 ? 1 : -1;
+      if (G.keys.has('ArrowRight')) cur.angle = clamp(cur.angle - ANGLE_SPEED * rate * facing, ANGLE_MIN, ANGLE_MAX);
+      if (G.keys.has('ArrowLeft')) cur.angle = clamp(cur.angle + ANGLE_SPEED * rate * facing, ANGLE_MIN, ANGLE_MAX);
+      if (G.keys.has('ArrowUp')) cur.power = clamp(cur.power + POWER_SPEED * rate, POWER_MIN, POWER_MAX);
+      if (G.keys.has('ArrowDown')) cur.power = clamp(cur.power - POWER_SPEED * rate, POWER_MIN, POWER_MAX);
+    } else if (G.state === 'AI_THINKING') {
+      updateAiThink(elapsedMs);
+    } else if (G.state === 'FLYING') {
+      G.physAccum += elapsedMs;
+      while (G.physAccum >= STEP_MS) {
+        updateProjectileStep();
+        G.physAccum -= STEP_MS;
+        if (G.state !== 'FLYING') break;
+      }
+    } else if (G.state === 'RESOLVING') {
+      G.resolveTimer -= elapsedMs;
+      if (G.resolveTimer <= 0) nextTurn();
+    }
+
+    for (const p of G.players) if (p.hitTimer > 0) p.hitTimer = Math.max(0, p.hitTimer - elapsedMs);
+    updateParticles(elapsedMs);
+    updateToast(elapsedMs);
+    updateDecor(elapsedMs);
+    updateHeartPickup();
+  }
+
+  // ---------- 17. RENDER ----------
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawSky() {
+    const g = ctx.createLinearGradient(0, 0, 0, CH);
+    g.addColorStop(0, G.theme.sky[0]);
+    g.addColorStop(1, G.theme.sky[1]);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, CW, CH);
+  }
+
+  function drawCloud(d) {
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.scale(d.scale, d.scale);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 26, 14, 0, 0, Math.PI * 2);
+    ctx.ellipse(22, -6, 18, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(-22, -4, 16, 11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function roundRectLocal(x, y, w, h, r) {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawDecor() {
+    for (const d of G.decor) {
+      if (d.type === 'cloud') drawCloud(d);
+      else if (d.type === 'flower') {
+        const gy = heightAt(d.x);
+        ctx.save();
+        ctx.translate(d.x, gy);
+        ctx.scale(SCALE, SCALE);
+        ctx.fillStyle = '#ffe066';
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * 5, -14 + Math.sin(a) * 5, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#ff9f45';
+        ctx.beginPath(); ctx.arc(0, -14, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#4f8a37'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 0); ctx.stroke();
+        ctx.restore();
+      } else if (d.type === 'lily') {
+        const gy = heightAt(d.x);
+        ctx.fillStyle = '#3f7a3f';
+        ctx.beginPath(); ctx.ellipse(d.x, gy - 1, 16 * SCALE, 6 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e06fae';
+        ctx.beginPath(); ctx.arc(d.x, gy - 3 * SCALE, 3 * SCALE, 0, Math.PI * 2); ctx.fill();
+      } else if (d.type === 'rock') {
+        const gy = heightAt(d.x);
+        ctx.save();
+        ctx.translate(d.x, gy);
+        ctx.scale(d.scale, d.scale);
+        ctx.fillStyle = '#b9c4d6';
+        ctx.beginPath();
+        ctx.moveTo(-16, 2); ctx.lineTo(-10, -14); ctx.lineTo(4, -18); ctx.lineTo(16, -4); ctx.lineTo(12, 2);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else if (d.type === 'cactus') {
+        const gy = heightAt(d.x);
+        ctx.save();
+        ctx.translate(d.x, gy);
+        ctx.scale(d.scale, d.scale);
+        ctx.fillStyle = '#3f8f4f';
+        ctx.beginPath(); roundRectLocal(-6, -34, 12, 34, 5); ctx.fill();
+        ctx.beginPath(); roundRectLocal(-18, -22, 12, 10, 5); ctx.fill();
+        ctx.beginPath(); roundRectLocal(6, -28, 12, 10, 5); ctx.fill();
+        ctx.restore();
+      } else if (d.type === 'star') {
+        const alpha = 0.4 + 0.6 * Math.abs(Math.sin(d.twinkle));
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        ctx.beginPath(); ctx.arc(d.x, d.y, 1.6 * SCALE, 0, Math.PI * 2); ctx.fill();
+      } else if (d.type === 'moon') {
+        ctx.fillStyle = '#f4f0da';
+        ctx.beginPath(); ctx.arc(d.x, d.y, 34 * SCALE, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(200,195,170,0.5)';
+        ctx.beginPath(); ctx.arc(d.x - 10 * SCALE, d.y - 8 * SCALE, 5 * SCALE, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(d.x + 8 * SCALE, d.y + 10 * SCALE, 7 * SCALE, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  function drawTuft(x, gy, sizeVar) {
+    const sv = sizeVar || 1;
+    ctx.strokeStyle = G.theme.cap;
+    ctx.lineWidth = 2 * SCALE;
+    ctx.lineCap = 'round';
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * 2.5 * SCALE, gy);
+      ctx.quadraticCurveTo(x + i * 3.5 * SCALE, gy - 7 * SCALE * sv, x + i * 5 * SCALE, gy - (12 + Math.abs(i)) * SCALE * sv);
+      ctx.stroke();
+    }
+  }
+
+  function drawTerrainDetail() {
+    for (const d of G.terrainDetail) {
+      const gy = heightAt(d.x);
+      if (d.kind === 'tuft') drawTuft(d.x, gy, d.sizeVar);
+      else if (d.kind === 'pebble') {
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.beginPath(); ctx.ellipse(d.x, gy - 2 * SCALE, 5 * SCALE, 3 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (d.kind === 'sparkle') {
+        const a = 0.3 + 0.5 * Math.abs(Math.sin(G.t * 0.002 + d.seed));
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.beginPath(); ctx.arc(d.x, gy - 3 * SCALE, 1.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  function terrainTopPath(step) {
+    ctx.beginPath();
+    let first = true;
+    for (let x = 0; x <= CW; x += step) {
+      const y = heightAt(x);
+      if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+    }
+  }
+
+  function drawTerrain() {
+    const step = 6;
+    const capH = 10 * SCALE;
+
+    // main dirt fill
+    ctx.beginPath();
+    ctx.moveTo(0, CH);
+    for (let x = 0; x <= CW; x += step) ctx.lineTo(x, heightAt(x));
+    ctx.lineTo(CW, CH);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, GROUND_MIN, 0, CH);
+    g.addColorStop(0, G.theme.ground[0]);
+    g.addColorStop(0.4, G.theme.ground[1]);
+    g.addColorStop(1, G.theme.ground[2] || G.theme.ground[1]);
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // grass/snow/rock cap ribbon following the surface
+    ctx.beginPath();
+    let first = true;
+    for (let x = 0; x <= CW; x += step) { const y = heightAt(x); if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); }
+    for (let x = CW; x >= 0; x -= step) ctx.lineTo(x, heightAt(x) + capH);
+    ctx.closePath();
+    ctx.fillStyle = G.theme.cap;
+    ctx.globalAlpha = 0.85;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // shading inside dug-out / collapsed areas so holes read as pits
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, CH);
+    for (let x = 0; x <= CW; x += step) ctx.lineTo(x, heightAt(x));
+    ctx.lineTo(CW, CH);
+    ctx.closePath();
+    ctx.clip();
+    for (let x = 0; x <= CW; x += 10) {
+      const dug = dugAt(x);
+      if (dug > 6) {
+        // darker pit shading for dug-out ground
+        const y = heightAt(x);
+        const alpha = clamp(dug / MAX_DIG, 0, 0.55);
+        ctx.fillStyle = `rgba(12,9,6,${alpha})`;
+        ctx.fillRect(x - 6, y, 12, Math.min(70 * SCALE, dug * 0.9));
+      } else if (dug < -6) {
+        // piled-up ground — tint it to match whichever ammo built it (snow vs. mud)
+        const y = heightAt(x);
+        const h = Math.min(46 * SCALE, -dug * 0.9);
+        const snowAmt = sampleAt(G.terrainSnow, x);
+        const mudAmt = sampleAt(G.terrainMud, x);
+        if (snowAmt > 4 && snowAmt >= mudAmt) {
+          const alpha = clamp(snowAmt / MAX_BUILD, 0, 0.95);
+          ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.4 * alpha})`;
+          ctx.fillRect(x - 6, y, 12, h);
+          ctx.fillStyle = `rgba(214,232,250,${0.5 * alpha})`;
+          ctx.fillRect(x - 6, y + h * 0.55, 12, h * 0.45);
+        } else {
+          const alpha = clamp(-dug / MAX_BUILD, 0, 0.6);
+          ctx.fillStyle = `rgba(96,64,36,${alpha})`;
+          ctx.fillRect(x - 6, y, 12, h);
+        }
+      }
+    }
+    ctx.restore();
+
+    // surface outline
+    terrainTopPath(step);
+    ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+    ctx.lineWidth = 2 * SCALE;
+    ctx.stroke();
+
+    drawTerrainDetail();
+  }
+
+  function drawAimBarrel(p, dir) {
+    const rad = p.angle * Math.PI / 180;
+    const sx = p.x, sy = throwOriginY(p);
+    const len = 30 * SCALE;
+    const ex = sx + Math.cos(rad) * len * dir;
+    const ey = sy - Math.sin(rad) * len;
+    // dashed aim shaft
+    ctx.save();
+    ctx.setLineDash([4 * SCALE, 4 * SCALE]);
+    ctx.strokeStyle = 'rgba(40,40,50,0.85)';
+    ctx.lineWidth = 3 * SCALE;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.restore();
+    // arrowhead
+    const ah = 6 * SCALE;
+    ctx.fillStyle = '#ffd93d';
+    ctx.strokeStyle = 'rgba(60,40,0,0.7)';
+    ctx.lineWidth = 1 * SCALE;
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(Math.atan2(ey - sy, ex - sx));
+    ctx.beginPath();
+    ctx.moveTo(ah, 0); ctx.lineTo(-ah * 0.6, ah * 0.7); ctx.lineTo(-ah * 0.6, -ah * 0.7);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  // All creature art is drawn in local coords facing RIGHT (+x); drawCharacter flips
+  // the lizard with ctx.scale so the two face each other.
+  function drawAxolotlGills() {
+    // three feathery stalks per implied side, fanning up-and-back from behind the head
+    ctx.fillStyle = '#ff8ec4';
+    const angles = [-2.35, -1.9, -1.45, -1.0];
+    for (const a of angles) {
+      let x = 8, y = -26;
+      for (let i = 0; i < 5; i++) {
+        x += Math.cos(a) * 3.1;
+        y += Math.sin(a) * 3.1;
+        const r = 3.3 - i * 0.5;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  function drawAxolotlShape() {
+    ctx.lineJoin = 'round';
+    // tail with top fin, sweeping out behind
+    ctx.fillStyle = '#ff9ecb'; ctx.strokeStyle = '#df6ba6'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-16, -18);
+    ctx.quadraticCurveTo(-40, -30, -52, -14);
+    ctx.quadraticCurveTo(-40, -6, -16, -8);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    // little legs
+    ctx.fillStyle = '#ff9ecb';
+    ctx.beginPath(); ctx.ellipse(-8, -1, 4, 5, 0.25, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(7, -1, 4, 5, -0.25, 0, Math.PI * 2); ctx.fill();
+
+    // body
+    ctx.beginPath(); ctx.ellipse(-2, -14, 21, 13, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffb3de'; ctx.fill(); ctx.stroke();
+    // belly highlight
+    ctx.beginPath(); ctx.ellipse(-2, -9, 14, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
+
+    // gills behind head
+    drawAxolotlGills();
+
+    // head
+    ctx.beginPath(); ctx.ellipse(17, -16, 15, 13, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffc2e5'; ctx.fill(); ctx.strokeStyle = '#df6ba6'; ctx.stroke();
+
+    // eyes + shine
+    ctx.fillStyle = '#3a2233';
+    ctx.beginPath(); ctx.arc(15, -20, 2.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(24, -20, 2.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(15.8, -20.8, 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(24.8, -20.8, 0.8, 0, Math.PI * 2); ctx.fill();
+    // rosy cheeks
+    ctx.fillStyle = 'rgba(255,120,180,0.5)';
+    ctx.beginPath(); ctx.arc(12, -12, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(26, -12, 3, 0, Math.PI * 2); ctx.fill();
+    // happy smile
+    ctx.strokeStyle = '#b8477e'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(19.5, -15, 6, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke();
+  }
+
+  function drawLizardShape() {
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    // long tapering tail curling behind
+    ctx.strokeStyle = '#4fae4f';
+    ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(-14, -13); ctx.quadraticCurveTo(-40, -20, -56, -7); ctx.stroke();
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-46, -11); ctx.quadraticCurveTo(-60, -6, -66, 2); ctx.stroke();
+
+    // legs with little feet
+    ctx.strokeStyle = '#3f9142'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-10, -7); ctx.lineTo(-15, 3); ctx.lineTo(-8, 5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(13, -7); ctx.lineTo(17, 4); ctx.lineTo(24, 5); ctx.stroke();
+
+    // body
+    ctx.beginPath(); ctx.ellipse(0, -13, 23, 11, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#63c257'; ctx.fill();
+    ctx.strokeStyle = '#3f9142'; ctx.lineWidth = 2; ctx.stroke();
+    // lighter belly
+    ctx.beginPath(); ctx.ellipse(0, -9, 17, 6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#8fe07a'; ctx.fill();
+
+    // dorsal spikes
+    ctx.fillStyle = '#2f7a34';
+    for (const s of [[-15, -20], [-8, -23], [-1, -24], [6, -23], [13, -21]]) {
+      ctx.beginPath();
+      ctx.moveTo(s[0] - 4, s[1] + 5); ctx.lineTo(s[0], s[1] - 4); ctx.lineTo(s[0] + 4, s[1] + 5);
+      ctx.closePath(); ctx.fill();
+    }
+    // back spots
+    ctx.fillStyle = 'rgba(47,122,52,0.55)';
+    for (const d of [[-9, -13], [1, -11], [-15, -11]]) { ctx.beginPath(); ctx.arc(d[0], d[1], 2, 0, Math.PI * 2); ctx.fill(); }
+
+    // head with snout
+    ctx.beginPath();
+    ctx.moveTo(14, -21);
+    ctx.quadraticCurveTo(34, -22, 39, -13);
+    ctx.quadraticCurveTo(33, -5, 18, -7);
+    ctx.closePath();
+    ctx.fillStyle = '#63c257'; ctx.fill(); ctx.strokeStyle = '#3f9142'; ctx.lineWidth = 2; ctx.stroke();
+
+    // eye
+    ctx.fillStyle = '#f5f2c0';
+    ctx.beginPath(); ctx.arc(23, -17, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1c2b16';
+    ctx.beginPath(); ctx.arc(24, -17, 2, 0, Math.PI * 2); ctx.fill();
+    // nostril + mouth
+    ctx.fillStyle = '#2f7a34';
+    ctx.beginPath(); ctx.arc(37, -13, 1.1, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#2f7a34'; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(19, -10); ctx.lineTo(38, -12); ctx.stroke();
+  }
+
+  function drawCharacter(p) {
+    const dir = p.index === 0 ? 1 : -1;
+    const cs = SCALE * CHAR_SCALE;
+    const bob = p.falling ? 0 : Math.sin(G.t * 0.003 + p.index * 2) * 3 * cs;
+    const hitWobble = p.hitTimer > 0 ? Math.sin(G.t * 0.05) * (p.hitTimer / 900) * 0.4 * dir : 0;
+    const fallTilt = p.falling ? clamp(p.fallVy * 0.05, -0.4, 0.4) * dir : 0;
+    const originY = p.y + bob;
+
+    // soft ground shadow
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 2 * cs, 22 * cs, 5 * cs, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(p.x, originY);
+    ctx.rotate(hitWobble + fallTilt);
+    ctx.scale(dir * cs, cs);
+    if (p.index === 0) drawAxolotlShape(); else drawLizardShape();
+    ctx.restore();
+
+    if (p.hitTimer > 0) {
+      const a = clamp(p.hitTimer / 900, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = (16 * cs) + 'px sans-serif';
+      ctx.fillText('⭐', p.x - 18 * cs, originY - 46 * cs);
+      ctx.fillText('⭐', p.x + 7 * cs, originY - 52 * cs);
+      ctx.restore();
+    }
+    if (p.frozen) {
+      ctx.font = (20 * cs) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('❄️', p.x, originY - 44 * cs);
+      ctx.textAlign = 'left';
+    }
+    if ((G.state === 'AIMING' || G.state === 'AI_THINKING') && G.currentPlayerIndex === p.index) {
+      drawAimBarrel(p, dir);
+    }
+  }
+
+  function drawProjectile() {
+    const pr = G.projectile;
+    if (!pr) return;
+    const rgb = hexToRgb(SPLAT_COLORS[pr.ammo.id] || '#ffffff');
+    // tapering colored motion streak connecting recent positions
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let i = 1; i < pr.trail.length; i++) {
+      const a = i / pr.trail.length;
+      ctx.strokeStyle = `rgba(${rgb},${a * 0.45})`;
+      ctx.lineWidth = a * 7 * SCALE;
+      ctx.beginPath();
+      ctx.moveTo(pr.trail[i - 1].x, pr.trail[i - 1].y);
+      ctx.lineTo(pr.trail[i].x, pr.trail[i].y);
+      ctx.stroke();
+    }
+    // spinning projectile
+    ctx.save();
+    ctx.translate(pr.x, pr.y);
+    ctx.rotate(pr.spin);
+    ctx.font = (19 * SCALE) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pr.ammo.emoji, 0, 0);
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+  }
+
+  function drawHelperArc() {
+    if (G.state !== 'AIMING') return;
+    const p = G.players[G.currentPlayerIndex];
+    const ammo = ammoById(p.ammoId);
+    if (!(G.helperArc || ammo.fullArc)) return;
+    const dir = p.index === 0 ? 1 : -1;
+    const sim = simulateTrajectory(p.x, throwOriginY(p), p.angle, p.power, dir, ammo, G.players[1 - p.index]);
+    // only reveal the first portion of the arc (unless this ammo grants a full preview) so the
+    // landing spot stays a guess, not a guarantee.
+    const frac = ammo.fullArc ? 1 : 0.5;
+    const showCount = Math.max(2, Math.floor(sim.points.length * frac));
+    // start a few steps out so the first dot doesn't sit on top of the thrower
+    for (let i = 6; i < showCount; i += 4) {
+      const alpha = clamp(1 - i / showCount, 0, 1) * 0.85 + 0.15;
+      const pt = sim.points[i];
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 3.5 * SCALE, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,220,60,${alpha})`;
+      ctx.fill();
+      ctx.lineWidth = 1.2 * SCALE;
+      ctx.strokeStyle = `rgba(60,40,0,${alpha * 0.8})`;
+      ctx.stroke();
+    }
+  }
+
+  function heartsString(p) {
+    let s = '';
+    for (let i = 0; i < MAX_HEARTS; i++) s += i < p.hearts ? '❤️' : '🖤';
+    return s;
+  }
+
+  function drawTopHUD() {
+    const barH = 60 * SCALE;
+    ctx.fillStyle = 'rgba(20,20,30,0.42)';
+    ctx.fillRect(0, 0, CW, barH);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${15 * SCALE}px sans-serif`;
+    ctx.fillText(`🩷 ${G.players[0].name}`, 14 * SCALE, 20 * SCALE);
+    ctx.font = `${17 * SCALE}px sans-serif`;
+    ctx.fillText(heartsString(G.players[0]), 14 * SCALE, 42 * SCALE);
+    ctx.font = `${13 * SCALE}px sans-serif`;
+    ctx.fillText(`⭐ ${G.players[0].points} pts`, 14 * SCALE, 56 * SCALE);
+
+    ctx.textAlign = 'right';
+    ctx.font = `bold ${15 * SCALE}px sans-serif`;
+    ctx.fillText(`${G.players[1].name} 🦎`, CW - 14 * SCALE, 20 * SCALE);
+    ctx.font = `${17 * SCALE}px sans-serif`;
+    ctx.fillText(heartsString(G.players[1]), CW - 14 * SCALE, 42 * SCALE);
+    ctx.font = `${13 * SCALE}px sans-serif`;
+    ctx.fillText(`${G.players[1].points} pts ⭐`, CW - 14 * SCALE, 56 * SCALE);
+
+    ctx.textAlign = 'center';
+    ctx.font = `${14 * SCALE}px sans-serif`;
+    ctx.fillText(`${G.theme.icon} ${G.theme.name}`, CW / 2, 18 * SCALE);
+    const arrow = G.wind === 0 ? '⏸️' : (G.wind > 0 ? '➡️' : '⬅️');
+    ctx.font = `${16 * SCALE}px sans-serif`;
+    ctx.fillText(`💨 ${arrow} ${Math.abs(G.wind)}`, CW / 2, 42 * SCALE);
+    ctx.textAlign = 'left';
+  }
+
+  // Draws one player's row(s) of unlocked weapon icons, highlighting the equipped one.
+  // Breaks text into lines no wider than maxWidth, using the ctx's current font.
+  function wrapText(text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w;
+      if (cur && ctx.measureText(test).width > maxWidth) { lines.push(cur); cur = w; }
+      else cur = test;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  // Shows every weapon: unlocked ones in full color, locked ones greyed out with a
+  // small lock badge, and the equipped one wrapped in a bright, unmistakable outline.
+  // A short description of that player's currently selected weapon prints below the grid.
+  function drawWeaponList(x, y, colW, player) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
+    const label = player.index === 0 ? '🩷 Axolotl' : '🦎 Lizard';
+    ctx.fillText(label, x, y);
+
+    const iconSize = 19 * SCALE, gap = 4 * SCALE;
+    const perRow = Math.max(2, Math.floor((colW + gap) / (iconSize + gap)));
+    const startY = y + 9 * SCALE;
+    AMMO.forEach((ammo, i) => {
+      const col = i % perRow, row = Math.floor(i / perRow);
+      const bx = x + col * (iconSize + gap);
+      const by = startY + row * (iconSize + gap);
+      const locked = !player.unlocked.includes(ammo.id);
+      const selected = !locked && player.ammoId === ammo.id;
+
+      if (selected) {
+        // pulsing glow ring makes the current selection impossible to miss
+        const pulse = 1 + Math.sin(G.t * 0.006) * 0.08;
+        const pad = iconSize * (pulse - 1) / 2;
+        ctx.save();
+        ctx.shadowColor = 'rgba(255,217,61,0.95)';
+        ctx.shadowBlur = 8 * SCALE;
+        ctx.fillStyle = 'rgba(255,217,61,0.95)';
+        roundRect(bx - pad, by - pad, iconSize + pad * 2, iconSize + pad * 2, 6 * SCALE);
+        ctx.fill();
+        ctx.restore();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.3 * SCALE;
+        roundRect(bx - pad, by - pad, iconSize + pad * 2, iconSize + pad * 2, 6 * SCALE);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = locked ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.15)';
+        roundRect(bx, by, iconSize, iconSize, 5 * SCALE);
+        ctx.fill();
+      }
+
+      ctx.save();
+      if (locked) ctx.filter = 'grayscale(1) brightness(0.65) opacity(0.6)';
+      ctx.font = `${(selected ? 13.5 : 12.5) * SCALE}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(ammo.emoji, bx + iconSize / 2, by + iconSize / 2 + 0.5 * SCALE);
+      ctx.restore();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+
+      if (locked) {
+        const lx = bx + iconSize - 2 * SCALE, ly = by + iconSize - 2 * SCALE;
+        ctx.fillStyle = 'rgba(20,16,10,0.85)';
+        ctx.beginPath(); ctx.arc(lx, ly, 6.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+        ctx.font = `${8.5 * SCALE}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔒', lx, ly + 0.5 * SCALE);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
+    });
+
+    // selected weapon's name, then a short blurb below it — both wrapped to the column
+    const rows = Math.ceil(AMMO.length / perRow);
+    const gridBottom = startY + rows * (iconSize + gap) - gap;
+    const selAmmo = ammoById(player.ammoId);
+
+    ctx.font = `bold ${11 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#ffe98a';
+    ctx.textAlign = 'left';
+    const nameY = gridBottom + 13 * SCALE;
+    ctx.fillText(`${selAmmo.emoji} ${selAmmo.name}`, x, nameY);
+
+    ctx.font = `italic ${9.5 * SCALE}px sans-serif`;
+    ctx.fillStyle = 'rgba(223,227,255,0.85)';
+    ctx.textAlign = 'left';
+    const lines = wrapText(selAmmo.desc, colW);
+    let ly = nameY + 13 * SCALE;
+    for (const line of lines) {
+      ctx.fillText(line, x, ly);
+      ly += 11.5 * SCALE;
+    }
+  }
+
+  function drawControlPanel() {
+    if (G.state !== 'AIMING' && G.state !== 'AI_THINKING') return;
+    const p = G.players[G.currentPlayerIndex];
+    const ammo = ammoById(p.ammoId);
+
+    const panelW = clamp(CW * 0.74, 560 * SCALE, 980 * SCALE);
+    const panelH = 136 * SCALE;
+    const panelX = CW / 2 - panelW / 2, panelY = CH - panelH - 14 * SCALE;
+    ctx.fillStyle = 'rgba(15,15,25,0.6)';
+    roundRect(panelX, panelY, panelW, panelH, 14 * SCALE);
+    ctx.fill();
+
+    const padX = 16 * SCALE;
+    const sideW = panelW * 0.24;
+    const leftX = panelX + padX;
+    const rightX = panelX + panelW - sideW - padX;
+    const midX = leftX + sideW + padX;
+    const midW = rightX - midX - padX;
+
+    // dividers between the weapon columns and the center turn info
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(midX - padX / 2, panelY + 10 * SCALE); ctx.lineTo(midX - padX / 2, panelY + panelH - 10 * SCALE);
+    ctx.moveTo(rightX - padX / 2, panelY + 10 * SCALE); ctx.lineTo(rightX - padX / 2, panelY + panelH - 10 * SCALE);
+    ctx.stroke();
+
+    drawWeaponList(leftX, panelY + 18 * SCALE, sideW, G.players[0]);
+    drawWeaponList(rightX, panelY + 18 * SCALE, sideW, G.players[1]);
+
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.font = `bold ${15 * SCALE}px sans-serif`;
+    const label = p.index === 0 ? '🩷' : '🦎';
+    ctx.fillText(`${label} ${p.name}'s turn`, midX, panelY + 22 * SCALE);
+
+    ctx.font = `${13.5 * SCALE}px sans-serif`;
+    const velocity = Math.round(SPEED_MIN_BASE + (p.power / 100) * (SPEED_MAX_BASE - SPEED_MIN_BASE));
+    ctx.fillText(`${ammo.emoji} ${ammo.name}  ·  📐 ${Math.round(p.angle)}°  ·  🚀 ${velocity}`, midX, panelY + 42 * SCALE);
+
+    // power bar
+    const barX = midX, barY = panelY + 50 * SCALE, barW = midW, barH = 12 * SCALE;
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    roundRect(barX, barY, barW, barH, 6 * SCALE);
+    ctx.fill();
+    ctx.fillStyle = '#7CFC9A';
+    roundRect(barX, barY, barW * (p.power / 100), barH, 6 * SCALE);
+    ctx.fill();
+
+    ctx.font = `${11.5 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#dfe3ff';
+    if (G.state === 'AI_THINKING') {
+      ctx.fillText('🤔 thinking...', midX, panelY + 78 * SCALE);
+    } else {
+      ctx.fillText('←→ Angle · ↑↓ Power · A/D Ammo · SPACE Throw', midX, panelY + 78 * SCALE);
+    }
+  }
+
+  function drawToast() {
+    if (!G.toast) return;
+    const t = G.toast;
+    let alpha = 1;
+    if (t.life > t.max - 200) alpha = (t.max - t.life) / 200;
+    else if (t.life < 300) alpha = t.life / 300;
+    const w = clamp(CW * 0.35, 340 * SCALE, 500 * SCALE);
+    const h = 36 * SCALE;
+    ctx.save();
+    ctx.globalAlpha = clamp(alpha, 0, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(CW / 2 - w / 2, 70 * SCALE, w, h, h / 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `${17 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(t.text, CW / 2, 70 * SCALE + h * 0.66);
+    ctx.restore();
+    ctx.textAlign = 'left';
+  }
+
+  function drawHeartPickup() {
+    const hp = G.heartPickup;
+    if (!hp || !hp.active) return;
+    const pulse = 1 + Math.sin(G.t * 0.006) * 0.09;
+    // glowing halo
+    ctx.save();
+    const glow = ctx.createRadialGradient(hp.x, hp.y, 1.5 * SCALE, hp.x, hp.y, 18 * SCALE * pulse);
+    glow.addColorStop(0, 'rgba(255,120,160,0.55)');
+    glow.addColorStop(1, 'rgba(255,120,160,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(hp.x, hp.y, 18 * SCALE * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // sparkle ring
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let i = 0; i < 4; i++) {
+      const a = G.t * 0.002 + i * Math.PI / 2;
+      const rx = hp.x + Math.cos(a) * 15 * SCALE, ry = hp.y + Math.sin(a) * 15 * SCALE;
+      ctx.beginPath(); ctx.arc(rx, ry, 1.2 * SCALE, 0, Math.PI * 2); ctx.fill();
+    }
+    // the heart
+    ctx.font = (20 * SCALE * pulse) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('❤️', hp.x, hp.y);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, CW, CH);
+    drawSky();
+    drawDecor();
+    drawTerrain();
+    drawHeartPickup();
+    drawCharacter(G.players[0]);
+    drawCharacter(G.players[1]);
+    drawProjectile();
+    drawHelperArc();
+    renderParticles();
+    drawTopHUD();
+    drawControlPanel();
+    drawToast();
+  }
+
+  // ---------- 18. MAIN LOOP ----------
+  let lastTime = null;
+  function loop(now) {
+    if (lastTime == null) lastTime = now;
+    const elapsedMs = Math.min(50, now - lastTime);
+    lastTime = now;
+    G.t += elapsedMs;
+    update(elapsedMs);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- 19. INIT ----------
+  handleResize();
+  newMatch();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

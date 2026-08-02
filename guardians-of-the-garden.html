@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guardians of the Garden: Axolotl &amp; Lizard</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #0d0f1f;
+    font-family: 'Trebuchet MS', 'Comic Sans MS', 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+  #app { position: relative; width: 100vw; height: 100vh; }
+  canvas#game { display: block; width: 100%; height: 100%; background: #222; cursor: default; }
+  .overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; color: #fff; background: rgba(10, 20, 12, 0.6);
+    padding: 20px; box-sizing: border-box;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h1 { font-size: 40px; margin: 0 0 6px 0; text-shadow: 0 3px 0 rgba(0,0,0,0.35); }
+  .overlay .sub { font-size: 16px; margin: 0 0 18px 0; opacity: 0.92; max-width: 560px; line-height: 1.5; }
+  button {
+    font-family: inherit; font-size: 18px; font-weight: bold; color: #fff;
+    background: linear-gradient(#7bd67f, #3f9142); border: 3px solid #d6ffd8;
+    border-radius: 14px; padding: 14px 26px; cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.25); transition: transform 0.08s ease;
+  }
+  button:hover { transform: translateY(-2px) scale(1.03); }
+  button:active { transform: translateY(2px) scale(0.98); }
+  button:disabled { opacity: 0.55; cursor: default; transform: none !important; }
+  button.secondary { background: linear-gradient(#8fc2ff, #4a7fd6); border-color: #d6ecff; }
+  button.small { font-size: 14px; padding: 9px 16px; border-radius: 10px; border-width: 2px; }
+  .howto { font-size: 13.5px; opacity: 0.85; margin-top: 16px; max-width: 520px; }
+  #resultTitle { font-size: 34px; margin-bottom: 8px; }
+  #resultSub { font-size: 16px; margin-bottom: 14px; }
+  .menuRow { display: flex; gap: 14px; margin-top: 4px; }
+  .scoreSave { display: flex; gap: 8px; align-items: center; margin: 6px 0 12px 0; }
+  #nameInput {
+    font-family: inherit; font-size: 15px; padding: 10px 14px; border-radius: 10px;
+    border: 2px solid #7bd67f; outline: none; width: 210px; box-sizing: border-box;
+  }
+  .saveConfirm { color: #9dffb0; font-weight: bold; margin: 0 0 10px 0; min-height: 18px; }
+  .leaderboardList {
+    width: 100%; max-width: 520px; max-height: 320px; overflow-y: auto;
+    background: rgba(0,0,0,0.28); border-radius: 12px; padding: 6px 16px; margin: 12px 0; text-align: left;
+  }
+  .lbRow { display: flex; justify-content: space-between; gap: 10px; padding: 7px 2px; border-bottom: 1px solid rgba(255,255,255,0.12); font-size: 14px; }
+  .lbRow:last-child { border-bottom: none; }
+  .lbRow.top3 { color: #ffd93d; font-weight: bold; }
+  .lbName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbMeta { opacity: 0.85; font-weight: normal; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="menuOverlay" class="overlay">
+    <h1>🩷 Guardians of the Garden 🦎</h1>
+    <p class="sub">Ants, aphids, mosquitoes, caterpillars and snails are invading the garden! Team up
+    Axolotl and Lizard Friends next to each other for a Best Friends bonus, then unlock Spider, Ladybug
+    and Worm Friends as you earn coins. How far through the 99 waves can you get?</p>
+    <div class="menuRow">
+      <button id="btnStart">🌱 Start Defending</button>
+      <button id="btnMenuLeaderboard" class="secondary">🏆 Leaderboard</button>
+    </div>
+    <p class="howto">Click a Friend button, then click a garden tile to place it. Click a placed Friend
+    to upgrade or sell it. Press "Start Wave" when you're ready!</p>
+  </div>
+
+  <div id="resultOverlay" class="overlay hidden">
+    <h1 id="resultTitle">🎉 You Win! 🎉</h1>
+    <p id="resultSub">The garden is safe!</p>
+    <div class="scoreSave">
+      <input id="nameInput" type="text" maxlength="24" placeholder="Player or Team Name">
+      <button id="btnSaveScore" class="small">💾 Save Score</button>
+    </div>
+    <p id="saveConfirm" class="saveConfirm"></p>
+    <div class="menuRow">
+      <button id="btnResultLeaderboard" class="secondary">🏆 Leaderboard</button>
+      <button id="btnAgain">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <div id="leaderboardOverlay" class="overlay hidden">
+    <h1>🏆 Top Guardians of the Garden</h1>
+    <div id="leaderboardList" class="leaderboardList"></div>
+    <button id="btnCloseLeaderboard">Close</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============================================================
+  // 1. CONFIG & CONSTANTS
+  // ============================================================
+  const REF_H = 540;
+  let CW = 0, CH = 0, SCALE = 1;
+
+  const HUD_H_BASE = 58;
+  const PANEL_H_BASE = 108;
+  const TUNER_H_BASE = 116;
+  const TOTAL_WAVES = 99;
+  const START_CURRENCY = 130;
+  const START_LIVES = 10;
+  const AUTO_START_SECONDS = 30;
+  // Reward scales with how tough the kill actually was (its real HP vs. that
+  // type's wave-1 baseline), not a flat per-type number — but sub-linearly
+  // (exponent < 1), so a bug with 10x the HP pays out well under 10x the coins.
+  const REWARD_HP_EXPONENT = 0.6;
+
+  let HUD_H, PANEL_H, TUNER_H, TILE_SIZE;
+
+  // attackStyle: 'projectile' (travels, can splash+slow), 'instant' (immediate hit + line fx),
+  // 'pulse' (instant AoE burst hitting everything in range, no single target needed).
+  const TOWER_TYPES = {
+    axolotl: {
+      id: 'axolotl', name: 'Axolotl', cost: 40, unlockAt: 0,
+      dmgBase: 8, rangeBase: 130, fireRate: 1.3, splashBase: 30,
+      slowFactor: 0.55, slowDuration: 1.3, projSpeedBase: 320, attackStyle: 'projectile',
+      color: '#ff9ecb', ring: '#ff6fb0',
+      desc: 'Splashy bubbles slow down groups of pests.',
+    },
+    lizard: {
+      id: 'lizard', name: 'Lizard', cost: 55, unlockAt: 0,
+      dmgBase: 20, rangeBase: 175, fireRate: 0.95, splashBase: 0,
+      slowFactor: 1, slowDuration: 0, projSpeedBase: 0, attackStyle: 'instant',
+      color: '#8fe07a', ring: '#3f9142',
+      desc: 'Long tongue snipes tough pests instantly.',
+    },
+    spider: {
+      id: 'spider', name: 'Spider', cost: 70, unlockAt: 150,
+      dmgBase: 7, rangeBase: 150, fireRate: 1.1, splashBase: 22,
+      slowFactor: 0.4, slowDuration: 1.8, projSpeedBase: 300, attackStyle: 'projectile',
+      color: '#8a72c2', ring: '#4a2a78',
+      desc: 'Sticky webs slow pests down a lot!',
+    },
+    ladybug: {
+      id: 'ladybug', name: 'Ladybug', cost: 85, unlockAt: 300,
+      dmgBase: 11, rangeBase: 140, fireRate: 2.0, splashBase: 14,
+      slowFactor: 1, slowDuration: 0, projSpeedBase: 420, attackStyle: 'projectile',
+      color: '#ff5555', ring: '#b71c1c',
+      desc: 'Rapid-fire polka-dot blaster.',
+    },
+    bee: {
+      id: 'bee', name: 'Bee', cost: 95, unlockAt: 380,
+      dmgBase: 9, rangeBase: 145, fireRate: 1.6, splashBase: 0,
+      slowFactor: 1, slowDuration: 0, projSpeedBase: 380, attackStyle: 'projectile',
+      bonusVsFlying: 2.2,
+      color: '#ffd23f', ring: '#3a2a05',
+      desc: 'Speedy stinger — 2.2x damage vs flying pests!',
+    },
+    worm: {
+      id: 'worm', name: 'Worm', cost: 115, unlockAt: 480,
+      dmgBase: 45, rangeBase: 110, fireRate: 0.55, splashBase: 0,
+      slowFactor: 1, slowDuration: 0, projSpeedBase: 0, attackStyle: 'pulse',
+      color: '#d9a066', ring: '#8a5a2a',
+      desc: 'Ground pulse zaps every bug nearby!',
+    },
+  };
+  const TOWER_ORDER = ['axolotl', 'lizard', 'spider', 'ladybug', 'bee', 'worm'];
+  const MAX_LEVEL = 99;
+  const UPGRADE_DMG_MUL = 1.45;
+  const UPGRADE_RANGE_MUL = 1.08;
+  const UPGRADE_RATE_MUL = 1.12;
+  const UPGRADE_COST_MUL = 1.7;
+  const TEAMWORK_BUFF = 1.22;
+  // Shrinks only the tower's drawn body/creature (not its grid footprint or click/hover
+  // radius) so towers block less of the path behind them.
+  const TOWER_VISUAL_SCALE = 0.5;
+
+  const ENEMY_TYPES = {
+    ant: { id: 'ant', name: 'Ant', emoji: '🐜', hpBase: 70, speedBase: 90, reward: 4, flying: false },
+    mosquito: { id: 'mosquito', name: 'Mosquito', emoji: '🦟', hpBase: 35, speedBase: 200, reward: 6, flying: true },
+    aphid: { id: 'aphid', name: 'Aphid', emoji: '🪲', hpBase: 30, speedBase: 93, reward: 2, flying: false },
+    // A thick shell shrugs off part of every hit (see damageEnemy), on top of a much bigger hp pool.
+    snail: { id: 'snail', name: 'Snail', emoji: '🐌', hpBase: 600, speedBase: 40, reward: 16, flying: false, armor: 0.35 },
+    caterpillar: { id: 'caterpillar', name: 'Caterpillar', emoji: '🐛', hpBase: 250, speedBase: 55, reward: 6, flying: false },
+  };
+
+  // Path is a randomized orthogonal zig-zag laid exactly on the tile grid (see
+  // generatePathLayout) — a fixed number of turns, each horizontal run traveling
+  // full tile-widths and each vertical run traveling a fixed tile budget, so every
+  // generated layout is a different shape but always the same total tile length.
+  const PATH_TURNS = 3;
+  const PATH_OFFCANVAS_TILES = 1;
+
+  // ============================================================
+  // 2. UTILITIES
+  // ============================================================
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function randRange(min, max) { return min + Math.random() * (max - min); }
+  function randInt(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = randInt(0, i);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  function dist(x1, y1, x2, y2) { return Math.hypot(x2 - x1, y2 - y1); }
+
+  function distToSegment(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    let t = lenSq > 0 ? ((px - ax) * dx + (py - ay) * dy) / lenSq : 0;
+    t = clamp(t, 0, 1);
+    const cx = ax + t * dx, cy = ay + t * dy;
+    return Math.hypot(px - cx, py - cy);
+  }
+
+  function applyScale() {
+    SCALE = clamp(CH / REF_H, 0.75, 2.2);
+    HUD_H = HUD_H_BASE * SCALE;
+    PANEL_H = PANEL_H_BASE * SCALE;
+    TUNER_H = TUNER_H_BASE * SCALE;
+  }
+
+  // ============================================================
+  // 3. STATE
+  // ============================================================
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const G = {
+    state: 'MENU', // MENU, PLAYING, GAME_OVER, WIN
+    lives: START_LIVES,
+    currency: START_CURRENCY,
+    totalEarned: 0, // lifetime coins earned (kills + wave bonuses); gates tower unlocks
+    waveNumber: 0,
+    waveActive: false,
+    waveTimer: AUTO_START_SECONDS, // counts down between waves; hits 0 -> auto-starts next wave
+    spawnQueue: [],
+    spawnTimer: 0,
+    spawnInterval: 0.8,
+    towers: [],
+    enemies: [],
+    projectiles: [],
+    tongueFx: [],
+    pulseFx: [],
+    particles: [],
+    toast: null,
+    toastQueue: [],
+    placingType: null,
+    selectedTower: null,
+    mouse: { x: -1000, y: -1000, down: false },
+    uiButtons: [],
+    speedMul: 1,
+    showPestTuner: false,
+    showFriendTuner: false,
+    hpGrowthPct: 5, // % hp compounded per wave, tunable live from the Pest Tuner
+    speedGrowthPct: 1.5, // % speed compounded per wave, tunable live from the Pest Tuner
+    selectedEnemy: null,
+    t: 0,
+    nextId: 1,
+    pathLayout: null, // { turnCols, laneRows } — the tile-grid route; regenerated each newGame()
+    pathPx: [],
+    pathSegLen: [],
+    pathCumLen: [],
+    pathTotalLen: 0,
+    gridCols: 0,
+    gridRows: 0,
+    gridOX: 0,
+    gridOY: 0,
+    buildable: [],
+    scenery: [],
+    playX: 0, playY: 0, playW: 0, playH: 0,
+  };
+
+  function genId() { return G.nextId++; }
+
+  // ============================================================
+  // 4. PATH & GRID
+  // ============================================================
+  // Builds a randomized orthogonal zig-zag route on a `rows` x `cols` tile grid:
+  // a fixed number of turns, alternating horizontal runs (which always sum to
+  // the full `cols` width) and vertical runs (whose magnitudes are a fixed set,
+  // just shuffled/directed randomly) — so total tile length never changes, only
+  // the shape of the zig-zag does. Lanes/turns are expressed as tile-grid *line
+  // indices* (0..rows or 0..cols), not tile indices — the road always runs along
+  // the seam between two rows/columns of tiles, never through a tile's middle,
+  // so every tile stays fully buildable at its center.
+  function generatePathLayout(rows, cols) {
+    const turns = clamp(PATH_TURNS, 1, Math.max(1, cols - 2));
+    const cutSet = new Set();
+    while (cutSet.size < turns) cutSet.add(randInt(1, cols - 1));
+    const turnCols = Array.from(cutSet).sort((a, b) => a - b);
+
+    const vMagPool = [0.15, 0.30, 0.45, 0.22, 0.38];
+    const vMags = shuffle(vMagPool.slice(0, turns).map(f => clamp(Math.round(f * rows), 1, rows - 1)));
+
+    let row = randInt(1, Math.max(1, rows - 1));
+    const laneRows = [row];
+    for (const mag of vMags) {
+      const canDown = row + mag <= rows - 1;
+      const canUp = row - mag >= 1;
+      const dir = canDown && canUp ? pick([1, -1]) : canDown ? 1 : canUp ? -1 : 1;
+      row = clamp(row + dir * mag, 1, rows - 1);
+      laneRows.push(row);
+    }
+    return { turnCols, laneRows };
+  }
+
+  // Converts a tile-grid route into pixel waypoints. Each waypoint sits exactly
+  // on a grid line (row/column boundary) rather than a tile center, so the drawn
+  // road (exactly TILE_SIZE wide) always straddles a seam — half a tile into the
+  // row/column on each side — instead of consuming any tile outright.
+  function buildPathPxFromLayout(layout) {
+    const { turnCols, laneRows } = layout;
+    const colLineX = c => G.gridOX + c * TILE_SIZE;
+    const rowLineY = r => G.gridOY + r * TILE_SIZE;
+    const marginPx = PATH_OFFCANVAS_TILES * TILE_SIZE;
+
+    const pts = [{ x: G.gridOX - marginPx, y: rowLineY(laneRows[0]) }];
+    for (let i = 0; i < turnCols.length; i++) {
+      const cx = colLineX(turnCols[i]);
+      pts.push({ x: cx, y: rowLineY(laneRows[i]) });
+      pts.push({ x: cx, y: rowLineY(laneRows[i + 1]) });
+    }
+    pts.push({ x: G.gridOX + G.gridCols * TILE_SIZE + marginPx, y: rowLineY(laneRows[laneRows.length - 1]) });
+    return pts;
+  }
+
+  function recomputePath() {
+    G.playX = 0;
+    G.playY = HUD_H;
+    G.playW = CW;
+    G.playH = CH - HUD_H - PANEL_H;
+
+    TILE_SIZE = G.playH / 7.2;
+    G.gridCols = Math.floor(G.playW / TILE_SIZE);
+    G.gridRows = Math.floor(G.playH / TILE_SIZE);
+    G.gridOX = G.playX + (G.playW - G.gridCols * TILE_SIZE) / 2;
+    G.gridOY = G.playY + (G.playH - G.gridRows * TILE_SIZE) / 2;
+
+    if (!G.pathLayout) G.pathLayout = generatePathLayout(G.gridRows, G.gridCols);
+    G.pathPx = buildPathPxFromLayout(G.pathLayout);
+
+    G.pathSegLen = [];
+    G.pathCumLen = [0];
+    for (let i = 0; i < G.pathPx.length - 1; i++) {
+      const a = G.pathPx[i], b = G.pathPx[i + 1];
+      const len = dist(a.x, a.y, b.x, b.y);
+      G.pathSegLen.push(len);
+      G.pathCumLen.push(G.pathCumLen[i] + len);
+    }
+    G.pathTotalLen = G.pathCumLen[G.pathCumLen.length - 1];
+
+    // The road only ever eats the near half of a bordering tile (see
+    // buildPathPxFromLayout) — it never fully occupies any tile — so every
+    // tile stays a legal, fair build spot.
+    G.buildable = [];
+    for (let r = 0; r < G.gridRows; r++) {
+      G.buildable.push(new Array(G.gridCols).fill(true));
+    }
+
+    G.scenery = buildScenery();
+  }
+
+  function distToPath(x, y) {
+    let minD = Infinity;
+    for (let i = 0; i < G.pathPx.length - 1; i++) {
+      const a = G.pathPx[i], b = G.pathPx[i + 1];
+      minD = Math.min(minD, distToSegment(x, y, a.x, a.y, b.x, b.y));
+    }
+    return minD;
+  }
+
+  // Spiky rosette succulents (aloe/agave-style) plus a couple of chunky
+  // Pachypodium-style swollen-trunk variants for contrast.
+  const SUCCULENT_VARIANTS = [
+    { kind: 'spiky', leafCount: 11, leafLen: 12, leafWidth: 1.8, curve: 0.25, spineTip: true, leafColor: '#8ba888', edgeColor: '#5f7a5c', centerColor: '#c8dcc0' },
+    { kind: 'spiky', leafCount: 9, leafLen: 13, leafWidth: 3.2, curve: 0.08, spineTip: true, leafColor: '#9db3c2', edgeColor: '#5f7688', centerColor: '#d8e4ea' },
+    { kind: 'spiky', leafCount: 10, leafLen: 11, leafWidth: 2.6, curve: 0.18, spineTip: true, leafColor: '#a3b06a', edgeColor: '#6f7a3f', centerColor: '#dbe4b0' },
+    { kind: 'spiky', leafCount: 12, leafLen: 10, leafWidth: 1.6, curve: 0.3, spineTip: false, leafColor: '#7fae9a', edgeColor: '#4f7a68', centerColor: '#c0e0d0' },
+    { kind: 'pachypodium', trunkColor: '#c9b98a', trunkEdge: '#8a7a52', leafColor: '#5f8a4a' },
+    { kind: 'pachypodium', trunkColor: '#b8a888', trunkEdge: '#786848', leafColor: '#4f7a44' },
+  ];
+
+  function drawSucculent(x, y, scale, rot, v) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.rotate(rot);
+    for (let i = 0; i < v.leafCount; i++) {
+      const a = (i / v.leafCount) * Math.PI * 2;
+      const len = v.leafLen * (0.85 + (i % 3) * 0.1);
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillStyle = v.leafColor;
+      ctx.beginPath();
+      ctx.moveTo(-v.leafWidth, 0);
+      ctx.quadraticCurveTo(v.curve * len, -len * 0.5, 0, -len);
+      ctx.quadraticCurveTo(-v.curve * len, -len * 0.5, v.leafWidth, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = v.edgeColor; ctx.lineWidth = 0.5;
+      ctx.stroke();
+      if (v.spineTip) {
+        ctx.fillStyle = v.edgeColor;
+        ctx.beginPath(); ctx.arc(0, -len, 0.9, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.fillStyle = v.centerColor;
+    ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPachypodium(x, y, scale, rot, v) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.rotate(rot);
+    ctx.fillStyle = v.trunkColor;
+    ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = v.trunkEdge; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.fillStyle = v.trunkEdge;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 6.5, Math.sin(a) * 6.5, 0.6, 0, Math.PI * 2); ctx.fill();
+    }
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillStyle = v.leafColor;
+      ctx.beginPath();
+      ctx.moveTo(-1.4, 0);
+      ctx.quadraticCurveTo(1, -6, 0, -8);
+      ctx.quadraticCurveTo(-1, -6, 1.4, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawPalm(x, y, scale, rot) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.rotate(rot);
+    const frondCount = 8;
+    for (let i = 0; i < frondCount; i++) {
+      const a = (i / frondCount) * Math.PI * 2;
+      const len = 17 + (i % 2) * 3;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillStyle = '#4f9a5a';
+      ctx.beginPath();
+      ctx.moveTo(-1.8, 0);
+      ctx.quadraticCurveTo(len * 0.5, -3, len, 2);
+      ctx.quadraticCurveTo(len * 0.5, 3, 1.8, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#2f6a3a'; ctx.lineWidth = 0.5; ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#8a6a4a';
+    ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5f4a32'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.restore();
+  }
+
+  // Background flavor: succulents, a few palms, and rocks clustered in small
+  // groups — all kept clear of the dirt path and the canvas edges.
+  function buildScenery() {
+    const items = [];
+    const clearance = TILE_SIZE * 0.9;
+    // Keep the whole decoration (leaves/fronds/rock edges reach ~25-30 local units
+    // out at max scale) inside the green playfield — not just its center point —
+    // so nothing pokes into the black HUD/build-panel bars above and below.
+    const edgeMargin = clamp(34 * SCALE, 4, Math.min(G.playW, G.playH) / 2 - 2);
+    const spreadOut = []; // succulent/palm centers placed so far, so new ones don't land on top of them
+    const minSpacing = 30 * SCALE;
+    function placeAwayFromPath(avoidOthers) {
+      let x, y, tries = 0;
+      do {
+        x = G.playX + edgeMargin + Math.random() * (G.playW - edgeMargin * 2);
+        y = G.playY + edgeMargin + Math.random() * (G.playH - edgeMargin * 2);
+        tries++;
+      } while (
+        (distToPath(x, y) < clearance || (avoidOthers && spreadOut.some(p => dist(x, y, p.x, p.y) < minSpacing)))
+        && tries < 16
+      );
+      if (avoidOthers) spreadOut.push({ x, y });
+      return { x, y };
+    }
+
+    const succulentCount = Math.round((G.playW * G.playH) / 42000);
+    for (let i = 0; i < succulentCount; i++) {
+      const p = placeAwayFromPath(true);
+      items.push({ kind: 'succulent', x: p.x, y: p.y, scale: (0.8 + Math.random() * 0.9) * SCALE, rot: Math.random() * Math.PI * 2, variant: pick(SUCCULENT_VARIANTS) });
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const p = placeAwayFromPath(true);
+      items.push({ kind: 'palm', x: p.x, y: p.y, scale: (1.0 + Math.random() * 0.3) * SCALE, rot: Math.random() * Math.PI * 2 });
+    }
+
+    // fewer, bigger rocks, placed in small clusters rather than scattered singly
+    const clusterCount = Math.max(2, Math.round((G.playW * G.playH) / 220000));
+    for (let i = 0; i < clusterCount; i++) {
+      const anchor = placeAwayFromPath();
+      const rocksInCluster = 2 + Math.floor(Math.random() * 3);
+      for (let j = 0; j < rocksInCluster; j++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.random() * 12 * SCALE;
+        items.push({
+          kind: 'rock',
+          x: anchor.x + Math.cos(a) * d, y: anchor.y + Math.sin(a) * d,
+          scale: (1.1 + Math.random() * 0.9) * SCALE, rot: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+    return items;
+  }
+
+  function pointAtDistance(d) {
+    if (d <= 0) return { x: G.pathPx[0].x, y: G.pathPx[0].y, angle: 0 };
+    for (let i = 0; i < G.pathSegLen.length; i++) {
+      if (d <= G.pathCumLen[i + 1] || i === G.pathSegLen.length - 1) {
+        const a = G.pathPx[i], b = G.pathPx[i + 1];
+        const segLen = G.pathSegLen[i] || 1;
+        const t = clamp((d - G.pathCumLen[i]) / segLen, 0, 1);
+        return {
+          x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t),
+          angle: Math.atan2(b.y - a.y, b.x - a.x),
+        };
+      }
+    }
+    const last = G.pathPx[G.pathPx.length - 1];
+    return { x: last.x, y: last.y, angle: 0 };
+  }
+
+  function gridCellAt(x, y) {
+    const c = Math.floor((x - G.gridOX) / TILE_SIZE);
+    const r = Math.floor((y - G.gridOY) / TILE_SIZE);
+    if (r < 0 || r >= G.gridRows || c < 0 || c >= G.gridCols) return null;
+    return { r, c };
+  }
+
+  function cellCenter(r, c) {
+    return { x: G.gridOX + (c + 0.5) * TILE_SIZE, y: G.gridOY + (r + 0.5) * TILE_SIZE };
+  }
+
+  function cellOccupied(r, c) {
+    return G.towers.some(t => t.gridR === r && t.gridC === c);
+  }
+
+  // ============================================================
+  // 5. TOWERS
+  // ============================================================
+  function earnCurrency(amount) {
+    G.currency += amount;
+    G.totalEarned += amount;
+  }
+
+  function isTowerUnlocked(type) {
+    return G.totalEarned >= TOWER_TYPES[type].unlockAt;
+  }
+
+  function towerStats(tower) {
+    const def = TOWER_TYPES[tower.type];
+    const lvlMul = Math.pow(UPGRADE_DMG_MUL, tower.level - 1);
+    const rangeMul = Math.pow(UPGRADE_RANGE_MUL, tower.level - 1);
+    const rateMul = Math.pow(UPGRADE_RATE_MUL, tower.level - 1);
+    const buffMul = tower.buffed ? TEAMWORK_BUFF : 1;
+    return {
+      damage: def.dmgBase * lvlMul * buffMul,
+      range: def.rangeBase * rangeMul * SCALE,
+      fireRate: def.fireRate * rateMul,
+      splash: def.splashBase * SCALE,
+    };
+  }
+
+  // Unscaled dmg/range at each upgrade level, for build/selection UI previews
+  // (independent of the current screen's SCALE, so the numbers read consistently).
+  function towerLevelPreview(type, capLevel) {
+    const def = TOWER_TYPES[type];
+    const levels = [];
+    for (let lvl = 1; lvl <= Math.min(capLevel || MAX_LEVEL, MAX_LEVEL); lvl++) {
+      levels.push({
+        level: lvl,
+        damage: Math.round(def.dmgBase * Math.pow(UPGRADE_DMG_MUL, lvl - 1)),
+        range: Math.round(def.rangeBase * Math.pow(UPGRADE_RANGE_MUL, lvl - 1)),
+      });
+    }
+    return levels;
+  }
+
+  function upgradeCost(tower) {
+    const def = TOWER_TYPES[tower.type];
+    return Math.round(def.cost * Math.pow(UPGRADE_COST_MUL, tower.level - 1) * 0.8);
+  }
+
+  function sellValue(tower) {
+    return Math.round(tower.invested * 0.5);
+  }
+
+  // Only the original Axolotl+Lizard pairing gets the Best Friends bonus — the
+  // newer unlockable towers are separate specialists, not part of that duo.
+  function recomputeTeamwork() {
+    const linkDist = TILE_SIZE * 1.6;
+    for (const t of G.towers) {
+      if (t.type !== 'axolotl' && t.type !== 'lizard') { t.buffed = false; continue; }
+      const otherType = t.type === 'axolotl' ? 'lizard' : 'axolotl';
+      t.buffed = G.towers.some(o => o.type === otherType && dist(t.x, t.y, o.x, o.y) <= linkDist);
+    }
+  }
+
+  function placeTower(type, r, c) {
+    const def = TOWER_TYPES[type];
+    if (!isTowerUnlocked(type)) { showToast(`🔒 ${def.name} unlocks at 🪙${def.unlockAt} earned!`); return false; }
+    if (G.currency < def.cost) { showToast('🪙 Not enough coins!'); return false; }
+    if (!G.buildable[r] || !G.buildable[r][c]) return false;
+    if (cellOccupied(r, c)) return false;
+    const center = cellCenter(r, c);
+    G.currency -= def.cost;
+    G.towers.push({
+      id: genId(), type, gridR: r, gridC: c, x: center.x, y: center.y,
+      level: 1, cooldown: 0, target: null, angle: 0,
+      invested: def.cost, buffed: false, bob: Math.random() * Math.PI * 2,
+      fireFlash: 0,
+    });
+    recomputeTeamwork();
+    playSfx('place');
+    return true;
+  }
+
+  function upgradeTower(tower) {
+    if (tower.level >= MAX_LEVEL) return;
+    const cost = upgradeCost(tower);
+    if (G.currency < cost) { showToast('🪙 Not enough coins to upgrade!'); return; }
+    G.currency -= cost;
+    tower.invested += cost;
+    tower.level++;
+    playSfx('upgrade');
+  }
+
+  function sellTower(tower) {
+    G.currency += sellValue(tower);
+    G.towers = G.towers.filter(t => t.id !== tower.id);
+    G.selectedTower = null;
+    recomputeTeamwork();
+    playSfx('sell');
+  }
+
+  // ============================================================
+  // 6. ENEMIES & WAVES
+  // ============================================================
+  // With 99 waves to climb, enemy *counts* grow quickly at first then level off
+  // (capped growth window), while hp/speed keep creeping up for the whole climb —
+  // that way late waves stay hard because bugs are tougher, not just more numerous.
+  function buildWaveQueue(n) {
+    const counts = {
+      ant: 4 + Math.floor(Math.min(n, 40) * 0.9),
+      aphid: 2 + Math.floor(Math.min(n, 30) * 0.6),
+      mosquito: n >= 2 ? Math.floor(Math.min(n - 1, 35) * 0.7) : 0,
+      caterpillar: n >= 3 ? Math.floor(Math.min(n - 2, 35) * 0.55) : 0,
+      snail: n >= 4 ? Math.floor(Math.min(n - 3, 35) * 0.35) : 0,
+    };
+    const queue = [];
+    for (const type in counts) for (let i = 0; i < counts[type]; i++) queue.push(type);
+    // shuffle so the different bugs are interspersed, not grouped by type
+    for (let i = queue.length - 1; i > 0; i--) {
+      const j = randInt(0, i);
+      [queue[i], queue[j]] = [queue[j], queue[i]];
+    }
+    return queue;
+  }
+
+  function startWave() {
+    if (G.waveActive || G.state !== 'PLAYING') return;
+    G.waveNumber++;
+    G.spawnQueue = buildWaveQueue(G.waveNumber);
+    G.spawnInterval = clamp(0.8 - G.waveNumber * 0.012, 0.22, 0.9);
+    G.spawnTimer = 0;
+    G.waveActive = true;
+    showToast(`🌿 Wave ${G.waveNumber} incoming!`);
+    playSfx('waveStart');
+  }
+
+  // Compounds per wave (each level's growth applies on top of the previous
+  // level's already-grown value), matching "grows by X% every level" literally
+  // — a flat X% of the base value each wave would understate later waves.
+  function waveGrowthMul(pct, waveNumber) {
+    return Math.pow(1 + pct / 100, Math.max(0, waveNumber - 1));
+  }
+
+  function spawnEnemy(typeId) {
+    const def = ENEMY_TYPES[typeId];
+    const hpMul = waveGrowthMul(G.hpGrowthPct, G.waveNumber);
+    const speedMul = waveGrowthMul(G.speedGrowthPct, G.waveNumber);
+    const hp = def.hpBase * hpMul;
+    G.enemies.push({
+      id: genId(), type: typeId, hp, maxHp: hp,
+      speed: def.speedBase * speedMul * SCALE,
+      dist: 0, x: G.pathPx[0].x, y: G.pathPx[0].y,
+      bobPhase: Math.random() * Math.PI * 2,
+      slowUntil: 0, slowFactor: 1, wobble: Math.random() * Math.PI * 2,
+    });
+  }
+
+  // The enemy's own maxHp already carries the wave's hp-growth compounding (and
+  // any live Pest Tuner tweaks at spawn time), so dividing by its type's base hp
+  // gives exactly how much tougher this particular kill was — reward follows that.
+  function enemyReward(enemy) {
+    const def = ENEMY_TYPES[enemy.type];
+    const hpMul = enemy.maxHp / def.hpBase;
+    return Math.max(1, Math.round(def.reward * Math.pow(hpMul, REWARD_HP_EXPONENT)));
+  }
+
+  function damageEnemy(enemy, amount, source) {
+    const armor = ENEMY_TYPES[enemy.type].armor || 0;
+    enemy.hp -= amount * (1 - armor);
+    if (enemy.hp <= 0 && G.enemies.includes(enemy)) {
+      G.enemies = G.enemies.filter(e => e.id !== enemy.id);
+      earnCurrency(enemyReward(enemy));
+      spawnPopParticles(enemy.x, enemy.y, enemy.type);
+      playSfx('pop');
+    }
+  }
+
+  // ============================================================
+  // 7. PROJECTILES / TONGUE EFFECTS
+  // ============================================================
+  // Applies a slow effect, combining with any already-active slow (keep the
+  // stronger factor, extend the longer duration) rather than overwriting blindly.
+  function applySlow(enemy, slowFactor, slowDuration) {
+    if (slowDuration <= 0) return;
+    const newUntil = G.t + slowDuration * 1000;
+    if (enemy.slowUntil > G.t) {
+      enemy.slowFactor = Math.min(enemy.slowFactor, slowFactor);
+      enemy.slowUntil = Math.max(enemy.slowUntil, newUntil);
+    } else {
+      enemy.slowFactor = slowFactor;
+      enemy.slowUntil = newUntil;
+    }
+  }
+
+  function fireProjectileAttack(tower, target, stats) {
+    const def = TOWER_TYPES[tower.type];
+    G.projectiles.push({
+      id: genId(), x: tower.x, y: tower.y, target, damage: stats.damage,
+      splash: stats.splash, speed: def.projSpeedBase * SCALE,
+      slowFactor: def.slowFactor, slowDuration: def.slowDuration,
+      bonusVsFlying: def.bonusVsFlying || 1,
+      visualType: tower.type,
+    });
+  }
+
+  function fireInstantAttack(tower, target, stats) {
+    damageEnemy(target, stats.damage);
+    G.tongueFx.push({ x1: tower.x, y1: tower.y, x2: target.x, y2: target.y, life: 140, max: 140 });
+  }
+
+  function fireWormPulse(tower, stats) {
+    for (const e of G.enemies.slice()) {
+      if (dist(tower.x, tower.y, e.x, e.y) <= stats.range) damageEnemy(e, stats.damage);
+    }
+    G.pulseFx.push({ x: tower.x, y: tower.y, life: 320, max: 320, range: stats.range });
+    playSfx('pulse');
+  }
+
+  function updateProjectiles(dtMs) {
+    const dt = dtMs / 1000;
+    for (const pr of G.projectiles) {
+      const targetAlive = G.enemies.includes(pr.target);
+      const tx = targetAlive ? pr.target.x : pr.lastX;
+      const ty = targetAlive ? pr.target.y : pr.lastY;
+      if (targetAlive) { pr.lastX = tx; pr.lastY = ty; }
+      const d = dist(pr.x, pr.y, tx, ty);
+      const step = pr.speed * dt;
+      if (d <= step || d < 4 * SCALE) {
+        pr.x = tx; pr.y = ty; pr.arrived = true;
+      } else {
+        pr.x += (tx - pr.x) / d * step;
+        pr.y += (ty - pr.y) / d * step;
+      }
+    }
+    for (const pr of G.projectiles) {
+      if (!pr.arrived) continue;
+      if (pr.splash > 0) {
+        for (const e of G.enemies.slice()) {
+          if (dist(pr.x, pr.y, e.x, e.y) <= pr.splash) {
+            const dmg = pr.damage * (ENEMY_TYPES[e.type].flying ? pr.bonusVsFlying : 1);
+            damageEnemy(e, dmg);
+            applySlow(e, pr.slowFactor, pr.slowDuration);
+          }
+        }
+        spawnSplashParticles(pr.x, pr.y, pr.visualType);
+      } else if (G.enemies.includes(pr.target)) {
+        const dmg = pr.damage * (ENEMY_TYPES[pr.target.type].flying ? pr.bonusVsFlying : 1);
+        damageEnemy(pr.target, dmg);
+        applySlow(pr.target, pr.slowFactor, pr.slowDuration);
+      }
+      playSfx('splat');
+    }
+    G.projectiles = G.projectiles.filter(pr => !pr.arrived);
+  }
+
+  function updateTongueFx(elapsedMs) {
+    for (const fx of G.tongueFx) fx.life -= elapsedMs;
+    G.tongueFx = G.tongueFx.filter(fx => fx.life > 0);
+  }
+
+  function updatePulseFx(elapsedMs) {
+    for (const fx of G.pulseFx) fx.life -= elapsedMs;
+    G.pulseFx = G.pulseFx.filter(fx => fx.life > 0);
+  }
+
+  // ============================================================
+  // 8. PARTICLES
+  // ============================================================
+  const POP_COLORS = { ant: '#6b4226', mosquito: '#7c93a8', aphid: '#7bc25a', snail: '#c99a5b', caterpillar: '#8fbf4a' };
+  function spawnPopParticles(x, y, type) {
+    const color = POP_COLORS[type] || '#7c93a8';
+    for (let i = 0; i < 10; i++) {
+      const a = Math.random() * Math.PI * 2, spd = (0.6 + Math.random() * 1.8) * SCALE;
+      G.particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd - SCALE * 0.5, life: 400 + Math.random() * 200, max: 600, color, size: (2 + Math.random() * 2.5) * SCALE, shape: 'circle', gravity: 0.05 * SCALE });
+    }
+    for (let i = 0; i < 3; i++) {
+      G.particles.push({ x, y: y - 4 * SCALE, vx: randRange(-0.4, 0.4) * SCALE, vy: -(0.8 + Math.random()) * SCALE, life: 550, max: 550, color: '#ffd93d', size: 3.5 * SCALE, shape: 'star', gravity: 0.02 * SCALE });
+    }
+  }
+
+  const SPLASH_COLORS = { axolotl: '#8fd6ff', spider: '#c9b8f0', ladybug: '#ff8a8a' };
+  function spawnSplashParticles(x, y, visualType) {
+    const color = SPLASH_COLORS[visualType] || '#8fd6ff';
+    for (let i = 0; i < 8; i++) {
+      const a = Math.random() * Math.PI * 2, spd = (0.6 + Math.random() * 1.4) * SCALE;
+      G.particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: 350, max: 350, color, size: (2 + Math.random() * 2) * SCALE, shape: 'circle', gravity: 0.03 * SCALE });
+    }
+  }
+
+  function spawnConfetti() {
+    for (let i = 0; i < 70; i++) {
+      G.particles.push({
+        x: Math.random() * CW, y: -20 - Math.random() * 100,
+        vx: randRange(-1, 1) * SCALE, vy: (2 + Math.random() * 2) * SCALE,
+        life: 4000, max: 4000, color: pick(['#ff4d6d', '#ffd93d', '#6bd1ff', '#8affc1', '#c77dff']),
+        size: (6 + Math.random() * 4) * SCALE, shape: 'rect',
+        rot: Math.random() * Math.PI, rotSpeed: randRange(-0.1, 0.1), gravity: 0.02 * SCALE,
+      });
+    }
+  }
+
+  function updateParticles(elapsedMs) {
+    const scale = elapsedMs / 16.67;
+    for (const p of G.particles) {
+      p.life -= elapsedMs;
+      p.x += p.vx * scale; p.y += p.vy * scale;
+      p.vy += (p.gravity || 0) * scale;
+      if (p.rotSpeed) p.rot += p.rotSpeed * scale;
+    }
+    G.particles = G.particles.filter(p => p.life > 0);
+  }
+
+  function renderParticles() {
+    for (const p of G.particles) {
+      const alpha = clamp(p.life / p.max, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      if (p.shape === 'rect') {
+        ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0);
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      } else if (p.shape === 'star') {
+        ctx.font = `${p.size * 3}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('✨', p.x, p.y);
+      } else {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  // ============================================================
+  // 9. TOAST
+  // ============================================================
+  function showToast(text) { G.toastQueue.push(text); }
+  function updateToast(elapsedMs) {
+    if (!G.toast && G.toastQueue.length) G.toast = { text: G.toastQueue.shift(), life: 1900, max: 1900 };
+    if (G.toast) { G.toast.life -= elapsedMs; if (G.toast.life <= 0) G.toast = null; }
+  }
+
+  // ============================================================
+  // 10. AUDIO
+  // ============================================================
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function tone(freq0, freq1, dur, type, gainVal, startAt) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq0, startAt);
+    if (freq1 !== freq0) o.frequency.exponentialRampToValueAtTime(Math.max(1, freq1), startAt + dur * 0.8);
+    g.gain.setValueAtTime(0.0001, startAt);
+    g.gain.linearRampToValueAtTime(gainVal, startAt + Math.min(0.02, dur * 0.2));
+    g.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(startAt); o.stop(startAt + dur + 0.02);
+  }
+  function playSfx(name) {
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    switch (name) {
+      case 'place': tone(700, 900, 0.12, 'sine', 0.15, t0); break;
+      case 'upgrade': [660, 880, 1100].forEach((f, i) => tone(f, f, 0.16, 'triangle', 0.16, t0 + i * 0.06)); break;
+      case 'sell': tone(500, 300, 0.18, 'sine', 0.15, t0); break;
+      case 'splat': tone(300, 150, 0.1, 'sine', 0.08, t0); break;
+      case 'pop': tone(500, 200, 0.12, 'triangle', 0.14, t0); break;
+      case 'pulse': tone(180, 85, 0.24, 'sine', 0.16, t0); tone(260, 130, 0.2, 'triangle', 0.07, t0 + 0.02); break;
+      case 'leak': tone(180, 90, 0.28, 'sawtooth', 0.2, t0); break;
+      case 'waveStart': [523, 659, 784].forEach((f, i) => tone(f, f, 0.18, 'square', 0.13, t0 + i * 0.1)); break;
+      case 'waveClear': [659, 784, 988, 1318].forEach((f, i) => tone(f, f, 0.2, 'triangle', 0.15, t0 + i * 0.09)); break;
+      case 'win': [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, f, 0.3, 'square', 0.15, t0 + i * 0.13)); break;
+      case 'lose': [400, 300, 220, 140].forEach((f, i) => tone(f, f, 0.32, 'sawtooth', 0.16, t0 + i * 0.16)); break;
+    }
+  }
+
+  // ============================================================
+  // 11. GAME FLOW
+  // ============================================================
+  function newGame() {
+    G.lives = START_LIVES;
+    G.currency = START_CURRENCY;
+    G.totalEarned = 0;
+    G.waveNumber = 0;
+    G.waveActive = false;
+    G.waveTimer = AUTO_START_SECONDS;
+    G.spawnQueue = [];
+    G.towers = [];
+    G.enemies = [];
+    G.projectiles = [];
+    G.tongueFx = [];
+    G.pulseFx = [];
+    G.particles = [];
+    G.toast = null;
+    G.toastQueue = [];
+    G.placingType = null;
+    G.selectedTower = null;
+    G.selectedEnemy = null;
+    G.speedMul = 1;
+    // no path regeneration here — reuse whatever layout is already showing on
+    // the menu screen, so the preview path and the played path always match
+    recomputePath();
+    G.state = 'PLAYING';
+  }
+
+  function loseLife(n) {
+    G.lives -= n;
+    playSfx('leak');
+    if (G.lives <= 0) { G.lives = 0; endGame(false); }
+  }
+
+  function checkWaveClear() {
+    if (G.waveActive && G.spawnQueue.length === 0 && G.enemies.length === 0) {
+      G.waveActive = false;
+      G.waveTimer = AUTO_START_SECONDS;
+      const bonus = 20 + G.waveNumber * 5;
+      earnCurrency(bonus);
+      showToast(`✅ Wave ${G.waveNumber} cleared! +${bonus} coins`);
+      playSfx('waveClear');
+      if (G.waveNumber >= TOTAL_WAVES) endGame(true);
+    }
+  }
+
+  // ============================================================
+  // 11b. LEADERBOARD (saved locally in this browser)
+  // ============================================================
+  const LEADERBOARD_KEY = 'gardenGuardiansLeaderboard_v1';
+  const LAST_NAME_KEY = 'gardenGuardiansLastName_v1';
+
+  function loadLeaderboard() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+
+  function saveLeaderboardEntry(name, wave) {
+    const clean = (name || '').trim().slice(0, 24) || 'Anonymous';
+    const arr = loadLeaderboard();
+    arr.push({ name: clean, wave, date: new Date().toLocaleDateString() });
+    arr.sort((a, b) => b.wave - a.wave);
+    const trimmed = arr.slice(0, 50);
+    try { localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(trimmed)); } catch (e) { /* storage unavailable */ }
+    try { localStorage.setItem(LAST_NAME_KEY, clean); } catch (e) { /* storage unavailable */ }
+    return trimmed;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function renderLeaderboard() {
+    const list = loadLeaderboard();
+    const container = document.getElementById('leaderboardList');
+    if (!list.length) {
+      container.innerHTML = '<p style="opacity:0.75;text-align:center;">No scores yet — be the first Guardian of the Garden!</p>';
+      return;
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    container.innerHTML = list.slice(0, 20).map((entry, i) => `
+      <div class="lbRow ${i < 3 ? 'top3' : ''}">
+        <span class="lbName">#${i + 1} ${medals[i] || ''} ${escapeHtml(entry.name)}</span>
+        <span class="lbMeta">Wave ${entry.wave} · ${escapeHtml(entry.date)}</span>
+      </div>`).join('');
+  }
+
+  function openLeaderboard() {
+    renderLeaderboard();
+    document.getElementById('leaderboardOverlay').classList.remove('hidden');
+  }
+
+  function endGame(won) {
+    G.state = won ? 'WIN' : 'GAME_OVER';
+    const title = document.getElementById('resultTitle');
+    const sub = document.getElementById('resultSub');
+    if (won) {
+      title.textContent = '🎉 You Win! 🎉';
+      sub.textContent = `Axolotl & Lizard defended the whole garden — all ${TOTAL_WAVES} waves!`;
+      spawnConfetti();
+      playSfx('win');
+    } else {
+      title.textContent = '🐜 The Pests Got In! 🦟';
+      sub.textContent = `You made it to wave ${G.waveNumber} of ${TOTAL_WAVES}. Try again!`;
+      playSfx('lose');
+    }
+    document.getElementById('nameInput').value = localStorage.getItem(LAST_NAME_KEY) || '';
+    document.getElementById('saveConfirm').textContent = '';
+    const saveBtn = document.getElementById('btnSaveScore');
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Save Score';
+    document.getElementById('resultOverlay').classList.remove('hidden');
+  }
+
+  function returnToMenu() {
+    document.getElementById('resultOverlay').classList.add('hidden');
+    document.getElementById('menuOverlay').classList.remove('hidden');
+    G.state = 'MENU';
+    // roll a fresh zig-zag now, while just previewed behind the menu — so the
+    // next game (which reuses whatever layout is showing) still varies run to run
+    G.pathLayout = null;
+    recomputePath();
+  }
+
+  // ============================================================
+  // 12. INPUT
+  // ============================================================
+  function canvasPoint(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (CW / rect.width),
+      y: (e.clientY - rect.top) * (CH / rect.height),
+    };
+  }
+
+  canvas.addEventListener('mousemove', (e) => {
+    const p = canvasPoint(e);
+    G.mouse.x = p.x; G.mouse.y = p.y;
+  });
+
+  canvas.addEventListener('click', (e) => {
+    if (G.state !== 'PLAYING') return;
+    ensureAudio();
+    const p = canvasPoint(e);
+
+    for (let i = G.uiButtons.length - 1; i >= 0; i--) {
+      const b = G.uiButtons[i];
+      if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+        b.action();
+        return;
+      }
+    }
+
+    if (G.placingType) {
+      const cell = gridCellAt(p.x, p.y);
+      if (cell) placeTower(G.placingType, cell.r, cell.c);
+      G.placingType = null;
+      return;
+    }
+
+    const hitTower = G.towers.find(t => dist(t.x, t.y, p.x, p.y) <= TILE_SIZE * 0.42);
+    if (hitTower) {
+      G.selectedTower = hitTower;
+      G.selectedEnemy = null;
+      return;
+    }
+
+    // Bugs keep marching while you aim, so give the click a generous, forgiving
+    // radius (bigger than the drawn glyph) rather than a pixel-tight hitbox.
+    const hitEnemy = G.enemies.find(en => dist(en.x, en.y, p.x, p.y) <= 22 * SCALE);
+    G.selectedTower = null;
+    G.selectedEnemy = hitEnemy || null;
+  });
+
+  canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); G.placingType = null; });
+
+  // ============================================================
+  // 13. RESIZE
+  // ============================================================
+  function handleResize() {
+    CW = window.innerWidth; CH = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(CW * dpr);
+    canvas.height = Math.round(CH * dpr);
+    canvas.style.width = CW + 'px';
+    canvas.style.height = CH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    applyScale();
+    recomputePath();
+  }
+  let resizeTimer = null;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(handleResize, 120); });
+
+  // ============================================================
+  // 14. UPDATE LOOP
+  // ============================================================
+  function update(elapsedMs) {
+    updateToast(elapsedMs);
+    updateParticles(elapsedMs);
+    if (G.state !== 'PLAYING') return;
+    const dt = (elapsedMs / 1000) * G.speedMul;
+    const dtMs = elapsedMs * G.speedMul;
+    G.t += dtMs;
+
+    // auto-start countdown — ticks down between waves; if the player doesn't
+    // press Start Wave first, the next wave begins on its own.
+    if (!G.waveActive) {
+      G.waveTimer -= dt;
+      if (G.waveTimer <= 0) {
+        G.waveTimer = 0;
+        startWave();
+      }
+    }
+
+    // spawning
+    if (G.waveActive && G.spawnQueue.length > 0) {
+      G.spawnTimer -= dt;
+      if (G.spawnTimer <= 0) {
+        spawnEnemy(G.spawnQueue.shift());
+        G.spawnTimer = G.spawnInterval;
+      }
+    }
+
+    // enemies
+    for (const e of G.enemies.slice()) {
+      const slowed = e.slowUntil > G.t;
+      const speed = e.speed * (slowed ? e.slowFactor : 1);
+      e.dist += speed * dt;
+      e.wobble += dt * 6;
+      if (e.dist >= G.pathTotalLen) {
+        G.enemies = G.enemies.filter(x => x.id !== e.id);
+        loseLife(1);
+        continue;
+      }
+      const p = pointAtDistance(e.dist);
+      let x = p.x, y = p.y;
+      if (ENEMY_TYPES[e.type].flying) {
+        const perp = p.angle + Math.PI / 2;
+        const bob = Math.sin(G.t * 0.006 + e.bobPhase) * 10 * SCALE;
+        x += Math.cos(perp) * bob; y += Math.sin(perp) * bob - 6 * SCALE;
+      }
+      e.x = x; e.y = y; e.angle = p.angle;
+    }
+
+    // towers
+    for (const t of G.towers) {
+      const stats = towerStats(t);
+      t.bob += dt * 2;
+      if (t.fireFlash > 0) t.fireFlash -= elapsedMs;
+      let best = null, bestDist = -1;
+      for (const e of G.enemies) {
+        const d = dist(t.x, t.y, e.x, e.y);
+        if (d <= stats.range && e.dist > bestDist) { best = e; bestDist = e.dist; }
+      }
+      t.target = best;
+      if (best) t.angle = Math.atan2(best.y - t.y, best.x - t.x);
+      t.cooldown -= dt;
+      if (best && t.cooldown <= 0) {
+        t.cooldown = 1 / stats.fireRate;
+        t.fireFlash = 160;
+        const style = TOWER_TYPES[t.type].attackStyle;
+        if (style === 'projectile') fireProjectileAttack(t, best, stats);
+        else if (style === 'pulse') fireWormPulse(t, stats);
+        else fireInstantAttack(t, best, stats);
+      }
+    }
+
+    updateProjectiles(dtMs);
+    updateTongueFx(dtMs);
+    updatePulseFx(dtMs);
+    checkWaveClear();
+  }
+
+  // ============================================================
+  // 15. RENDER
+  // ============================================================
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, CH);
+    g.addColorStop(0, '#bfe89a');
+    g.addColorStop(1, '#8fc55f');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, G.playY, CW, G.playH);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    for (let i = 0; i < 6; i++) {
+      const cx = (i * 280 + 60) % CW, cy = G.playY + 30 + (i % 3) * 18 * SCALE;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 26 * SCALE, 12 * SCALE, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 20 * SCALE, cy - 5 * SCALE, 16 * SCALE, 10 * SCALE, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawLightRock(x, y, scale, rot) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#c9a876';
+    ctx.beginPath();
+    ctx.moveTo(-10, 3); ctx.lineTo(-7, -6); ctx.lineTo(2, -9); ctx.lineTo(10, -3); ctx.lineTo(8, 4); ctx.lineTo(-2, 6);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#a38354'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,240,210,0.4)';
+    ctx.beginPath(); ctx.ellipse(-3, -3, 3, 1.6, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#bd9a68';
+    ctx.beginPath(); ctx.ellipse(9, 4, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#a38354'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawScenery() {
+    for (const s of G.scenery) {
+      if (s.kind === 'succulent') {
+        if (s.variant.kind === 'pachypodium') drawPachypodium(s.x, s.y, s.scale, s.rot, s.variant);
+        else drawSucculent(s.x, s.y, s.scale, s.rot, s.variant);
+      } else if (s.kind === 'palm') {
+        drawPalm(s.x, s.y, s.scale, s.rot);
+      } else {
+        drawLightRock(s.x, s.y, s.scale, s.rot);
+      }
+    }
+  }
+
+  function drawPath() {
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = '#c9a26a';
+    ctx.lineWidth = TILE_SIZE;
+    ctx.beginPath();
+    G.pathPx.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+    ctx.strokeStyle = '#dbb887';
+    ctx.lineWidth = TILE_SIZE * 0.7;
+    ctx.beginPath();
+    G.pathPx.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // spawn/nest markers — the path's true ends are deliberately off-canvas (bugs
+    // march in from "outside"), so pull the markers back by the known off-canvas
+    // margin plus a visibility buffer, keeping them safely on-screen.
+    const offCanvasStart = PATH_OFFCANVAS_TILES * TILE_SIZE;
+    const offCanvasEnd = PATH_OFFCANVAS_TILES * TILE_SIZE;
+    const spawnPt = pointAtDistance(offCanvasStart + 40 * SCALE);
+    ctx.font = `${28 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🕳️', spawnPt.x, spawnPt.y);
+
+    const nestPt = pointAtDistance(Math.max(0, G.pathTotalLen - offCanvasEnd - 44 * SCALE));
+    ctx.font = `${36 * SCALE}px sans-serif`;
+    ctx.fillText('🏠', nestPt.x, nestPt.y);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  function drawGrid() {
+    if (!G.placingType) return;
+    const mCell = gridCellAt(G.mouse.x, G.mouse.y);
+    for (let r = 0; r < G.gridRows; r++) {
+      for (let c = 0; c < G.gridCols; c++) {
+        if (!G.buildable[r][c]) continue;
+        const x = G.gridOX + c * TILE_SIZE, y = G.gridOY + r * TILE_SIZE;
+        const isHover = mCell && mCell.r === r && mCell.c === c;
+        const occupied = cellOccupied(r, c);
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        roundRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4, 6 * SCALE);
+        ctx.stroke();
+        if (isHover) {
+          ctx.fillStyle = occupied ? 'rgba(255,80,80,0.35)' : 'rgba(120,255,140,0.35)';
+          roundRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4, 6 * SCALE);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  function drawTowerCreature(type, angle) {
+    // simplified top-down critter, drawn facing `angle`
+    ctx.save();
+    ctx.rotate(angle);
+    if (type === 'axolotl') {
+      ctx.fillStyle = '#ffb3de';
+      ctx.beginPath(); ctx.ellipse(0, 0, 15, 12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#df6ba6'; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.fillStyle = '#ff8ec4';
+      for (const s of [-1, 0, 1]) {
+        ctx.beginPath(); ctx.arc(-8, s * 6, 2.6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#3a2233';
+      ctx.beginPath(); ctx.arc(9, -4, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(9, 4, 1.6, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'lizard') {
+      ctx.fillStyle = '#63c257';
+      ctx.beginPath(); ctx.ellipse(0, 0, 15, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#3f9142'; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.fillStyle = '#2f7a34';
+      for (const s of [[-6, -8], [0, -9], [6, -8]]) {
+        ctx.beginPath(); ctx.moveTo(s[0] - 3, s[1] + 4); ctx.lineTo(s[0], s[1] - 2); ctx.lineTo(s[0] + 3, s[1] + 4); ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = '#f5f2c0';
+      ctx.beginPath(); ctx.arc(11, 0, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1c2b16';
+      ctx.beginPath(); ctx.arc(12, 0, 1.4, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'spider') {
+      ctx.strokeStyle = '#2a1f45'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+      for (const legAngle of [-2.3, -1.6, -0.9, -0.3, 0.3, 0.9, 1.6, 2.3]) {
+        const midX = Math.cos(legAngle) * 9, midY = Math.sin(legAngle) * 9 - 2;
+        const endX = Math.cos(legAngle) * 16, endY = Math.sin(legAngle) * 13;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(midX, midY, endX, endY); ctx.stroke();
+      }
+      ctx.fillStyle = '#5a4a7a';
+      ctx.beginPath(); ctx.ellipse(-2, 1, 9, 8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2a1f45'; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(8, 0, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#1a1428';
+      ctx.beginPath(); ctx.arc(10, -2, 1.3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(10, 2, 1.3, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'ladybug') {
+      ctx.fillStyle = '#e64545';
+      ctx.beginPath(); ctx.ellipse(-2, 0, 13, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#8a1f1f'; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-2, -11); ctx.lineTo(-2, 11); ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = '#1c1c1c';
+      for (const s of [[-8, -5], [-8, 5], [2, -6], [2, 6], [-3, 0]]) {
+        ctx.beginPath(); ctx.arc(s[0], s[1], 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(11, 0, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#1c1c1c'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(13, -3); ctx.lineTo(17, -6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(13, 3); ctx.lineTo(17, 6); ctx.stroke();
+    } else if (type === 'bee') {
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath(); ctx.ellipse(-1, -9, 7, 4.2, -0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-1, 9, 7, 4.2, 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = '#ffd23f'; ctx.fillRect(-12, -9, 24, 18);
+      ctx.fillStyle = '#1c1409';
+      for (const s of [-7, -1.5, 4]) ctx.fillRect(s, -9, 3, 18);
+      ctx.restore();
+      ctx.strokeStyle = '#1c1409'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#1c1409';
+      ctx.beginPath(); ctx.arc(11, 0, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#1c1409'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(13, -2); ctx.lineTo(16, -5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(13, 2); ctx.lineTo(16, 5); ctx.stroke();
+    } else if (type === 'worm') {
+      ctx.strokeStyle = '#a8663a'; ctx.lineWidth = 1;
+      for (const seg of [-10, -4, 2, 8]) {
+        ctx.fillStyle = '#e0a878';
+        ctx.beginPath(); ctx.ellipse(seg, 0, 5.5, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+      ctx.fillStyle = '#1c1c1c';
+      ctx.beginPath(); ctx.arc(10, -2, 1.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(10, 2, 1.2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawTowers() {
+    for (const t of G.towers) {
+      const def = TOWER_TYPES[t.type];
+      const isSelected = G.selectedTower && G.selectedTower.id === t.id;
+      const isHover = dist(t.x, t.y, G.mouse.x, G.mouse.y) <= TILE_SIZE * 0.42;
+
+      if (isSelected || isHover) {
+        const stats = towerStats(t);
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, stats.range, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+        ctx.lineWidth = 1.5 * SCALE;
+        ctx.stroke();
+      }
+
+      const bobY = Math.sin(t.bob) * 2 * SCALE;
+      ctx.save();
+      ctx.translate(t.x, t.y + bobY);
+      ctx.scale(TOWER_VISUAL_SCALE, TOWER_VISUAL_SCALE);
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath(); ctx.ellipse(0, TILE_SIZE * 0.32, TILE_SIZE * 0.34, TILE_SIZE * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = def.color;
+      ctx.beginPath(); ctx.arc(0, 0, TILE_SIZE * 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = isSelected ? '#fff' : def.ring;
+      ctx.lineWidth = isSelected ? 3 * SCALE : 2 * SCALE;
+      ctx.stroke();
+
+      if (t.fireFlash > 0) {
+        ctx.globalAlpha = t.fireFlash / 160;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(0, 0, TILE_SIZE * 0.46, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.scale(SCALE, SCALE);
+      drawTowerCreature(t.type, t.angle);
+      ctx.restore();
+
+      // level badge — a single numbered circle at the tower's top-right corner,
+      // replacing a row of pips (which got unreadable once MAX_LEVEL went to 10)
+      const badgeR = 5.5 * SCALE;
+      const badgeX = t.x + TILE_SIZE * 0.17;
+      const badgeY = t.y - TILE_SIZE * 0.30;
+      ctx.fillStyle = '#ffd93d';
+      ctx.beginPath();
+      ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#8a6d1a';
+      ctx.lineWidth = 1 * SCALE;
+      ctx.stroke();
+      ctx.fillStyle = '#3a2c05';
+      ctx.font = `bold ${6.5 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(t.level), badgeX, badgeY + 0.5 * SCALE);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+      if (t.buffed) {
+        ctx.font = `${12 * SCALE}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('💞', t.x, t.y - TILE_SIZE * 0.42);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    // teamwork connector lines
+    const linkDist = TILE_SIZE * 1.6;
+    for (const t of G.towers) {
+      if (t.type !== 'axolotl') continue;
+      for (const o of G.towers) {
+        if (o.type !== 'lizard') continue;
+        if (dist(t.x, t.y, o.x, o.y) > linkDist) continue;
+        ctx.save();
+        ctx.setLineDash([4 * SCALE, 4 * SCALE]);
+        ctx.strokeStyle = 'rgba(255,150,200,0.7)';
+        ctx.lineWidth = 1.5 * SCALE;
+        ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(o.x, o.y); ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  // These emoji glyphs face left by default, which reads as walking backwards
+  // since the path only ever travels left-to-right (or straight up/down,
+  // never right-to-left) — mirror them so they always face the way they walk.
+  const EMOJI_FACES_LEFT = new Set(['ant', 'mosquito', 'caterpillar']);
+
+  function drawEnemies() {
+    for (const e of G.enemies) {
+      const def = ENEMY_TYPES[e.type];
+      const slowed = e.slowUntil > G.t;
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      if (def.flying) ctx.translate(0, Math.sin(e.wobble) * 2 * SCALE);
+      if (EMOJI_FACES_LEFT.has(e.type)) ctx.scale(-1, 1);
+      ctx.font = `${20 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (slowed) { ctx.filter = 'hue-rotate(180deg) saturate(1.4)'; }
+      ctx.fillText(def.emoji, 0, 0);
+      ctx.restore();
+
+      const barW = 20 * SCALE, barH = 3.5 * SCALE;
+      const hpFrac = clamp(e.hp / e.maxHp, 0, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(e.x - barW / 2, e.y - 16 * SCALE, barW, barH);
+      ctx.fillStyle = hpFrac > 0.5 ? '#7CFC9A' : hpFrac > 0.25 ? '#ffd93d' : '#ff5a5a';
+      ctx.fillRect(e.x - barW / 2, e.y - 16 * SCALE, barW * hpFrac, barH);
+
+      if (def.armor) {
+        ctx.font = `${9 * SCALE}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🛡️', e.x + barW / 2 + 5 * SCALE, e.y - 14 * SCALE);
+        ctx.textAlign = 'left';
+      }
+    }
+  }
+
+  const PROJECTILE_COLORS = { axolotl: '140,210,255', spider: '180,150,230', ladybug: '255,90,90' };
+  function drawProjectiles() {
+    for (const pr of G.projectiles) {
+      const rgb = PROJECTILE_COLORS[pr.visualType] || '140,210,255';
+      ctx.fillStyle = `rgba(${rgb},0.9)`;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, 5 * SCALE, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath(); ctx.arc(pr.x - 1.5 * SCALE, pr.y - 1.5 * SCALE, 1.6 * SCALE, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const fx of G.tongueFx) {
+      const a = clamp(fx.life / fx.max, 0, 1);
+      // shaft
+      ctx.strokeStyle = `rgba(255,110,140,${a})`;
+      ctx.lineWidth = 3 * SCALE;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(fx.x1, fx.y1); ctx.lineTo(fx.x2, fx.y2); ctx.stroke();
+      // round, sticky tongue tip
+      ctx.fillStyle = `rgba(255,110,140,${a})`;
+      ctx.beginPath(); ctx.arc(fx.x2, fx.y2, 5 * SCALE, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = `rgba(196,50,90,${a})`;
+      ctx.lineWidth = 1 * SCALE;
+      ctx.stroke();
+      // glossy highlight so the tip reads as wet, not a laser dot
+      ctx.fillStyle = `rgba(255,255,255,${a * 0.65})`;
+      ctx.beginPath(); ctx.arc(fx.x2 - 1.5 * SCALE, fx.y2 - 1.5 * SCALE, 1.4 * SCALE, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const fx of G.pulseFx) {
+      const a = clamp(fx.life / fx.max, 0, 1);
+      const r = fx.range * (1 - a);
+      ctx.strokeStyle = `rgba(217,160,102,${a * 0.8})`;
+      ctx.lineWidth = 3 * SCALE;
+      ctx.beginPath(); ctx.arc(fx.x, fx.y, r, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  function drawGhostTower() {
+    if (!G.placingType) return;
+    const cell = gridCellAt(G.mouse.x, G.mouse.y);
+    if (!cell) return;
+    const valid = G.buildable[cell.r] && G.buildable[cell.r][cell.c] && !cellOccupied(cell.r, cell.c) && G.currency >= TOWER_TYPES[G.placingType].cost;
+    const center = cellCenter(cell.r, cell.c);
+    const def = TOWER_TYPES[G.placingType];
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, def.rangeBase * SCALE, 0, Math.PI * 2);
+    ctx.strokeStyle = valid ? 'rgba(140,255,150,0.6)' : 'rgba(255,100,100,0.6)';
+    ctx.lineWidth = 1.5 * SCALE;
+    ctx.stroke();
+    ctx.fillStyle = valid ? def.color : '#999';
+    ctx.beginPath(); ctx.arc(center.x, center.y, TILE_SIZE * 0.4 * TOWER_VISUAL_SCALE, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  function heartsOrNumber() {
+    return `❤️ ${G.lives}`;
+  }
+
+  function drawTopHUD() {
+    ctx.fillStyle = 'rgba(20,30,20,0.55)';
+    ctx.fillRect(0, 0, CW, HUD_H);
+
+    ctx.textAlign = 'left'; ctx.fillStyle = '#fff';
+    ctx.font = `bold ${16 * SCALE}px sans-serif`;
+    ctx.fillText(heartsOrNumber(), 14 * SCALE, HUD_H * 0.62);
+
+    ctx.fillText(`🪙 ${G.currency}`, 110 * SCALE, HUD_H * 0.62);
+
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${15 * SCALE}px sans-serif`;
+    ctx.fillText(`Wave ${G.waveNumber}/${TOTAL_WAVES}`, CW / 2, HUD_H * 0.62);
+
+    // speed toggle
+    ctx.textAlign = 'right';
+    const speedX = CW - 16 * SCALE, speedY = HUD_H * 0.5;
+    const speedW = 56 * SCALE, speedH = 30 * SCALE;
+    roundRect(speedX - speedW, speedY - speedH / 2, speedW, speedH, 8 * SCALE);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${14 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(G.speedMul === 1 ? '1x' : '2x', speedX - speedW / 2, speedY + 1);
+    ctx.textBaseline = 'alphabetic';
+    G.uiButtons.push({ x: speedX - speedW, y: speedY - speedH / 2, w: speedW, h: speedH, action: () => { G.speedMul = G.speedMul === 1 ? 2 : 1; } });
+
+    // dev-only pest tuner toggle
+    const tunerW = 78 * SCALE, tunerH = 30 * SCALE;
+    const tunerX = speedX - speedW - 10 * SCALE - tunerW;
+    roundRect(tunerX, speedY - tunerH / 2, tunerW, tunerH, 8 * SCALE);
+    ctx.fillStyle = G.showPestTuner ? 'rgba(255,217,61,0.45)' : 'rgba(255,255,255,0.18)';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${12 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🛠 Pests', tunerX + tunerW / 2, speedY + 1);
+    ctx.textBaseline = 'alphabetic';
+    G.uiButtons.push({
+      x: tunerX, y: speedY - tunerH / 2, w: tunerW, h: tunerH,
+      action: () => { G.showPestTuner = !G.showPestTuner; G.showFriendTuner = false; },
+    });
+
+    // dev-only friend tuner toggle
+    const friendTunerW = 84 * SCALE;
+    const friendTunerX = tunerX - 10 * SCALE - friendTunerW;
+    roundRect(friendTunerX, speedY - tunerH / 2, friendTunerW, tunerH, 8 * SCALE);
+    ctx.fillStyle = G.showFriendTuner ? 'rgba(255,217,61,0.45)' : 'rgba(255,255,255,0.18)';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${12 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🛠 Friends', friendTunerX + friendTunerW / 2, speedY + 1);
+    ctx.textBaseline = 'alphabetic';
+    G.uiButtons.push({
+      x: friendTunerX, y: speedY - tunerH / 2, w: friendTunerW, h: tunerH,
+      action: () => { G.showFriendTuner = !G.showFriendTuner; G.showPestTuner = false; },
+    });
+    ctx.textAlign = 'left';
+  }
+
+  // ---- DEV TOOL: live bug HP/speed tuner ----------------------------------
+  // Temporary playtesting aid: lets you nudge each bug's base HP and speed live
+  // and see the effect on newly-spawned bugs immediately. Once numbers feel
+  // right, read them off here and they get hardcoded into ENEMY_TYPES.
+  const PEST_TUNER_ORDER = ['ant', 'aphid', 'mosquito', 'caterpillar', 'snail'];
+
+  function drawMiniButton(x, y, size, label, action) {
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(x, y, size, size, 4 * SCALE);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${12 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + size / 2, y + size / 2 + 0.5 * SCALE);
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    G.uiButtons.push({ x, y, w: size, h: size, action });
+  }
+
+  function adjustEnemyStat(type, field, mul, min) {
+    const def = ENEMY_TYPES[type];
+    def[field] = Math.max(min, Math.round(def[field] * mul));
+  }
+
+  function adjustTowerStat(type, field, mul, min) {
+    const def = TOWER_TYPES[type];
+    def[field] = Math.max(min, Math.round(def[field] * mul));
+  }
+
+  function adjustHpGrowthPct(delta) {
+    G.hpGrowthPct = Math.round(clamp(G.hpGrowthPct + delta, 0, 10) * 100) / 100;
+  }
+
+  function adjustSpeedGrowthPct(delta) {
+    G.speedGrowthPct = Math.round(clamp(G.speedGrowthPct + delta, 0, 10) * 100) / 100;
+  }
+
+  function drawTunerStatRow(cx, y, label, value, onDec, onInc) {
+    ctx.font = `${11 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#dfe3ff';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${label} ${value}`, cx - 6 * SCALE, y + 4 * SCALE);
+    ctx.textAlign = 'left';
+    const btnSize = 16 * SCALE;
+    drawMiniButton(cx + 4 * SCALE, y - btnSize / 2, btnSize, '−', onDec);
+    drawMiniButton(cx + 4 * SCALE + btnSize + 4 * SCALE, y - btnSize / 2, btnSize, '+', onInc);
+  }
+
+  function drawPestTuner() {
+    if (!G.showPestTuner) return;
+    const panelY = CH - PANEL_H - TUNER_H;
+    ctx.fillStyle = 'rgba(10,10,20,0.88)';
+    ctx.fillRect(0, panelY, CW, TUNER_H);
+    ctx.fillStyle = '#ffe98a';
+    ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('🛠 Pest Tuner (dev only) — tweak HP/Speed, then tell Claude the final numbers to lock them in', 14 * SCALE, panelY + 16 * SCALE);
+
+    const growthRowY = panelY + 34 * SCALE;
+    const growthBtnSize = 16 * SCALE;
+    ctx.font = `${11.5 * SCALE}px sans-serif`;
+    const hpLabel = `Per-level HP growth: ${G.hpGrowthPct.toFixed(2)}%`;
+    const spLabel = `Per-level Speed growth: ${G.speedGrowthPct.toFixed(2)}%`;
+    const hpLabelW = ctx.measureText(hpLabel).width;
+    const spLabelW = ctx.measureText(spLabel).width;
+    const controlGap = 40 * SCALE;
+    const hpControlW = hpLabelW + 6 * SCALE + growthBtnSize * 2 + 4 * SCALE;
+    const spControlW = spLabelW + 6 * SCALE + growthBtnSize * 2 + 4 * SCALE;
+    let gx = CW / 2 - (hpControlW + controlGap + spControlW) / 2;
+
+    ctx.fillStyle = '#dfe3ff';
+    ctx.textAlign = 'left';
+    ctx.fillText(hpLabel, gx, growthRowY + 4 * SCALE);
+    drawMiniButton(gx + hpLabelW + 6 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '−', () => adjustHpGrowthPct(-0.25));
+    drawMiniButton(gx + hpLabelW + 6 * SCALE + growthBtnSize + 4 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '+', () => adjustHpGrowthPct(0.25));
+    gx += hpControlW + controlGap;
+
+    ctx.fillStyle = '#dfe3ff';
+    ctx.fillText(spLabel, gx, growthRowY + 4 * SCALE);
+    drawMiniButton(gx + spLabelW + 6 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '−', () => adjustSpeedGrowthPct(-0.25));
+    drawMiniButton(gx + spLabelW + 6 * SCALE + growthBtnSize + 4 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '+', () => adjustSpeedGrowthPct(0.25));
+
+    const curHpMul = waveGrowthMul(G.hpGrowthPct, G.waveNumber);
+    const curSpeedMul = waveGrowthMul(G.speedGrowthPct, G.waveNumber);
+    const colW = CW / PEST_TUNER_ORDER.length;
+    for (let i = 0; i < PEST_TUNER_ORDER.length; i++) {
+      const type = PEST_TUNER_ORDER[i];
+      const def = ENEMY_TYPES[type];
+      const cx = i * colW + colW / 2;
+      const topY = panelY + 54 * SCALE;
+
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${13 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`${def.emoji} ${def.name}`, cx, topY);
+      ctx.textAlign = 'left';
+
+      // shows base -> the actual hp/speed this wave's spawns get, so the
+      // live effect of the growth-% dials above is always visible here too
+      drawTunerStatRow(cx, topY + 22 * SCALE, 'HP', `${Math.round(def.hpBase)}→${Math.round(def.hpBase * curHpMul)}`,
+        () => adjustEnemyStat(type, 'hpBase', 0.92, 1),
+        () => adjustEnemyStat(type, 'hpBase', 1.08, 1));
+      drawTunerStatRow(cx, topY + 44 * SCALE, 'SPD', `${Math.round(def.speedBase)}→${Math.round(def.speedBase * curSpeedMul)}`,
+        () => adjustEnemyStat(type, 'speedBase', 0.94, 5),
+        () => adjustEnemyStat(type, 'speedBase', 1.06, 5));
+    }
+  }
+
+  // ---- DEV TOOL: live friend (tower) starting-stat tuner ------------------
+  // Mirrors the Pest Tuner above, but for the garden's Friends: nudge each
+  // tower type's starting Damage and Range, then read the final numbers off
+  // here once they feel right so they can be hardcoded into TOWER_TYPES.
+  function drawFriendTuner() {
+    if (!G.showFriendTuner) return;
+    const panelY = CH - PANEL_H - TUNER_H;
+    ctx.fillStyle = 'rgba(10,10,20,0.88)';
+    ctx.fillRect(0, panelY, CW, TUNER_H);
+    ctx.fillStyle = '#ffe98a';
+    ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('🛠 Friend Tuner (dev only) — tweak starting Damage/Range, then tell Claude the final numbers to lock them in', 14 * SCALE, panelY + 16 * SCALE);
+
+    const colW = CW / TOWER_ORDER.length;
+    for (let i = 0; i < TOWER_ORDER.length; i++) {
+      const type = TOWER_ORDER[i];
+      const def = TOWER_TYPES[type];
+      const cx = i * colW + colW / 2;
+      const topY = panelY + 40 * SCALE;
+
+      ctx.fillStyle = def.color;
+      ctx.font = `bold ${13 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(def.name, cx, topY);
+      ctx.textAlign = 'left';
+
+      drawTunerStatRow(cx, topY + 22 * SCALE, 'DMG', Math.round(def.dmgBase),
+        () => adjustTowerStat(type, 'dmgBase', 0.92, 1),
+        () => adjustTowerStat(type, 'dmgBase', 1.08, 1));
+      drawTunerStatRow(cx, topY + 44 * SCALE, 'RNG', Math.round(def.rangeBase),
+        () => adjustTowerStat(type, 'rangeBase', 0.94, 10),
+        () => adjustTowerStat(type, 'rangeBase', 1.06, 10));
+    }
+  }
+
+  function drawBuildPanel() {
+    const panelY = CH - PANEL_H;
+    ctx.fillStyle = 'rgba(15,25,15,0.68)';
+    ctx.fillRect(0, panelY, CW, PANEL_H);
+
+    const btnW = 92 * SCALE, btnH = PANEL_H - 22 * SCALE, gap = 6 * SCALE;
+    let bx = 14 * SCALE;
+    const by = panelY + 11 * SCALE;
+    let armedDef = null;
+
+    for (const key of TOWER_ORDER) {
+      const def = TOWER_TYPES[key];
+      const unlocked = isTowerUnlocked(key);
+      const affordable = unlocked && G.currency >= def.cost;
+      const armed = G.placingType === key;
+      if (armed) armedDef = def;
+
+      ctx.fillStyle = armed ? 'rgba(255,217,61,0.35)' : affordable ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)';
+      roundRect(bx, by, btnW, btnH, 9 * SCALE);
+      ctx.fill();
+      if (armed) { ctx.strokeStyle = '#ffd93d'; ctx.lineWidth = 2.2 * SCALE; roundRect(bx, by, btnW, btnH, 9 * SCALE); ctx.stroke(); }
+
+      ctx.save();
+      ctx.globalAlpha = unlocked ? (affordable ? 1 : 0.45) : 0.55;
+      ctx.translate(bx + 17 * SCALE, by + btnH / 2);
+      ctx.scale(SCALE * 0.62, SCALE * 0.62);
+      if (!unlocked) ctx.filter = 'grayscale(1) brightness(0.6)';
+      ctx.fillStyle = def.color;
+      ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = def.ring; ctx.lineWidth = 2; ctx.stroke();
+      drawTowerCreature(key, 0);
+      ctx.restore();
+
+      ctx.fillStyle = unlocked ? '#fff' : 'rgba(255,255,255,0.55)';
+      ctx.font = `bold ${11 * SCALE}px sans-serif`;
+      ctx.fillText(def.name, bx + 33 * SCALE, by + btnH * 0.32);
+      ctx.font = `${10 * SCALE}px sans-serif`;
+      if (unlocked) {
+        ctx.fillStyle = '#ffe98a';
+        ctx.fillText(`🪙${def.cost}`, bx + 33 * SCALE, by + btnH * 0.68);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillText(`🔒🪙${def.unlockAt}`, bx + 33 * SCALE, by + btnH * 0.68);
+      }
+      ctx.globalAlpha = 1;
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+
+      G.uiButtons.push({
+        x: bx, y: by, w: btnW, h: btnH,
+        action: () => {
+          if (!unlocked) { showToast(`🔒 ${def.name} unlocks at 🪙${def.unlockAt} earned!`); return; }
+          G.placingType = G.placingType === key ? null : key;
+          G.selectedTower = null;
+          G.selectedEnemy = null;
+        },
+      });
+      bx += btnW + gap;
+    }
+
+    // description + per-level dmg/range preview of armed tower — only the first
+    // 10 of MAX_LEVEL=99 levels are spelled out (two lines of 5), then a third
+    // line gives the flat %/level growth rate that applies to every level past
+    // that, since listing all 99 would be absurd. Font auto-shrinks to fit the
+    // space left of the Start Wave button.
+    if (armedDef) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.font = `italic ${10.5 * SCALE}px sans-serif`;
+      ctx.fillText(armedDef.desc, bx + 6 * SCALE, by + btnH * 0.22);
+      ctx.fillStyle = '#bcd9ff';
+      const shownLevels = towerLevelPreview(G.placingType, 10).map(l => `Lv${l.level} ⚔${l.damage} 🎯${l.range}`);
+      const line1 = shownLevels.slice(0, 5).join('   ');
+      const line2 = shownLevels.slice(5).join('   ');
+      const dmgPct = Math.round((UPGRADE_DMG_MUL - 1) * 100);
+      const costPct = Math.round((UPGRADE_COST_MUL - 1) * 100);
+      const line3 = `Lv11–${MAX_LEVEL}: +${dmgPct}% dmg, +${costPct}% cost per extra level`;
+      const availW = CW - 165 * SCALE - 16 * SCALE - (bx + 6 * SCALE) - 10 * SCALE;
+      let previewFont = 9.5;
+      ctx.font = `${previewFont * SCALE}px sans-serif`;
+      while (previewFont > 6.5 && [line1, line2, line3].some(l => ctx.measureText(l).width > availW)) {
+        previewFont -= 0.5;
+        ctx.font = `${previewFont * SCALE}px sans-serif`;
+      }
+      ctx.fillText(line1, bx + 6 * SCALE, by + btnH * 0.45);
+      ctx.fillText(line2, bx + 6 * SCALE, by + btnH * 0.65);
+      ctx.fillStyle = '#ffe98a';
+      ctx.fillText(line3, bx + 6 * SCALE, by + btnH * 0.87);
+    }
+
+    // start wave / wave status button
+    const waveBtnW = 165 * SCALE, waveBtnH = btnH;
+    const waveBtnX = CW - waveBtnW - 16 * SCALE;
+    const canStart = !G.waveActive && G.state === 'PLAYING';
+    ctx.fillStyle = canStart ? 'rgba(120,220,140,0.9)' : 'rgba(255,255,255,0.12)';
+    roundRect(waveBtnX, by, waveBtnW, waveBtnH, 10 * SCALE);
+    ctx.fill();
+    ctx.fillStyle = canStart ? '#123' : 'rgba(255,255,255,0.8)';
+    ctx.font = `bold ${14 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = canStart
+      ? (G.waveNumber === 0 ? '▶ Start Wave 1' : `▶ Start Wave ${G.waveNumber + 1}`)
+      : `🐛 ${G.enemies.length + G.spawnQueue.length} pests left`;
+    ctx.fillText(label, waveBtnX + waveBtnW / 2, by + waveBtnH * (canStart ? 0.36 : 0.5));
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+
+    if (canStart) {
+      // countdown bar + seconds readout — depletes toward 0, then auto-starts the wave
+      const timerFrac = clamp(G.waveTimer / AUTO_START_SECONDS, 0, 1);
+      ctx.fillStyle = 'rgba(20,40,20,0.75)';
+      ctx.font = `${10.5 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`auto-starts in ${Math.ceil(G.waveTimer)}s`, waveBtnX + waveBtnW / 2, by + waveBtnH * 0.63);
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+
+      const barMargin = 10 * SCALE, barH = 5 * SCALE;
+      const barX = waveBtnX + barMargin, barY = by + waveBtnH - barH - 7 * SCALE;
+      const barW = waveBtnW - barMargin * 2;
+      ctx.fillStyle = 'rgba(20,40,20,0.35)';
+      roundRect(barX, barY, barW, barH, barH / 2);
+      ctx.fill();
+      ctx.fillStyle = timerFrac < 0.25 ? '#c0392b' : '#1c5c2e';
+      roundRect(barX, barY, barW * timerFrac, barH, barH / 2);
+      ctx.fill();
+
+      G.uiButtons.push({ x: waveBtnX, y: by, w: waveBtnW, h: waveBtnH, action: startWave });
+    }
+  }
+
+  function drawSelectedPanel() {
+    const t = G.selectedTower;
+    if (!t || !G.towers.includes(t)) { G.selectedTower = null; return; }
+    const def = TOWER_TYPES[t.type];
+    const stats = towerStats(t);
+    const panelW = 210 * SCALE, panelH = 132 * SCALE;
+    let px = clamp(t.x - panelW / 2, 6 * SCALE, CW - panelW - 6 * SCALE);
+    let py = t.y - panelH - TILE_SIZE * 0.6;
+    if (py < HUD_H + 4 * SCALE) py = t.y + TILE_SIZE * 0.6;
+
+    ctx.fillStyle = 'rgba(15,20,15,0.92)';
+    roundRect(px, py, panelW, panelH, 10 * SCALE);
+    ctx.fill();
+    ctx.strokeStyle = def.ring; ctx.lineWidth = 1.5 * SCALE;
+    roundRect(px, py, panelW, panelH, 10 * SCALE);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${13.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${def.name}  Lv.${t.level}${t.buffed ? ' 💞' : ''}`, px + 10 * SCALE, py + 20 * SCALE);
+
+    ctx.font = `${11.5 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#dfe3ff';
+    ctx.fillText(`⚔️ ${Math.round(stats.damage)}   🎯 ${Math.round(stats.range)}   ⏱ ${stats.fireRate.toFixed(2)}/s`, px + 10 * SCALE, py + 38 * SCALE);
+
+    const btnW = panelW - 20 * SCALE, btnH = 26 * SCALE;
+    const upgY = py + 50 * SCALE;
+    if (t.level < MAX_LEVEL) {
+      const cost = upgradeCost(t);
+      const afford = G.currency >= cost;
+      ctx.fillStyle = afford ? 'rgba(120,220,140,0.85)' : 'rgba(255,255,255,0.15)';
+      roundRect(px + 10 * SCALE, upgY, btnW, btnH, 7 * SCALE);
+      ctx.fill();
+      ctx.fillStyle = afford ? '#123' : 'rgba(255,255,255,0.6)';
+      ctx.font = `bold ${12 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`⬆️ Upgrade — 🪙${cost}`, px + 10 * SCALE + btnW / 2, upgY + btnH / 2);
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      G.uiButtons.push({ x: px + 10 * SCALE, y: upgY, w: btnW, h: btnH, action: () => upgradeTower(t) });
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      roundRect(px + 10 * SCALE, upgY, btnW, btnH, 7 * SCALE);
+      ctx.fill();
+      ctx.fillStyle = '#ffe98a';
+      ctx.font = `bold ${12 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⭐ Max Level', px + 10 * SCALE + btnW / 2, upgY + btnH / 2);
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    }
+
+    const sellY = upgY + btnH + 8 * SCALE;
+    ctx.fillStyle = 'rgba(255,120,120,0.75)';
+    roundRect(px + 10 * SCALE, sellY, btnW, btnH, 7 * SCALE);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${12 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`💰 Sell — +${sellValue(t)}`, px + 10 * SCALE + btnW / 2, sellY + btnH / 2);
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    G.uiButtons.push({ x: px + 10 * SCALE, y: sellY, w: btnW, h: btnH, action: () => sellTower(t) });
+  }
+
+  function drawSelectedEnemyPanel() {
+    const e = G.selectedEnemy;
+    if (!e || !G.enemies.includes(e)) { G.selectedEnemy = null; return; }
+    const def = ENEMY_TYPES[e.type];
+    const slowed = e.slowUntil > G.t;
+    const curSpeed = (e.speed * (slowed ? e.slowFactor : 1)) / SCALE;
+
+    const panelW = 200 * SCALE, panelH = (def.armor ? 106 : 88) * SCALE;
+    let px = clamp(e.x - panelW / 2, 6 * SCALE, CW - panelW - 6 * SCALE);
+    let py = e.y - panelH - 20 * SCALE;
+    if (py < HUD_H + 4 * SCALE) py = e.y + 20 * SCALE;
+
+    ctx.fillStyle = 'rgba(15,20,15,0.92)';
+    roundRect(px, py, panelW, panelH, 10 * SCALE);
+    ctx.fill();
+    ctx.strokeStyle = '#8a5a2a'; ctx.lineWidth = 1.5 * SCALE;
+    roundRect(px, py, panelW, panelH, 10 * SCALE);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${13.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${def.emoji} ${def.name}${slowed ? ' 🐌' : ''}`, px + 10 * SCALE, py + 20 * SCALE);
+
+    ctx.font = `${11.5 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#dfe3ff';
+    ctx.fillText(`❤️ ${Math.round(e.hp)} / ${Math.round(e.maxHp)} HP`, px + 10 * SCALE, py + 40 * SCALE);
+    ctx.fillText(`💨 ${Math.round(curSpeed)}${slowed ? ' (slowed)' : ''}`, px + 10 * SCALE, py + 58 * SCALE);
+    let nextY = 76;
+    if (def.armor) {
+      ctx.fillText(`🛡️ ${Math.round(def.armor * 100)}% damage reduction`, px + 10 * SCALE, py + nextY * SCALE);
+      nextY += 18;
+    }
+    ctx.fillStyle = '#ffe98a';
+    ctx.fillText(`🪙 ${enemyReward(e)} on kill`, px + 10 * SCALE, py + nextY * SCALE);
+  }
+
+  function drawToast() {
+    if (!G.toast) return;
+    const t = G.toast;
+    let alpha = 1;
+    if (t.life > t.max - 200) alpha = (t.max - t.life) / 200;
+    else if (t.life < 300) alpha = t.life / 300;
+    const w = clamp(CW * 0.4, 260 * SCALE, 460 * SCALE), h = 34 * SCALE;
+    ctx.save();
+    ctx.globalAlpha = clamp(alpha, 0, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.62)';
+    roundRect(CW / 2 - w / 2, HUD_H + 10 * SCALE, w, h, h / 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `${15 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t.text, CW / 2, HUD_H + 10 * SCALE + h / 2 + 1);
+    ctx.restore();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, CW, CH);
+    G.uiButtons = [];
+
+    drawBackground();
+    drawScenery();
+    drawPath();
+    if (G.state === 'MENU') return; // show the garden as scenery behind the menu, nothing interactive yet
+
+    drawGrid();
+    drawTowers();
+    drawEnemies();
+    drawProjectiles();
+    drawGhostTower();
+    renderParticles();
+    drawTopHUD();
+    drawBuildPanel();
+    drawPestTuner();
+    drawFriendTuner();
+    drawSelectedPanel();
+    drawSelectedEnemyPanel();
+    drawToast();
+  }
+
+  // ============================================================
+  // 16. MAIN LOOP
+  // ============================================================
+  let lastTime = null;
+  function loop(now) {
+    if (lastTime == null) lastTime = now;
+    const elapsedMs = Math.min(50, now - lastTime);
+    lastTime = now;
+    update(elapsedMs);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ============================================================
+  // 17. INIT
+  // ============================================================
+  document.getElementById('btnStart').addEventListener('click', () => {
+    ensureAudio();
+    document.getElementById('menuOverlay').classList.add('hidden');
+    newGame();
+  });
+  document.getElementById('btnAgain').addEventListener('click', returnToMenu);
+  document.getElementById('btnMenuLeaderboard').addEventListener('click', openLeaderboard);
+  document.getElementById('btnResultLeaderboard').addEventListener('click', openLeaderboard);
+  document.getElementById('btnCloseLeaderboard').addEventListener('click', () => {
+    document.getElementById('leaderboardOverlay').classList.add('hidden');
+  });
+  document.getElementById('btnSaveScore').addEventListener('click', () => {
+    const nameInput = document.getElementById('nameInput');
+    saveLeaderboardEntry(nameInput.value, G.waveNumber);
+    document.getElementById('saveConfirm').textContent = '✅ Saved!';
+    const btn = document.getElementById('btnSaveScore');
+    btn.disabled = true;
+    btn.textContent = '✅ Saved';
+  });
+
+  handleResize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
