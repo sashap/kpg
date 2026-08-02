@@ -62,7 +62,7 @@
     <h1>🩷 Guardians of the Garden 🦎</h1>
     <p class="sub">Ants, aphids, mosquitoes, caterpillars and snails are invading the garden! Team up
     Axolotl and Lizard Friends next to each other for a Best Friends bonus, then unlock Spider, Ladybug
-    and Worm Friends as you earn coins. How far through the 99 waves can you get?</p>
+    and Worm Friends as you earn coins. How far through the 999 waves can you get?</p>
     <div class="menuRow">
       <button id="btnStart">🌱 Start Defending</button>
       <button id="btnMenuLeaderboard" class="secondary">🏆 Leaderboard</button>
@@ -105,10 +105,11 @@
   const HUD_H_BASE = 58;
   const PANEL_H_BASE = 108;
   const TUNER_H_BASE = 116;
-  const TOTAL_WAVES = 99;
+  const TOTAL_WAVES = 999;
   const START_CURRENCY = 130;
   const START_LIVES = 10;
   const AUTO_START_SECONDS = 30;
+  const SPEED_OPTIONS = [1, 2, 4, 0.5];
   // Reward scales with how tough the kill actually was (its real HP vs. that
   // type's wave-1 baseline), not a flat per-type number — but sub-linearly
   // (exponent < 1), so a bug with 10x the HP pays out well under 10x the coins.
@@ -164,7 +165,7 @@
     },
   };
   const TOWER_ORDER = ['axolotl', 'lizard', 'spider', 'ladybug', 'bee', 'worm'];
-  const MAX_LEVEL = 99;
+  const MAX_LEVEL = 999;
   const UPGRADE_DMG_MUL = 1.45;
   const UPGRADE_RANGE_MUL = 1.08;
   const UPGRADE_RATE_MUL = 1.12;
@@ -657,7 +658,7 @@
   // ============================================================
   // 6. ENEMIES & WAVES
   // ============================================================
-  // With 99 waves to climb, enemy *counts* grow quickly at first then level off
+  // With 999 waves to climb, enemy *counts* grow quickly at first then level off
   // (capped growth window), while hp/speed keep creeping up for the whole climb —
   // that way late waves stay hard because bugs are tougher, not just more numerous.
   function buildWaveQueue(n) {
@@ -1602,9 +1603,11 @@
     ctx.font = `bold ${14 * SCALE}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(G.speedMul === 1 ? '1x' : '2x', speedX - speedW / 2, speedY + 1);
+    ctx.fillText(G.speedMul === 0.5 ? '.5x' : `${G.speedMul}x`, speedX - speedW / 2, speedY + 1);
     ctx.textBaseline = 'alphabetic';
-    G.uiButtons.push({ x: speedX - speedW, y: speedY - speedH / 2, w: speedW, h: speedH, action: () => { G.speedMul = G.speedMul === 1 ? 2 : 1; } });
+    G.uiButtons.push({ x: speedX - speedW, y: speedY - speedH / 2, w: speedW, h: speedH, action: () => {
+      G.speedMul = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(G.speedMul) + 1) % SPEED_OPTIONS.length];
+    } });
 
     // dev-only pest tuner toggle
     const tunerW = 78 * SCALE, tunerH = 30 * SCALE;
@@ -1697,7 +1700,7 @@
     ctx.fillStyle = '#ffe98a';
     ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('🛠 Pest Tuner (dev only) — tweak HP/Speed, then tell Claude the final numbers to lock them in', 14 * SCALE, panelY + 16 * SCALE);
+    ctx.fillText('🛠 Pest Tuner (dev only) — tweak HP/Speed', 14 * SCALE, panelY + 16 * SCALE);
 
     const growthRowY = panelY + 34 * SCALE;
     const growthBtnSize = 16 * SCALE;
@@ -1718,6 +1721,7 @@
     drawMiniButton(gx + hpLabelW + 6 * SCALE + growthBtnSize + 4 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '+', () => adjustHpGrowthPct(0.25));
     gx += hpControlW + controlGap;
 
+    ctx.font = `${11.5 * SCALE}px sans-serif`;
     ctx.fillStyle = '#dfe3ff';
     ctx.fillText(spLabel, gx, growthRowY + 4 * SCALE);
     drawMiniButton(gx + spLabelW + 6 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '−', () => adjustSpeedGrowthPct(-0.25));
@@ -1761,7 +1765,7 @@
     ctx.fillStyle = '#ffe98a';
     ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('🛠 Friend Tuner (dev only) — tweak starting Damage/Range, then tell Claude the final numbers to lock them in', 14 * SCALE, panelY + 16 * SCALE);
+    ctx.fillText('🛠 Friend Tuner (dev only) — tweak starting Damage/Range', 14 * SCALE, panelY + 16 * SCALE);
 
     const colW = CW / TOWER_ORDER.length;
     for (let i = 0; i < TOWER_ORDER.length; i++) {
@@ -1845,9 +1849,9 @@
     }
 
     // description + per-level dmg/range preview of armed tower — only the first
-    // 10 of MAX_LEVEL=99 levels are spelled out (two lines of 5), then a third
+    // 10 of MAX_LEVEL=999 levels are spelled out (two lines of 5), then a third
     // line gives the flat %/level growth rate that applies to every level past
-    // that, since listing all 99 would be absurd. Font auto-shrinks to fit the
+    // that, since listing all 999 would be absurd. Font auto-shrinks to fit the
     // space left of the Start Wave button.
     if (armedDef) {
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
