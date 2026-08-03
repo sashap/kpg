@@ -192,6 +192,19 @@
   // 2. UTILITIES
   // ============================================================
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  // Tower upgrade/sell values compound exponentially with level (up to
+  // MAX_LEVEL=999), so raw digit counts can blow way past what any button
+  // width or font-shrink floor can fit — compact them instead.
+  const COMPACT_UNITS = ['K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No'];
+  function formatCompact(n) {
+    n = Math.round(n);
+    if (n < 1000) return String(n);
+    const tier = Math.floor(Math.log10(n) / 3);
+    if (tier > COMPACT_UNITS.length) return n.toExponential(1);
+    const scaled = n / Math.pow(1000, tier);
+    return `${scaled.toFixed(scaled < 10 ? 1 : 0)}${COMPACT_UNITS[tier - 1]}`;
+  }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function randRange(min, max) { return min + Math.random() * (max - min); }
   function randInt(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
@@ -1115,7 +1128,13 @@
   // 13. RESIZE
   // ============================================================
   function handleResize() {
-    CW = window.innerWidth; CH = window.innerHeight;
+    // visualViewport is the more reliable source on mobile Safari — plain
+    // window.innerWidth/innerHeight can report a stale transitional size
+    // while the browser chrome (toolbars, safe areas) is still settling,
+    // especially right after a reload.
+    const vv = window.visualViewport;
+    CW = vv ? vv.width : window.innerWidth;
+    CH = vv ? vv.height : window.innerHeight;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(CW * dpr);
     canvas.height = Math.round(CH * dpr);
@@ -1126,7 +1145,11 @@
     recomputePath();
   }
   let resizeTimer = null;
-  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(handleResize, 120); });
+  function queueResize() { clearTimeout(resizeTimer); resizeTimer = setTimeout(handleResize, 120); }
+  window.addEventListener('resize', queueResize);
+  window.addEventListener('orientationchange', queueResize);
+  window.addEventListener('pageshow', queueResize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', queueResize);
 
   // ============================================================
   // 14. UPDATE LOOP
@@ -2020,7 +2043,7 @@
       roundRect(px + 10 * SCALE, upgY, btnW, btnH, 7 * SCALE);
       ctx.fill();
       ctx.fillStyle = afford ? '#123' : 'rgba(255,255,255,0.6)';
-      const upgLabel = `⬆️ Upgrade — 🪙${cost}`;
+      const upgLabel = `🔼 Upgrade — 🪙${formatCompact(cost)}`;
       const upgAvailW = btnW - 12 * SCALE;
       let upgFont = 12;
       ctx.font = `bold ${upgFont * SCALE}px sans-serif`;
@@ -2048,7 +2071,7 @@
     roundRect(px + 10 * SCALE, sellY, btnW, btnH, 7 * SCALE);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    const sellLabel = `💰 Sell — +${sellValue(t)}`;
+    const sellLabel = `💰 Sell — +${formatCompact(sellValue(t))}`;
     const sellAvailW = btnW - 12 * SCALE;
     let sellFont = 12;
     ctx.font = `bold ${sellFont * SCALE}px sans-serif`;
@@ -2180,6 +2203,12 @@
   });
 
   handleResize();
+  // A couple of short-delayed re-checks catch mobile Safari reloads where the
+  // very first viewport read is still a stale transitional size (browser
+  // chrome mid-animation) — window.onload alone isn't always late enough.
+  setTimeout(handleResize, 60);
+  setTimeout(handleResize, 300);
+  window.addEventListener('load', handleResize);
   requestAnimationFrame(loop);
 })();
 </script>
