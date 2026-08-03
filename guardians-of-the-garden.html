@@ -17,11 +17,11 @@
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; color: #fff; background: rgba(10, 20, 12, 0.6);
-    padding: 20px; box-sizing: border-box;
+    padding: 20px; box-sizing: border-box; overflow-y: auto;
   }
   .overlay.hidden { display: none; }
-  .overlay h1 { font-size: 40px; margin: 0 0 6px 0; text-shadow: 0 3px 0 rgba(0,0,0,0.35); }
-  .overlay .sub { font-size: 16px; margin: 0 0 18px 0; opacity: 0.92; max-width: 560px; line-height: 1.5; }
+  .overlay h1 { font-size: 40px; margin: 0 0 16px 0; text-shadow: 0 3px 0 rgba(0,0,0,0.35); }
+  .overlay .sub { font-size: 16px; margin: 0 0 28px 0; opacity: 0.92; max-width: 560px; line-height: 1.5; }
   button {
     font-family: inherit; font-size: 18px; font-weight: bold; color: #fff;
     background: linear-gradient(#7bd67f, #3f9142); border: 3px solid #d6ffd8;
@@ -33,10 +33,10 @@
   button:disabled { opacity: 0.55; cursor: default; transform: none !important; }
   button.secondary { background: linear-gradient(#8fc2ff, #4a7fd6); border-color: #d6ecff; }
   button.small { font-size: 14px; padding: 9px 16px; border-radius: 10px; border-width: 2px; }
-  .howto { font-size: 13.5px; opacity: 0.85; margin-top: 16px; max-width: 520px; }
+  .howto { font-size: 16px; opacity: 0.9; margin: 0 0 28px 0; max-width: 560px; line-height: 1.5; }
   #resultTitle { font-size: 34px; margin-bottom: 8px; }
   #resultSub { font-size: 16px; margin-bottom: 14px; }
-  .menuRow { display: flex; gap: 14px; margin-top: 4px; }
+  .menuRow { display: flex; gap: 14px; margin-top: 8px; }
   .scoreSave { display: flex; gap: 8px; align-items: center; margin: 6px 0 12px 0; }
   #nameInput {
     font-family: inherit; font-size: 15px; padding: 10px 14px; border-radius: 10px;
@@ -52,6 +52,16 @@
   .lbRow.top3 { color: #ffd93d; font-weight: bold; }
   .lbName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lbMeta { opacity: 0.85; font-weight: normal; white-space: nowrap; }
+  .panel {
+    display: flex; flex-direction: column; align-items: center; box-sizing: border-box;
+    background: #142016; border: 2px solid rgba(255,255,255,0.15); border-radius: 18px;
+    padding: 24px 32px; max-width: min(720px, 92vw); box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .panel h1 { white-space: nowrap; }
+  .helpBox { max-width: min(820px, 92vw); }
+  .helpBox h1 { font-size: 30px; }
+  .helpSteps { text-align: left; padding-left: 22px; line-height: 1.6; font-size: 14.5px; }
+  .helpSteps li { margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -59,36 +69,61 @@
   <canvas id="game"></canvas>
 
   <div id="menuOverlay" class="overlay">
-    <h1>🩷 Guardians of the Garden 🦎</h1>
-    <p class="sub">Ants, aphids, mosquitoes, caterpillars and snails are invading the garden! Team up
-    Axolotl and Gecko Friends next to each other for a Best Friends bonus, then unlock Spider, Ladybug
-    and Worm Friends as you earn coins. How far through the 999 waves can you get?</p>
-    <div class="menuRow">
-      <button id="btnStart">🌱 Start Defending</button>
-      <button id="btnMenuLeaderboard" class="secondary">🏆 Leaderboard</button>
+    <div class="panel">
+      <h1>🩷 Guardians of the Garden 🦎</h1>
+      <p class="sub">A fun twist on tower defense — place cute garden Friends to fend off endless
+      pests, team up for bonuses, and see how many of 999 waves you can survive!</p>
+      <p class="howto">Click a Friend button, then click a garden tile to place it. Once placed, click that
+      Friend anytime to upgrade or sell it. Press "Start Wave" when you're ready!</p>
+      <div class="menuRow">
+        <button id="btnStart">▶️ Let's Play!</button>
+        <button id="btnMenuLeaderboard" class="secondary">🏆 Leaderboard</button>
+      </div>
     </div>
-    <p class="howto">Click a Friend button, then click a garden tile to place it. Click a placed Friend
-    to upgrade or sell it. Press "Start Wave" when you're ready!</p>
   </div>
 
   <div id="resultOverlay" class="overlay hidden">
-    <h1 id="resultTitle">🎉 You Win! 🎉</h1>
-    <p id="resultSub">The garden is safe!</p>
-    <div class="scoreSave">
-      <input id="nameInput" type="text" maxlength="24" placeholder="Player or Team Name">
-      <button id="btnSaveScore" class="small">💾 Save Score</button>
-    </div>
-    <p id="saveConfirm" class="saveConfirm"></p>
-    <div class="menuRow">
-      <button id="btnResultLeaderboard" class="secondary">🏆 Leaderboard</button>
-      <button id="btnAgain">🔁 Play Again</button>
+    <div class="panel">
+      <h1 id="resultTitle">🎉 You Win! 🎉</h1>
+      <p id="resultSub">The garden is safe!</p>
+      <div class="scoreSave">
+        <input id="nameInput" type="text" maxlength="24" placeholder="Player or Team Name">
+        <button id="btnSaveScore" class="small">💾 Save Score</button>
+      </div>
+      <p id="saveConfirm" class="saveConfirm"></p>
+      <div class="menuRow">
+        <button id="btnResultLeaderboard" class="secondary">🏆 Leaderboard</button>
+        <button id="btnAgain">🔁 Play Again</button>
+      </div>
     </div>
   </div>
 
   <div id="leaderboardOverlay" class="overlay hidden">
-    <h1>🏆 Top Guardians of the Garden</h1>
-    <div id="leaderboardList" class="leaderboardList"></div>
-    <button id="btnCloseLeaderboard">Close</button>
+    <div class="panel">
+      <h1>🏆 Top Guardians of the Garden</h1>
+      <div id="leaderboardList" class="leaderboardList"></div>
+      <button id="btnCloseLeaderboard">Close</button>
+    </div>
+  </div>
+
+  <div id="helpOverlay" class="overlay hidden">
+    <div class="panel helpBox">
+      <h1>❓ How to Play</h1>
+      <ol class="helpSteps">
+        <li>Click a Friend button at the bottom, then click a garden tile to place it.</li>
+        <li>Place Axolotl and Gecko next to each other for a Best Friends damage bonus.</li>
+        <li>Click a placed Friend anytime to see its stats, upgrade it, or sell it back.</li>
+        <li>Earn coins by popping pests — spend them to unlock Spider, Ladybug, Bee and Worm.</li>
+        <li>Press "Start Wave" (or wait for it to auto-start) to send the next wave of pests in.</li>
+        <li>Don't let pests reach the end of the path — each one that gets through costs a heart.</li>
+        <li>Watch for the giant Mole boss every 10th wave: tons of health and slow, but a big coin payout.</li>
+        <li>Use the speed button (1x/2x/4x/8x/.5x) at the top to fast-forward or slow down.</li>
+        <li>Survive as many of the 999 waves as you can, then save your score to the Leaderboard!</li>
+        <li>The "Friends" and "Pests" buttons at the top are debugging/tuning tools for
+        live-adjusting stats — feel free to play with them if you're curious!</li>
+      </ol>
+      <button id="btnCloseHelp">Close</button>
+    </div>
   </div>
 </div>
 
@@ -109,7 +144,8 @@
   const START_CURRENCY = 130;
   const START_LIVES = 10;
   const AUTO_START_SECONDS = 30;
-  const SPEED_OPTIONS = [1, 2, 4, 0.5];
+  const MOLE_SPAWN_INTERVAL = 3.5; // seconds between Moles on a multi-Mole boss wave
+  const SPEED_OPTIONS = [1, 2, 4, 8, 0.5];
   // Reward scales with how tough the kill actually was (its real HP vs. that
   // type's wave-1 baseline), not a flat per-type number — but sub-linearly
   // (exponent < 1), so a bug with 10x the HP pays out well under 10x the coins.
@@ -143,10 +179,12 @@
     },
     ladybug: {
       id: 'ladybug', name: 'Ladybug', cost: 85, unlockAt: 300,
-      dmgBase: 11, rangeBase: 140, fireRate: 2.0, splashBase: 14,
+      dmgBase: 13, rangeBase: 140, fireRate: 3.6, splashBase: 14,
       slowFactor: 1, slowDuration: 0, projSpeedBase: 420, attackStyle: 'projectile',
+      // Real ladybugs are famous aphid-eaters, and their spots inspired the crit chance.
+      bonusVsAphid: 2.5, critChance: 0.2, critMul: 2,
       color: '#ff5555', ring: '#b71c1c',
-      desc: 'Rapid-fire polka-dot blaster.',
+      desc: 'Blazing fire rate — bonus vs aphids, crits!',
     },
     bee: {
       id: 'bee', name: 'Bee', cost: 95, unlockAt: 380,
@@ -179,6 +217,10 @@
     // A thick shell shrugs off part of every hit (see damageEnemy), on top of a much bigger hp pool.
     snail: { id: 'snail', name: 'Snail', emoji: '🐌', hpBase: 600, speedBase: 40, reward: 16, flying: false, armor: 0.35 },
     caterpillar: { id: 'caterpillar', name: 'Caterpillar', emoji: '🐛', hpBase: 250, speedBase: 55, reward: 6, flying: false },
+    // A rare, hand-drawn boss (see drawMoleCreature) that shows up alone on every
+    // 10th wave (see buildWaveQueue) — huge and slow, but a big payout for the
+    // long grind of taking it down. emoji here is only a UI-label fallback.
+    mole: { id: 'mole', name: 'Mole', emoji: '🦫', hpBase: 7500, speedBase: 22, reward: 120, flying: false, sizeMul: 1.92, boss: true },
   };
 
   // Path is a randomized orthogonal zig-zag laid exactly on the tile grid (see
@@ -266,11 +308,12 @@
     speedMul: 1,
     showPestTuner: false,
     showFriendTuner: false,
+    shownUpgradeHint: false, // whether the "click a placed Friend to upgrade" toast has fired this game
     hpGrowthPct: 5, // % hp compounded per wave, tunable live from the Pest Tuner
     speedGrowthPct: 1.5, // % speed compounded per wave, tunable live from the Pest Tuner
     dmgGrowthPct: 45, // % dmg compounded per tower level, tunable live from the Friend Tuner
     rangeGrowthPct: 8, // % range compounded per tower level, tunable live from the Friend Tuner
-    costGrowthPct: 70, // % upgrade cost compounded per tower level, tunable live from the Friend Tuner
+    costGrowthPct: 65, // % upgrade cost compounded per tower level, tunable live from the Friend Tuner
     selectedEnemy: null,
     t: 0,
     nextId: 1,
@@ -675,6 +718,14 @@
   // (capped growth window), while hp/speed keep creeping up for the whole climb —
   // that way late waves stay hard because bugs are tougher, not just more numerous.
   function buildWaveQueue(n) {
+    // Every 10th wave is a boss encounter — Mole(s) come out on their own
+    // instead of being mixed into the usual horde. Wave 10 is a solo Mole;
+    // from wave 20 on a small pack shows up instead (capped, still "small").
+    if (n % 10 === 0) {
+      const moleCount = n < 20 ? 1 : n < 40 ? 2 : 3;
+      return new Array(moleCount).fill('mole');
+    }
+
     const counts = {
       ant: 4 + Math.floor(Math.min(n, 40) * 0.9),
       aphid: 2 + Math.floor(Math.min(n, 30) * 0.6),
@@ -696,10 +747,18 @@
     if (G.waveActive || G.state !== 'PLAYING') return;
     G.waveNumber++;
     G.spawnQueue = buildWaveQueue(G.waveNumber);
-    G.spawnInterval = clamp(0.8 - G.waveNumber * 0.012, 0.22, 0.9);
+    // Moles are huge and slow — a wide, fixed gap between spawns (instead of
+    // the usual wave-shrunk interval) keeps a multi-Mole wave from bunching
+    // them up into an overlapping wall.
+    G.spawnInterval = G.waveNumber % 10 === 0 ? MOLE_SPAWN_INTERVAL : clamp(0.8 - G.waveNumber * 0.012, 0.22, 0.9);
     G.spawnTimer = 0;
     G.waveActive = true;
-    showToast(`🌿 Wave ${G.waveNumber} incoming!`);
+    if (G.waveNumber % 10 === 0) {
+      const n = G.spawnQueue.length;
+      showToast(n > 1 ? `🦫 BOSS WAVE! ${n} giant Moles are coming!` : `🦫 BOSS WAVE! A giant Mole is coming!`);
+    } else {
+      showToast(`🌿 Wave ${G.waveNumber} incoming!`);
+    }
     playSfx('waveStart');
   }
 
@@ -761,14 +820,23 @@
     }
   }
 
+  // Combines a projectile's per-target-trait bonuses (e.g. Bee vs flying,
+  // Ladybug vs aphids) — each defaults to 1 so towers without that bonus are unaffected.
+  function projectileBonusMul(pr, typeId) {
+    const def = ENEMY_TYPES[typeId];
+    return (def.flying ? pr.bonusVsFlying : 1) * (def.id === 'aphid' ? pr.bonusVsAphid : 1);
+  }
+
   function fireProjectileAttack(tower, target, stats) {
     const def = TOWER_TYPES[tower.type];
+    const crit = !!def.critChance && Math.random() < def.critChance;
     G.projectiles.push({
-      id: genId(), x: tower.x, y: tower.y, target, damage: stats.damage,
+      id: genId(), x: tower.x, y: tower.y, target, damage: crit ? stats.damage * def.critMul : stats.damage,
       splash: stats.splash, speed: def.projSpeedBase * SCALE,
       slowFactor: def.slowFactor, slowDuration: def.slowDuration,
       bonusVsFlying: def.bonusVsFlying || 1,
-      visualType: tower.type,
+      bonusVsAphid: def.bonusVsAphid || 1,
+      crit, visualType: tower.type,
     });
   }
 
@@ -806,16 +874,16 @@
       if (pr.splash > 0) {
         for (const e of G.enemies.slice()) {
           if (dist(pr.x, pr.y, e.x, e.y) <= pr.splash) {
-            const dmg = pr.damage * (ENEMY_TYPES[e.type].flying ? pr.bonusVsFlying : 1);
-            damageEnemy(e, dmg);
+            damageEnemy(e, pr.damage * projectileBonusMul(pr, e.type));
             applySlow(e, pr.slowFactor, pr.slowDuration);
           }
         }
         spawnSplashParticles(pr.x, pr.y, pr.visualType);
+        if (pr.crit) spawnCritParticles(pr.x, pr.y);
       } else if (G.enemies.includes(pr.target)) {
-        const dmg = pr.damage * (ENEMY_TYPES[pr.target.type].flying ? pr.bonusVsFlying : 1);
-        damageEnemy(pr.target, dmg);
+        damageEnemy(pr.target, pr.damage * projectileBonusMul(pr, pr.target.type));
         applySlow(pr.target, pr.slowFactor, pr.slowDuration);
+        if (pr.crit) spawnCritParticles(pr.target.x, pr.target.y);
       }
       playSfx('splat');
     }
@@ -853,6 +921,14 @@
     for (let i = 0; i < 8; i++) {
       const a = Math.random() * Math.PI * 2, spd = (0.6 + Math.random() * 1.4) * SCALE;
       G.particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: 350, max: 350, color, size: (2 + Math.random() * 2) * SCALE, shape: 'circle', gravity: 0.03 * SCALE });
+    }
+  }
+
+  // A little star-burst flash for Ladybug's spot-on crits.
+  function spawnCritParticles(x, y) {
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2, spd = (0.8 + Math.random() * 1.6) * SCALE;
+      G.particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd - SCALE * 0.3, life: 300, max: 300, color: '#fff23f', size: (2 + Math.random() * 2) * SCALE, shape: 'star', gravity: 0.03 * SCALE });
     }
   }
 
@@ -968,6 +1044,7 @@
     G.selectedTower = null;
     G.selectedEnemy = null;
     G.speedMul = 1;
+    G.shownUpgradeHint = false;
     // no path regeneration here — reuse whatever layout is already showing on
     // the menu screen, so the preview path and the played path always match
     recomputePath();
@@ -1117,7 +1194,7 @@
 
     // Bugs keep marching while you aim, so give the click a generous, forgiving
     // radius (bigger than the drawn glyph) rather than a pixel-tight hitbox.
-    const hitEnemy = G.enemies.find(en => dist(en.x, en.y, p.x, p.y) <= 22 * SCALE);
+    const hitEnemy = G.enemies.find(en => dist(en.x, en.y, p.x, p.y) <= 22 * (ENEMY_TYPES[en.type].sizeMul || 1) * SCALE);
     G.selectedTower = null;
     G.selectedEnemy = hitEnemy || null;
   });
@@ -1526,31 +1603,72 @@
   // never right-to-left) — mirror them so they always face the way they walk.
   const EMOJI_FACES_LEFT = new Set(['ant', 'mosquito', 'caterpillar']);
 
+  // Hand-drawn boss critter (no real "mole" emoji exists) — snout points +x
+  // to match the emoji convention above of facing the way the path travels.
+  function drawMoleCreature() {
+    ctx.fillStyle = '#8a6a4a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 19, 16, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5c4530'; ctx.lineWidth = 2; ctx.stroke();
+
+    // lighter belly patch
+    ctx.fillStyle = '#c2a679';
+    ctx.beginPath(); ctx.ellipse(-2, 5, 12, 9, 0, 0, Math.PI * 2); ctx.fill();
+
+    // pointed snout with a small pink nose tip
+    ctx.fillStyle = '#8a6a4a';
+    ctx.beginPath(); ctx.ellipse(17, -1, 7, 5, 0.25, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5c4530'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#e8a0b0';
+    ctx.beginPath(); ctx.arc(22, 0, 2.2, 0, Math.PI * 2); ctx.fill();
+
+    // tiny near-blind eyes, flanking the snout
+    ctx.fillStyle = '#2a1f14';
+    ctx.beginPath(); ctx.arc(9, -8, 1.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(9, 6, 1.4, 0, Math.PI * 2); ctx.fill();
+
+    // narrow digging paws with claws pointing forward, a mole's signature feature
+    ctx.fillStyle = '#c2a679'; ctx.strokeStyle = '#5c4530'; ctx.lineWidth = 1.4;
+    for (const s of [-1, 1]) {
+      const py = s * 16;
+      ctx.beginPath(); ctx.ellipse(-2, py, 5, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      for (const spread of [-3, 0, 3]) { ctx.moveTo(3, py + spread); ctx.lineTo(10, py + spread * 1.4); }
+      ctx.stroke();
+    }
+  }
+
   function drawEnemies() {
     for (const e of G.enemies) {
       const def = ENEMY_TYPES[e.type];
+      const sizeMul = def.sizeMul || 1;
       const slowed = e.slowUntil > G.t;
       ctx.save();
       ctx.translate(e.x, e.y);
       if (def.flying) ctx.translate(0, Math.sin(e.wobble) * 2 * SCALE);
-      if (EMOJI_FACES_LEFT.has(e.type)) ctx.scale(-1, 1);
-      ctx.font = `${20 * SCALE}px sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       if (slowed) { ctx.filter = 'hue-rotate(180deg) saturate(1.4)'; }
-      ctx.fillText(def.emoji, 0, 0);
+      if (e.type === 'mole') {
+        ctx.scale(sizeMul * SCALE, sizeMul * SCALE);
+        drawMoleCreature();
+      } else {
+        if (EMOJI_FACES_LEFT.has(e.type)) ctx.scale(-1, 1);
+        ctx.font = `${20 * sizeMul * SCALE}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(def.emoji, 0, 0);
+      }
       ctx.restore();
 
-      const barW = 20 * SCALE, barH = 3.5 * SCALE;
+      const barW = 20 * sizeMul * SCALE, barH = 3.5 * SCALE;
+      const barY = e.y - 16 * sizeMul * SCALE;
       const hpFrac = clamp(e.hp / e.maxHp, 0, 1);
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.fillRect(e.x - barW / 2, e.y - 16 * SCALE, barW, barH);
+      ctx.fillRect(e.x - barW / 2, barY, barW, barH);
       ctx.fillStyle = hpFrac > 0.5 ? '#7CFC9A' : hpFrac > 0.25 ? '#ffd93d' : '#ff5a5a';
-      ctx.fillRect(e.x - barW / 2, e.y - 16 * SCALE, barW * hpFrac, barH);
+      ctx.fillRect(e.x - barW / 2, barY, barW * hpFrac, barH);
 
       if (def.armor) {
         ctx.font = `${9 * SCALE}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('🛡️', e.x + barW / 2 + 5 * SCALE, e.y - 14 * SCALE);
+        ctx.fillText('🛡️', e.x + barW / 2 + 5 * SCALE, barY + 2 * SCALE);
         ctx.textAlign = 'left';
       }
     }
@@ -1627,9 +1745,29 @@
     ctx.font = `bold ${15 * SCALE}px sans-serif`;
     ctx.fillText(`Wave ${G.waveNumber}/${TOTAL_WAVES}`, CW / 2, HUD_H * 0.62);
 
+    const rowY = HUD_H * 0.5;
+
+    // help button — a small "?" circle, rightmost so it lines up with the
+    // rest of this row (hearts/coins on the left, buttons here on the right)
+    const helpR = 15 * SCALE;
+    const helpCX = CW - 16 * SCALE - helpR;
+    roundRect(helpCX - helpR, rowY - helpR, helpR * 2, helpR * 2, helpR);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5 * SCALE; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${15 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('?', helpCX, rowY + 1);
+    ctx.textBaseline = 'alphabetic';
+    G.uiButtons.push({
+      x: helpCX - helpR, y: rowY - helpR, w: helpR * 2, h: helpR * 2,
+      action: () => document.getElementById('helpOverlay').classList.remove('hidden'),
+    });
+
     // speed toggle
     ctx.textAlign = 'right';
-    const speedX = CW - 16 * SCALE, speedY = HUD_H * 0.5;
+    const speedX = helpCX - helpR - 10 * SCALE, speedY = rowY;
     const speedW = 56 * SCALE, speedH = 30 * SCALE;
     roundRect(speedX - speedW, speedY - speedH / 2, speedW, speedH, 8 * SCALE);
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
@@ -1684,7 +1822,7 @@
   // Temporary playtesting aid: lets you nudge each bug's base HP and speed live
   // and see the effect on newly-spawned bugs immediately. Once numbers feel
   // right, read them off here and they get hardcoded into ENEMY_TYPES.
-  const PEST_TUNER_ORDER = ['ant', 'aphid', 'mosquito', 'caterpillar', 'snail'];
+  const PEST_TUNER_ORDER = ['ant', 'aphid', 'mosquito', 'caterpillar', 'snail', 'mole'];
 
   function drawMiniButton(x, y, size, label, action) {
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
@@ -1934,9 +2072,14 @@
         x: bx, y: by, w: btnW, h: btnH,
         action: () => {
           if (!unlocked) { showToast(`🔒 ${def.name} unlocks at 🪙${def.unlockAt} earned!`); return; }
-          G.placingType = G.placingType === key ? null : key;
+          const arming = G.placingType !== key;
+          G.placingType = arming ? key : null;
           G.selectedTower = null;
           G.selectedEnemy = null;
+          if (arming && !G.shownUpgradeHint) {
+            G.shownUpgradeHint = true;
+            showToast(`💡 Tip: click a placed Friend anytime to upgrade or sell it!`);
+          }
         },
       });
       bx += btnW + gap;
@@ -2107,11 +2250,11 @@
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${13.5 * SCALE}px sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText(`${def.emoji} ${def.name}${slowed ? ' 🐌' : ''}`, px + 10 * SCALE, py + 20 * SCALE);
+    ctx.fillText(`${def.emoji} ${def.name}${def.boss ? ' 👑 BOSS' : ''}${slowed && !def.boss ? ' 🐌' : ''}`, px + 10 * SCALE, py + 20 * SCALE);
 
     ctx.font = `${11.5 * SCALE}px sans-serif`;
     ctx.fillStyle = '#dfe3ff';
-    ctx.fillText(`❤️ ${Math.round(e.hp)} / ${Math.round(e.maxHp)} HP`, px + 10 * SCALE, py + 40 * SCALE);
+    ctx.fillText(`❤️ ${formatCompact(e.hp)} / ${formatCompact(e.maxHp)} HP`, px + 10 * SCALE, py + 40 * SCALE);
     ctx.fillText(`💨 ${Math.round(curSpeed)}${slowed ? ' (slowed)' : ''}`, px + 10 * SCALE, py + 58 * SCALE);
     let nextY = 76;
     if (def.armor) {
@@ -2119,7 +2262,7 @@
       nextY += 18;
     }
     ctx.fillStyle = '#ffe98a';
-    ctx.fillText(`🪙 ${enemyReward(e)} on kill`, px + 10 * SCALE, py + nextY * SCALE);
+    ctx.fillText(`🪙 ${formatCompact(enemyReward(e))} on kill`, px + 10 * SCALE, py + nextY * SCALE);
   }
 
   function drawToast() {
@@ -2192,6 +2335,9 @@
   document.getElementById('btnResultLeaderboard').addEventListener('click', openLeaderboard);
   document.getElementById('btnCloseLeaderboard').addEventListener('click', () => {
     document.getElementById('leaderboardOverlay').classList.add('hidden');
+  });
+  document.getElementById('btnCloseHelp').addEventListener('click', () => {
+    document.getElementById('helpOverlay').classList.add('hidden');
   });
   document.getElementById('btnSaveScore').addEventListener('click', () => {
     const nameInput = document.getElementById('nameInput');

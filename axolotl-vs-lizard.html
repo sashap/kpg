@@ -37,22 +37,29 @@
     background: rgba(10, 12, 30, 0.55);
     padding: 20px;
     box-sizing: border-box;
+    overflow-y: auto;
   }
   .overlay.hidden { display: none; }
   .overlay h1 {
     font-size: 42px;
-    margin: 0 0 6px 0;
+    margin: 0 0 20px 0;
     text-shadow: 0 3px 0 rgba(0,0,0,0.35);
+    white-space: nowrap;
   }
   .overlay .sub {
-    font-size: 17px;
-    margin: 0 0 22px 0;
+    font-size: 18px;
+    margin: 0 0 28px 0;
     opacity: 0.9;
+  }
+  .panel {
+    display: flex; flex-direction: column; align-items: center; box-sizing: border-box;
+    background: #1a1430; border: 2px solid rgba(255,255,255,0.15); border-radius: 18px;
+    padding: 24px 32px; max-width: min(640px, 92vw); box-shadow: 0 12px 40px rgba(0,0,0,0.5);
   }
   .menuButtons {
     display: flex;
     gap: 20px;
-    margin-bottom: 20px;
+    margin-top: 16px;
   }
   button {
     font-family: inherit;
@@ -74,39 +81,90 @@
   .menuToggles {
     display: flex;
     gap: 22px;
-    font-size: 15px;
-    margin-bottom: 18px;
+    font-size: 16px;
+    margin: 4px 0 24px 0;
   }
   .menuToggles label { cursor: pointer; user-select: none; }
   .howto {
-    font-size: 14px;
-    opacity: 0.85;
-    margin: 0;
+    font-size: 16px;
+    opacity: 0.9;
+    margin: 0 0 24px 0;
   }
   #winnerText { font-size: 40px; margin-bottom: 22px; }
+
+  /* Touch controls — mirror the keyboard scheme (arrows + space) for devices
+     with no keyboard. This container's box is set in JS every frame to
+     exactly match the canvas-drawn control panel's middle column, so its
+     children can be positioned with simple pixel offsets relative to it. */
+  .touchControls {
+    position: absolute; pointer-events: none;
+  }
+  .touchControls.hidden { display: none; }
+  .tcBtn {
+    position: absolute; padding: 0; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1; touch-action: none; user-select: none;
+    background: linear-gradient(#8fc2ff, #4a7fd6); border-color: #d6ecff;
+    pointer-events: auto;
+  }
+  .tcFireBtn {
+    position: absolute; left: 0; font-weight: bold; letter-spacing: 0.5px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(#ff9ecb, #e0559a); border-color: #ffd6ec;
+    touch-action: none; user-select: none; pointer-events: auto;
+  }
+  .tcSlider {
+    position: absolute; margin: 0; -webkit-appearance: none; appearance: none;
+    background: transparent; touch-action: none; pointer-events: auto;
+  }
+  .tcSlider::-webkit-slider-runnable-track {
+    height: 10px; border-radius: 6px; background: rgba(255,255,255,0.25);
+  }
+  .tcSlider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 26px; height: 26px; border-radius: 50%; margin-top: -8px;
+    background: linear-gradient(#7CFC9A, #3f9142); border: 2px solid #fff; cursor: pointer;
+  }
+  .tcSlider::-moz-range-track { height: 10px; border-radius: 6px; background: rgba(255,255,255,0.25); }
+  .tcSlider::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(#7CFC9A, #3f9142); border: 2px solid #fff; cursor: pointer;
+  }
+  .tcSliderBlue::-webkit-slider-thumb { background: linear-gradient(#8fc2ff, #2f6fd6); }
+  .tcSliderBlue::-moz-range-thumb { background: linear-gradient(#8fc2ff, #2f6fd6); }
 </style>
 </head>
 <body>
 <div id="app">
   <canvas id="game"></canvas>
 
+  <div id="touchControls" class="touchControls hidden">
+    <input id="tcAngleSlider" class="tcSlider tcSliderBlue" type="range" step="1">
+    <input id="tcPowerSlider" class="tcSlider" type="range" step="1">
+    <button id="tcFire" class="tcFireBtn">🔥 FIRE</button>
+  </div>
+
   <div id="menuOverlay" class="overlay">
-    <h1>🩷 Splat Battle 🦎</h1>
-    <p class="sub">Axolotl vs. Lizard — dodge, aim, and don't run out of hearts!</p>
-    <div class="menuButtons">
-      <button id="btn1p">🎮 1 Player<small>vs. Lizard AI</small></button>
-      <button id="btn2p">👥 2 Players<small>take turns</small></button>
+    <div class="panel">
+      <h1>🩷 Splat Battle 🦎</h1>
+      <p class="sub">Axolotl vs. Lizard — dodge, aim, and don't run out of hearts!</p>
+      <p class="howto">← → Angle &nbsp;·&nbsp; ↑ ↓ Power &nbsp;·&nbsp; A / D Change Ammo &nbsp;·&nbsp; SPACE Throw!</p>
+      <div class="menuToggles">
+        <label><input type="checkbox" id="helperToggle" checked> ✨ Helper Aim Line</label>
+        <label><input type="checkbox" id="muteToggle"> 🔇 Mute Sounds</label>
+      </div>
+      <div class="menuButtons">
+        <button id="btn1p">🎮 1 Player<small>vs. Lizard AI</small></button>
+        <button id="btn2p">👥 2 Players<small>take turns</small></button>
+      </div>
     </div>
-    <div class="menuToggles">
-      <label><input type="checkbox" id="helperToggle" checked> ✨ Helper Aim Line</label>
-      <label><input type="checkbox" id="muteToggle"> 🔇 Mute Sounds</label>
-    </div>
-    <p class="howto">← → Angle &nbsp;·&nbsp; ↑ ↓ Power &nbsp;·&nbsp; A / D Change Ammo &nbsp;·&nbsp; SPACE Throw!</p>
   </div>
 
   <div id="gameOverOverlay" class="overlay hidden">
-    <h1 id="winnerText">🎉 Winner! 🎉</h1>
-    <button id="btnAgain">🔁 Play Again</button>
+    <div class="panel">
+      <h1 id="winnerText">🎉 Winner! 🎉</h1>
+      <button id="btnAgain">🔁 Play Again</button>
+    </div>
   </div>
 </div>
 
@@ -241,6 +299,8 @@
     resolveTimer: 0,
     physAccum: 0,
     keys: new Set(),
+    uiButtons: [],
+    panelLayout: null,
     t: 0,
   };
 
@@ -913,6 +973,90 @@
   });
   window.addEventListener('keyup', (e) => { G.keys.delete(e.key); });
 
+  // ---------- 14b. TOUCH CONTROLS (mirror the keyboard scheme for touch-only devices) ----------
+  function isHumanTurn() {
+    return !(G.mode === '1P' && G.currentPlayerIndex === 1);
+  }
+
+  document.getElementById('tcFire').addEventListener('click', () => {
+    if (G.state !== 'AIMING' || !isHumanTurn()) return;
+    throwProjectile();
+  });
+
+  // Sliders set the value directly (absolute drag), unlike the arrow buttons/
+  // keys which nudge it by a rate — both act on the same current player.
+  const tcAngleSliderEl = document.getElementById('tcAngleSlider');
+  const tcPowerSliderEl = document.getElementById('tcPowerSlider');
+  tcAngleSliderEl.min = ANGLE_MIN; tcAngleSliderEl.max = ANGLE_MAX;
+  tcPowerSliderEl.min = POWER_MIN; tcPowerSliderEl.max = POWER_MAX;
+  tcAngleSliderEl.addEventListener('input', (e) => {
+    if (G.state !== 'AIMING' || !isHumanTurn()) return;
+    G.players[G.currentPlayerIndex].angle = clamp(Number(e.target.value), ANGLE_MIN, ANGLE_MAX);
+  });
+  tcPowerSliderEl.addEventListener('input', (e) => {
+    if (G.state !== 'AIMING' || !isHumanTurn()) return;
+    G.players[G.currentPlayerIndex].power = clamp(Number(e.target.value), POWER_MIN, POWER_MAX);
+  });
+
+  // Ammo selection now happens by tapping the weapon-list icons directly (see
+  // drawWeaponList's G.uiButtons registration) — canvas click/tap hit-testing.
+  function canvasPoint(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (CW / rect.width),
+      y: (e.clientY - rect.top) * (CH / rect.height),
+    };
+  }
+  canvas.addEventListener('click', (e) => {
+    const pt = canvasPoint(e);
+    for (let i = G.uiButtons.length - 1; i >= 0; i--) {
+      const b = G.uiButtons[i];
+      if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+        b.action();
+        return;
+      }
+    }
+  });
+
+  const touchControlsEl = document.getElementById('touchControls');
+  const tcFireEl = document.getElementById('tcFire');
+
+  // Lines up the touch controls with the rows drawControlPanel() just drew,
+  // using the layout it stashed in G.panelLayout — one source of truth for
+  // both the canvas drawing and the HTML control positions. Each row reserves
+  // a label zone (drawn on canvas, e.g. "Angle: 45°") to the left of ctrlX,
+  // and the interactive slider lives in the ctrlX..ctrlX+ctrlW zone.
+  function positionTouchControls() {
+    const show = G.state === 'AIMING' && isHumanTurn() && G.panelLayout;
+    touchControlsEl.classList.toggle('hidden', !show);
+    if (!show) return;
+    const { midX, midW, panelY, rowBtn, angleRowY, powerRowY, fireY, fireH, ctrlX, ctrlW } = G.panelLayout;
+    const p = G.players[G.currentPlayerIndex];
+    touchControlsEl.style.left = midX + 'px';
+    touchControlsEl.style.top = panelY + 'px';
+    touchControlsEl.style.width = midW + 'px';
+    touchControlsEl.style.height = (fireY + fireH - panelY) + 'px';
+
+    const relCtrlX = ctrlX - midX;
+
+    tcAngleSliderEl.style.left = relCtrlX + 'px';
+    tcAngleSliderEl.style.top = (angleRowY - panelY) + 'px';
+    tcAngleSliderEl.style.width = ctrlW + 'px';
+    tcAngleSliderEl.style.height = rowBtn + 'px';
+    if (document.activeElement !== tcAngleSliderEl) tcAngleSliderEl.value = p.angle;
+
+    tcPowerSliderEl.style.left = relCtrlX + 'px';
+    tcPowerSliderEl.style.top = (powerRowY - panelY) + 'px';
+    tcPowerSliderEl.style.width = ctrlW + 'px';
+    tcPowerSliderEl.style.height = rowBtn + 'px';
+    if (document.activeElement !== tcPowerSliderEl) tcPowerSliderEl.value = p.power;
+
+    tcFireEl.style.top = (fireY - panelY) + 'px';
+    tcFireEl.style.width = midW + 'px'; tcFireEl.style.height = fireH + 'px';
+    tcFireEl.style.fontSize = (fireH * 0.34) + 'px';
+    tcFireEl.style.borderRadius = (fireH * 0.28) + 'px';
+  }
+
   document.getElementById('btn1p').addEventListener('click', () => startGame('1P'));
   document.getElementById('btn2p').addEventListener('click', () => startGame('2P'));
   document.getElementById('btnAgain').addEventListener('click', returnToMenu);
@@ -1521,6 +1665,15 @@
       const locked = !player.unlocked.includes(ammo.id);
       const selected = !locked && player.ammoId === ammo.id;
 
+      // Clickable/tappable — no visual change, just a hit box over the icon —
+      // but only for the player whose turn it actually is.
+      if (!locked && player.index === G.currentPlayerIndex && G.state === 'AIMING' && isHumanTurn()) {
+        G.uiButtons.push({
+          x: bx, y: by, w: iconSize, h: iconSize,
+          action: () => { if (player.ammoId !== ammo.id) { player.ammoId = ammo.id; playSfx('plink'); } },
+        });
+      }
+
       if (selected) {
         // pulsing glow ring makes the current selection impossible to miss
         const pulse = 1 + Math.sin(G.t * 0.006) * 0.08;
@@ -1588,12 +1741,12 @@
   }
 
   function drawControlPanel() {
-    if (G.state !== 'AIMING' && G.state !== 'AI_THINKING') return;
+    if (G.state !== 'AIMING' && G.state !== 'AI_THINKING') { G.panelLayout = null; return; }
     const p = G.players[G.currentPlayerIndex];
     const ammo = ammoById(p.ammoId);
 
     const panelW = clamp(CW * 0.74, 560 * SCALE, 980 * SCALE);
-    const panelH = 136 * SCALE;
+    const panelH = 168 * SCALE;
     const panelX = CW / 2 - panelW / 2, panelY = CH - panelH - 14 * SCALE;
     ctx.fillStyle = 'rgba(15,15,25,0.6)';
     roundRect(panelX, panelY, panelW, panelH, 14 * SCALE);
@@ -1625,23 +1778,58 @@
 
     ctx.font = `${13.5 * SCALE}px sans-serif`;
     const velocity = Math.round(SPEED_MIN_BASE + (p.power / 100) * (SPEED_MAX_BASE - SPEED_MIN_BASE));
-    ctx.fillText(`${ammo.emoji} ${ammo.name}  ·  📐 ${Math.round(p.angle)}°  ·  🚀 ${velocity}`, midX, panelY + 42 * SCALE);
+    ctx.fillText(`${ammo.emoji} ${ammo.name}  ·  🚀 ${velocity}`, midX, panelY + 42 * SCALE);
 
-    // power bar
-    const barX = midX, barY = panelY + 50 * SCALE, barW = midW, barH = 12 * SCALE;
+    // Angle and power rows each show a "Label: value" on the left, then hand
+    // the rest of the row (ctrlX..ctrlX+ctrlW) to positionTouchControls() for
+    // the actual buttons/slider — same numbers feed G.panelLayout below.
+    const rowBtn = 24 * SCALE;
+    const labelW = midW * 0.36;
+    const ctrlX = midX + labelW, ctrlW = midW - labelW;
+
+    ctx.font = `bold ${13 * SCALE}px sans-serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#dfe3ff';
+
+    const angleRowY = panelY + 52 * SCALE;
+    ctx.fillText(`📐 Angle: ${Math.round(p.angle)}°`, midX, angleRowY + rowBtn / 2);
+
+    const powerRowY = panelY + 82 * SCALE;
+    ctx.fillText(`🚀 Power: ${Math.round(p.power)}%`, midX, powerRowY + rowBtn / 2);
+
+    // Both tracks are a static fallback so an AI's turn still shows its angle/
+    // power level; during a human turn the sliders overlay these same zones
+    // (their translucent native track lets this fill color show through,
+    // which is also why angle is blue here — it matches the slider thumb).
+    const barH = rowBtn * 0.5;
+    const angleBarY = angleRowY + (rowBtn - barH) / 2;
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    roundRect(barX, barY, barW, barH, 6 * SCALE);
+    roundRect(ctrlX, angleBarY, ctrlW, barH, barH / 2);
+    ctx.fill();
+    ctx.fillStyle = '#4a7fd6';
+    roundRect(ctrlX, angleBarY, ctrlW * ((p.angle - ANGLE_MIN) / (ANGLE_MAX - ANGLE_MIN)), barH, barH / 2);
+    ctx.fill();
+
+    const powerBarY = powerRowY + (rowBtn - barH) / 2;
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    roundRect(ctrlX, powerBarY, ctrlW, barH, barH / 2);
     ctx.fill();
     ctx.fillStyle = '#7CFC9A';
-    roundRect(barX, barY, barW * (p.power / 100), barH, 6 * SCALE);
+    roundRect(ctrlX, powerBarY, ctrlW * (p.power / 100), barH, barH / 2);
     ctx.fill();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 
-    ctx.font = `${11.5 * SCALE}px sans-serif`;
-    ctx.fillStyle = '#dfe3ff';
+    const fireY = panelY + panelH - 14 * SCALE - 38 * SCALE, fireH = 38 * SCALE;
+
     if (G.state === 'AI_THINKING') {
-      ctx.fillText('🤔 thinking...', midX, panelY + 78 * SCALE);
+      ctx.font = `${11.5 * SCALE}px sans-serif`;
+      ctx.fillStyle = '#dfe3ff';
+      ctx.textAlign = 'center';
+      ctx.fillText('🤔 thinking...', midX + midW / 2, fireY + fireH / 2 + 1 * SCALE);
+      ctx.textAlign = 'left';
+      G.panelLayout = null;
     } else {
-      ctx.fillText('←→ Angle · ↑↓ Power · A/D Ammo · SPACE Throw', midX, panelY + 78 * SCALE);
+      G.panelLayout = { midX, midW, panelY, rowBtn, angleRowY, powerRowY, fireY, fireH, ctrlX, ctrlW };
     }
   }
 
@@ -1694,6 +1882,7 @@
 
   function render() {
     ctx.clearRect(0, 0, CW, CH);
+    G.uiButtons = [];
     drawSky();
     drawDecor();
     drawTerrain();
@@ -1706,6 +1895,7 @@
     drawTopHUD();
     drawControlPanel();
     drawToast();
+    positionTouchControls();
   }
 
   // ---------- 18. MAIN LOOP ----------
