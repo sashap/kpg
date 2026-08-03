@@ -116,7 +116,7 @@
         <li>Earn coins by popping pests — spend them to unlock Spider, Ladybug, Bee and Worm.</li>
         <li>Press "Start Wave" (or wait for it to auto-start) to send the next wave of pests in.</li>
         <li>Don't let pests reach the end of the path — each one that gets through costs a heart.</li>
-        <li>Watch for the giant Mole boss every 10th wave: tons of health and slow, but a big coin payout.</li>
+        <li>Watch for the giant Squirrel boss every 10th wave: tons of health and slow, but a big coin payout.</li>
         <li>Use the speed button (1x/2x/4x/8x/.5x) at the top to fast-forward or slow down.</li>
         <li>Survive as many of the 999 waves as you can, then save your score to the Leaderboard!</li>
         <li>The "Friends" and "Pests" buttons at the top are debugging/tuning tools for
@@ -144,7 +144,7 @@
   const START_CURRENCY = 130;
   const START_LIVES = 10;
   const AUTO_START_SECONDS = 30;
-  const MOLE_SPAWN_INTERVAL = 3.5; // seconds between Moles on a multi-Mole boss wave
+  const BOSS_SPAWN_INTERVAL = 3.5; // seconds between Squirrels on a multi-boss wave
   const SPEED_OPTIONS = [1, 2, 4, 8, 0.5];
   // Reward scales with how tough the kill actually was (its real HP vs. that
   // type's wave-1 baseline), not a flat per-type number — but sub-linearly
@@ -161,21 +161,21 @@
       dmgBase: 8, rangeBase: 130, fireRate: 1.3, splashBase: 30,
       slowFactor: 0.55, slowDuration: 1.3, projSpeedBase: 320, attackStyle: 'projectile',
       color: '#ff9ecb', ring: '#ff6fb0',
-      desc: 'Splashy bubbles slow down groups of pests.',
+      desc: ['Splash bubbles hit groups and slow pests down.', 'Pairs with Gecko next to it for a damage boost.'],
     },
     lizard: {
       id: 'lizard', name: 'Gecko', cost: 55, unlockAt: 0,
       dmgBase: 20, rangeBase: 175, fireRate: 0.95, splashBase: 0,
       slowFactor: 1, slowDuration: 0, projSpeedBase: 0, attackStyle: 'instant',
       color: '#8fe07a', ring: '#3f9142',
-      desc: 'Long tongue snipes tough pests instantly.',
+      desc: ['Long tongue snipes one tough pest instantly.', 'Pairs with Axolotl next to it for a damage boost.'],
     },
     spider: {
       id: 'spider', name: 'Spider', cost: 70, unlockAt: 150,
       dmgBase: 7, rangeBase: 150, fireRate: 1.1, splashBase: 22,
       slowFactor: 0.4, slowDuration: 1.8, projSpeedBase: 300, attackStyle: 'projectile',
       color: '#8a72c2', ring: '#4a2a78',
-      desc: 'Sticky webs slow pests down a lot!',
+      desc: ['Sticky web splash hits groups, slows them hard.', 'Best for bunching up fast bugs before they escape.'],
     },
     ladybug: {
       id: 'ladybug', name: 'Ladybug', cost: 85, unlockAt: 300,
@@ -184,7 +184,7 @@
       // Real ladybugs are famous aphid-eaters, and their spots inspired the crit chance.
       bonusVsAphid: 2.5, critChance: 0.2, critMul: 2,
       color: '#ff5555', ring: '#b71c1c',
-      desc: 'Blazing fire rate — bonus vs aphids, crits!',
+      desc: ['Blazing fire rate; 2.5x damage vs aphids.', '20% chance per hit to land a 2x-damage crit.'],
     },
     bee: {
       id: 'bee', name: 'Bee', cost: 95, unlockAt: 380,
@@ -192,14 +192,14 @@
       slowFactor: 1, slowDuration: 0, projSpeedBase: 380, attackStyle: 'projectile',
       bonusVsFlying: 2.2,
       color: '#ffd23f', ring: '#3a2a05',
-      desc: 'Speedy stinger — 2.2x damage vs flying pests!',
+      desc: ['Speedy stinger deals 2.2x damage to flying pests.', 'Great single-target answer for mosquitoes.'],
     },
     worm: {
       id: 'worm', name: 'Worm', cost: 115, unlockAt: 480,
       dmgBase: 45, rangeBase: 110, fireRate: 0.55, splashBase: 0,
       slowFactor: 1, slowDuration: 0, projSpeedBase: 0, attackStyle: 'pulse',
       color: '#d9a066', ring: '#8a5a2a',
-      desc: 'Ground pulse zaps every bug nearby!',
+      desc: ['Ground pulse zaps every pest in range at once.', 'No aiming needed — ideal when surrounded by foes.'],
     },
   };
   const TOWER_ORDER = ['axolotl', 'lizard', 'spider', 'ladybug', 'bee', 'worm'];
@@ -217,10 +217,12 @@
     // A thick shell shrugs off part of every hit (see damageEnemy), on top of a much bigger hp pool.
     snail: { id: 'snail', name: 'Snail', emoji: '🐌', hpBase: 600, speedBase: 40, reward: 16, flying: false, armor: 0.35 },
     caterpillar: { id: 'caterpillar', name: 'Caterpillar', emoji: '🐛', hpBase: 250, speedBase: 55, reward: 6, flying: false },
-    // A rare, hand-drawn boss (see drawMoleCreature) that shows up alone on every
-    // 10th wave (see buildWaveQueue) — huge and slow, but a big payout for the
-    // long grind of taking it down. emoji here is only a UI-label fallback.
-    mole: { id: 'mole', name: 'Mole', emoji: '🦫', hpBase: 7500, speedBase: 22, reward: 120, flying: false, sizeMul: 1.92, boss: true },
+    // A rare boss that shows up alone (or in a small pack, see buildWaveQueue)
+    // every 10th wave — huge and slow, but a big payout for the long grind of
+    // taking it down. sizeMul is tuned to read as roughly tile/path-sized
+    // without exceeding it. id stays 'mole' internally to avoid touching every
+    // boss-wave reference; only the display name/emoji changed to Squirrel.
+    mole: { id: 'mole', name: 'Squirrel', emoji: '🐿️', hpBase: 7500, speedBase: 22, reward: 120, flying: false, sizeMul: 2.2, boss: true },
   };
 
   // Path is a randomized orthogonal zig-zag laid exactly on the tile grid (see
@@ -309,6 +311,7 @@
     showPestTuner: false,
     showFriendTuner: false,
     shownUpgradeHint: false, // whether the "click a placed Friend to upgrade" toast has fired this game
+    muted: false,
     hpGrowthPct: 5, // % hp compounded per wave, tunable live from the Pest Tuner
     speedGrowthPct: 1.5, // % speed compounded per wave, tunable live from the Pest Tuner
     dmgGrowthPct: 45, // % dmg compounded per tower level, tunable live from the Friend Tuner
@@ -718,8 +721,8 @@
   // (capped growth window), while hp/speed keep creeping up for the whole climb —
   // that way late waves stay hard because bugs are tougher, not just more numerous.
   function buildWaveQueue(n) {
-    // Every 10th wave is a boss encounter — Mole(s) come out on their own
-    // instead of being mixed into the usual horde. Wave 10 is a solo Mole;
+    // Every 10th wave is a boss encounter — Squirrel(s) come out on their own
+    // instead of being mixed into the usual horde. Wave 10 is a solo Squirrel;
     // from wave 20 on a small pack shows up instead (capped, still "small").
     if (n % 10 === 0) {
       const moleCount = n < 20 ? 1 : n < 40 ? 2 : 3;
@@ -747,15 +750,15 @@
     if (G.waveActive || G.state !== 'PLAYING') return;
     G.waveNumber++;
     G.spawnQueue = buildWaveQueue(G.waveNumber);
-    // Moles are huge and slow — a wide, fixed gap between spawns (instead of
-    // the usual wave-shrunk interval) keeps a multi-Mole wave from bunching
+    // Squirrels are huge and slow — a wide, fixed gap between spawns (instead
+    // of the usual wave-shrunk interval) keeps a multi-boss wave from bunching
     // them up into an overlapping wall.
-    G.spawnInterval = G.waveNumber % 10 === 0 ? MOLE_SPAWN_INTERVAL : clamp(0.8 - G.waveNumber * 0.012, 0.22, 0.9);
+    G.spawnInterval = G.waveNumber % 10 === 0 ? BOSS_SPAWN_INTERVAL : clamp(0.8 - G.waveNumber * 0.012, 0.22, 0.9);
     G.spawnTimer = 0;
     G.waveActive = true;
     if (G.waveNumber % 10 === 0) {
       const n = G.spawnQueue.length;
-      showToast(n > 1 ? `🦫 BOSS WAVE! ${n} giant Moles are coming!` : `🦫 BOSS WAVE! A giant Mole is coming!`);
+      showToast(n > 1 ? `🐿️ BOSS WAVE! ${n} giant Squirrels are coming!` : `🐿️ BOSS WAVE! A giant Squirrel is coming!`);
     } else {
       showToast(`🌿 Wave ${G.waveNumber} incoming!`);
     }
@@ -1004,7 +1007,7 @@
     o.start(startAt); o.stop(startAt + dur + 0.02);
   }
   function playSfx(name) {
-    if (!audioCtx) return;
+    if (!audioCtx || G.muted) return;
     const t0 = audioCtx.currentTime;
     switch (name) {
       case 'place': tone(700, 900, 0.12, 'sine', 0.15, t0); break;
@@ -1601,41 +1604,7 @@
   // These emoji glyphs face left by default, which reads as walking backwards
   // since the path only ever travels left-to-right (or straight up/down,
   // never right-to-left) — mirror them so they always face the way they walk.
-  const EMOJI_FACES_LEFT = new Set(['ant', 'mosquito', 'caterpillar']);
-
-  // Hand-drawn boss critter (no real "mole" emoji exists) — snout points +x
-  // to match the emoji convention above of facing the way the path travels.
-  function drawMoleCreature() {
-    ctx.fillStyle = '#8a6a4a';
-    ctx.beginPath(); ctx.ellipse(0, 0, 19, 16, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#5c4530'; ctx.lineWidth = 2; ctx.stroke();
-
-    // lighter belly patch
-    ctx.fillStyle = '#c2a679';
-    ctx.beginPath(); ctx.ellipse(-2, 5, 12, 9, 0, 0, Math.PI * 2); ctx.fill();
-
-    // pointed snout with a small pink nose tip
-    ctx.fillStyle = '#8a6a4a';
-    ctx.beginPath(); ctx.ellipse(17, -1, 7, 5, 0.25, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#5c4530'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = '#e8a0b0';
-    ctx.beginPath(); ctx.arc(22, 0, 2.2, 0, Math.PI * 2); ctx.fill();
-
-    // tiny near-blind eyes, flanking the snout
-    ctx.fillStyle = '#2a1f14';
-    ctx.beginPath(); ctx.arc(9, -8, 1.4, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(9, 6, 1.4, 0, Math.PI * 2); ctx.fill();
-
-    // narrow digging paws with claws pointing forward, a mole's signature feature
-    ctx.fillStyle = '#c2a679'; ctx.strokeStyle = '#5c4530'; ctx.lineWidth = 1.4;
-    for (const s of [-1, 1]) {
-      const py = s * 16;
-      ctx.beginPath(); ctx.ellipse(-2, py, 5, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.beginPath();
-      for (const spread of [-3, 0, 3]) { ctx.moveTo(3, py + spread); ctx.lineTo(10, py + spread * 1.4); }
-      ctx.stroke();
-    }
-  }
+  const EMOJI_FACES_LEFT = new Set(['ant', 'mosquito', 'caterpillar', 'mole']);
 
   function drawEnemies() {
     for (const e of G.enemies) {
@@ -1646,15 +1615,10 @@
       ctx.translate(e.x, e.y);
       if (def.flying) ctx.translate(0, Math.sin(e.wobble) * 2 * SCALE);
       if (slowed) { ctx.filter = 'hue-rotate(180deg) saturate(1.4)'; }
-      if (e.type === 'mole') {
-        ctx.scale(sizeMul * SCALE, sizeMul * SCALE);
-        drawMoleCreature();
-      } else {
-        if (EMOJI_FACES_LEFT.has(e.type)) ctx.scale(-1, 1);
-        ctx.font = `${20 * sizeMul * SCALE}px sans-serif`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(def.emoji, 0, 0);
-      }
+      if (EMOJI_FACES_LEFT.has(e.type)) ctx.scale(-1, 1);
+      ctx.font = `${20 * sizeMul * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(def.emoji, 0, 0);
       ctx.restore();
 
       const barW = 20 * sizeMul * SCALE, barH = 3.5 * SCALE;
@@ -1782,9 +1746,26 @@
       G.speedMul = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(G.speedMul) + 1) % SPEED_OPTIONS.length];
     } });
 
+    // mute toggle — same size/style as the speed button, right next to it
+    const muteX = speedX - speedW - 10 * SCALE;
+    const muteW = 56 * SCALE, muteH = 30 * SCALE;
+    roundRect(muteX - muteW, speedY - muteH / 2, muteW, muteH, 8 * SCALE);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${16 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(G.muted ? '🔇' : '🔊', muteX - muteW / 2, speedY + 1);
+    ctx.textBaseline = 'alphabetic';
+    G.uiButtons.push({
+      x: muteX - muteW, y: speedY - muteH / 2, w: muteW, h: muteH,
+      action: () => { G.muted = !G.muted; },
+    });
+
     // dev-only pest tuner toggle
     const tunerW = 78 * SCALE, tunerH = 30 * SCALE;
-    const tunerX = speedX - speedW - 10 * SCALE - tunerW;
+    const tunerX = muteX - muteW - 10 * SCALE - tunerW;
     roundRect(tunerX, speedY - tunerH / 2, tunerW, tunerH, 8 * SCALE);
     ctx.fillStyle = G.showPestTuner ? 'rgba(255,217,61,0.45)' : 'rgba(255,255,255,0.18)';
     ctx.fill();
@@ -2085,31 +2066,37 @@
       bx += btnW + gap;
     }
 
-    // description + per-level dmg/range preview of armed tower — only the first
-    // 10 of MAX_LEVEL=999 levels are spelled out (two lines of 5), then a third
-    // line gives the flat %/level growth rate that applies to every level past
-    // that, since listing all 999 would be absurd. Font auto-shrinks to fit the
-    // space left of the Start Wave button.
+    // Two-line description (what it does + why it's good), then just levels
+    // 1-5 spelled out, then a final line giving the flat %/level growth rate
+    // that applies to every level past that — listing all 999 would be
+    // absurd. Font auto-shrinks to fit the space left of the Start Wave button.
     if (armedDef) {
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.font = `italic ${10.5 * SCALE}px sans-serif`;
-      ctx.fillText(armedDef.desc, bx + 6 * SCALE, by + btnH * 0.22);
-      ctx.fillStyle = '#bcd9ff';
-      const shownLevels = towerLevelPreview(G.placingType, 10).map(l => `Lv${l.level} ⚔${l.damage} 🎯${l.range}`);
-      const line1 = shownLevels.slice(0, 5).join('   ');
-      const line2 = shownLevels.slice(5).join('   ');
-      const line3 = `Lv11–${MAX_LEVEL}: +${G.dmgGrowthPct}% dmg, +${G.costGrowthPct}% cost per extra level`;
+      const [descLine1, descLine2] = armedDef.desc;
+      const shownLevels = towerLevelPreview(G.placingType, 5).map(l => `Lv${l.level} ⚔${l.damage} 🎯${l.range}`);
+      const levelsLine = shownLevels.join('   ');
+      const growthLine = `Lv6–${MAX_LEVEL}: +${G.dmgGrowthPct}% dmg, +${G.rangeGrowthPct}% range, +${G.costGrowthPct}% cost/lvl`;
       const availW = CW - 165 * SCALE - 16 * SCALE - (bx + 6 * SCALE) - 10 * SCALE;
+
+      let descFont = 10.5;
+      ctx.font = `italic ${descFont * SCALE}px sans-serif`;
+      while (descFont > 7.5 && [descLine1, descLine2].some(l => ctx.measureText(l).width > availW)) {
+        descFont -= 0.5;
+        ctx.font = `italic ${descFont * SCALE}px sans-serif`;
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText(descLine1, bx + 6 * SCALE, by + btnH * 0.20);
+      ctx.fillText(descLine2, bx + 6 * SCALE, by + btnH * 0.38);
+
       let previewFont = 9.5;
       ctx.font = `${previewFont * SCALE}px sans-serif`;
-      while (previewFont > 6.5 && [line1, line2, line3].some(l => ctx.measureText(l).width > availW)) {
+      while (previewFont > 6.5 && [levelsLine, growthLine].some(l => ctx.measureText(l).width > availW)) {
         previewFont -= 0.5;
         ctx.font = `${previewFont * SCALE}px sans-serif`;
       }
-      ctx.fillText(line1, bx + 6 * SCALE, by + btnH * 0.45);
-      ctx.fillText(line2, bx + 6 * SCALE, by + btnH * 0.65);
+      ctx.fillStyle = '#bcd9ff';
+      ctx.fillText(levelsLine, bx + 6 * SCALE, by + btnH * 0.60);
       ctx.fillStyle = '#ffe98a';
-      ctx.fillText(line3, bx + 6 * SCALE, by + btnH * 0.87);
+      ctx.fillText(growthLine, bx + 6 * SCALE, by + btnH * 0.82);
     }
 
     // start wave / wave status button
