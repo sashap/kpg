@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Guardians of the Garden: Axolotl &amp; Lizard</title>
+<title>Guardians of the Garden: Axolotl &amp; Gecko</title>
 <style>
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
@@ -61,7 +61,7 @@
   <div id="menuOverlay" class="overlay">
     <h1>🩷 Guardians of the Garden 🦎</h1>
     <p class="sub">Ants, aphids, mosquitoes, caterpillars and snails are invading the garden! Team up
-    Axolotl and Lizard Friends next to each other for a Best Friends bonus, then unlock Spider, Ladybug
+    Axolotl and Gecko Friends next to each other for a Best Friends bonus, then unlock Spider, Ladybug
     and Worm Friends as you earn coins. How far through the 999 waves can you get?</p>
     <div class="menuRow">
       <button id="btnStart">🌱 Start Defending</button>
@@ -128,7 +128,7 @@
       desc: 'Splashy bubbles slow down groups of pests.',
     },
     lizard: {
-      id: 'lizard', name: 'Lizard', cost: 55, unlockAt: 0,
+      id: 'lizard', name: 'Gecko', cost: 55, unlockAt: 0,
       dmgBase: 20, rangeBase: 175, fireRate: 0.95, splashBase: 0,
       slowFactor: 1, slowDuration: 0, projSpeedBase: 0, attackStyle: 'instant',
       color: '#8fe07a', ring: '#3f9142',
@@ -166,10 +166,7 @@
   };
   const TOWER_ORDER = ['axolotl', 'lizard', 'spider', 'ladybug', 'bee', 'worm'];
   const MAX_LEVEL = 999;
-  const UPGRADE_DMG_MUL = 1.45;
-  const UPGRADE_RANGE_MUL = 1.08;
   const UPGRADE_RATE_MUL = 1.12;
-  const UPGRADE_COST_MUL = 1.7;
   const TEAMWORK_BUFF = 1.22;
   // Shrinks only the tower's drawn body/creature (not its grid footprint or click/hover
   // radius) so towers block less of the path behind them.
@@ -258,6 +255,9 @@
     showFriendTuner: false,
     hpGrowthPct: 5, // % hp compounded per wave, tunable live from the Pest Tuner
     speedGrowthPct: 1.5, // % speed compounded per wave, tunable live from the Pest Tuner
+    dmgGrowthPct: 45, // % dmg compounded per tower level, tunable live from the Friend Tuner
+    rangeGrowthPct: 8, // % range compounded per tower level, tunable live from the Friend Tuner
+    costGrowthPct: 70, // % upgrade cost compounded per tower level, tunable live from the Friend Tuner
     selectedEnemy: null,
     t: 0,
     nextId: 1,
@@ -571,8 +571,8 @@
 
   function towerStats(tower) {
     const def = TOWER_TYPES[tower.type];
-    const lvlMul = Math.pow(UPGRADE_DMG_MUL, tower.level - 1);
-    const rangeMul = Math.pow(UPGRADE_RANGE_MUL, tower.level - 1);
+    const lvlMul = waveGrowthMul(G.dmgGrowthPct, tower.level);
+    const rangeMul = waveGrowthMul(G.rangeGrowthPct, tower.level);
     const rateMul = Math.pow(UPGRADE_RATE_MUL, tower.level - 1);
     const buffMul = tower.buffed ? TEAMWORK_BUFF : 1;
     return {
@@ -591,8 +591,8 @@
     for (let lvl = 1; lvl <= Math.min(capLevel || MAX_LEVEL, MAX_LEVEL); lvl++) {
       levels.push({
         level: lvl,
-        damage: Math.round(def.dmgBase * Math.pow(UPGRADE_DMG_MUL, lvl - 1)),
-        range: Math.round(def.rangeBase * Math.pow(UPGRADE_RANGE_MUL, lvl - 1)),
+        damage: Math.round(def.dmgBase * waveGrowthMul(G.dmgGrowthPct, lvl)),
+        range: Math.round(def.rangeBase * waveGrowthMul(G.rangeGrowthPct, lvl)),
       });
     }
     return levels;
@@ -600,14 +600,14 @@
 
   function upgradeCost(tower) {
     const def = TOWER_TYPES[tower.type];
-    return Math.round(def.cost * Math.pow(UPGRADE_COST_MUL, tower.level - 1) * 0.8);
+    return Math.round(def.cost * waveGrowthMul(G.costGrowthPct, tower.level) * 0.8);
   }
 
   function sellValue(tower) {
     return Math.round(tower.invested * 0.5);
   }
 
-  // Only the original Axolotl+Lizard pairing gets the Best Friends bonus — the
+  // Only the original Axolotl+Gecko pairing gets the Best Friends bonus — the
   // newer unlockable towers are separate specialists, not part of that duo.
   function recomputeTeamwork() {
     const linkDist = TILE_SIZE * 1.6;
@@ -1033,7 +1033,7 @@
     const sub = document.getElementById('resultSub');
     if (won) {
       title.textContent = '🎉 You Win! 🎉';
-      sub.textContent = `Axolotl & Lizard defended the whole garden — all ${TOTAL_WAVES} waves!`;
+      sub.textContent = `Axolotl & Gecko defended the whole garden — all ${TOTAL_WAVES} waves!`;
       spawnConfetti();
       playSfx('win');
     } else {
@@ -1280,21 +1280,6 @@
     ctx.beginPath();
     G.pathPx.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
     ctx.stroke();
-
-    // spawn/nest markers — the path's true ends are deliberately off-canvas (bugs
-    // march in from "outside"), so pull the markers back by the known off-canvas
-    // margin plus a visibility buffer, keeping them safely on-screen.
-    const offCanvasStart = PATH_OFFCANVAS_TILES * TILE_SIZE;
-    const offCanvasEnd = PATH_OFFCANVAS_TILES * TILE_SIZE;
-    const spawnPt = pointAtDistance(offCanvasStart + 40 * SCALE);
-    ctx.font = `${28 * SCALE}px sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('🕳️', spawnPt.x, spawnPt.y);
-
-    const nestPt = pointAtDistance(Math.max(0, G.pathTotalLen - offCanvasEnd - 44 * SCALE));
-    ctx.font = `${36 * SCALE}px sans-serif`;
-    ctx.fillText('🏠', nestPt.x, nestPt.y);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   }
 
   function drawGrid() {
@@ -1325,27 +1310,54 @@
     ctx.rotate(angle);
     if (type === 'axolotl') {
       ctx.fillStyle = '#ffb3de';
-      ctx.beginPath(); ctx.ellipse(0, 0, 15, 12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-1, 0, 14, 11, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#df6ba6'; ctx.lineWidth = 1.6; ctx.stroke();
-      ctx.fillStyle = '#ff8ec4';
-      for (const s of [-1, 0, 1]) {
-        ctx.beginPath(); ctx.arc(-8, s * 6, 2.6, 0, Math.PI * 2); ctx.fill();
+
+      // tail fin flaring out the back
+      ctx.beginPath();
+      ctx.moveTo(-13, -5); ctx.quadraticCurveTo(-21, 0, -13, 6); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      // frilly gill stalks framing the head — an axolotl's signature feature
+      ctx.fillStyle = '#ff8ec4'; ctx.strokeStyle = '#df6ba6'; ctx.lineWidth = 1;
+      for (const s of [-1, 1]) {
+        for (let i = 0; i < 3; i++) {
+          const bx = 3 + i * 3, by = s * (6 + i * 3), rot = s * (0.5 + i * 0.35);
+          ctx.beginPath(); ctx.ellipse(bx, by, 4, 1.6, rot, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
       }
+
+      // wide smiling mouth
+      ctx.strokeStyle = '#a8447a'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(9, 0, 4, -0.9, 0.9); ctx.stroke();
+
       ctx.fillStyle = '#3a2233';
-      ctx.beginPath(); ctx.arc(9, -4, 1.6, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(9, 4, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(10, -4, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(10, 4, 1.6, 0, Math.PI * 2); ctx.fill();
     } else if (type === 'lizard') {
       ctx.fillStyle = '#63c257';
-      ctx.beginPath(); ctx.ellipse(0, 0, 15, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-1, 0, 14, 10, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#3f9142'; ctx.lineWidth = 1.6; ctx.stroke();
+
+      // mottled scale texture, in place of the old dorsal spikes
       ctx.fillStyle = '#2f7a34';
-      for (const s of [[-6, -8], [0, -9], [6, -8]]) {
-        ctx.beginPath(); ctx.moveTo(s[0] - 3, s[1] + 4); ctx.lineTo(s[0], s[1] - 2); ctx.lineTo(s[0] + 3, s[1] + 4); ctx.closePath(); ctx.fill();
+      for (const [sx, sy] of [[-9, -4], [-9, 4], [-2, -6], [-2, 6], [4, -4], [4, 4]]) {
+        ctx.beginPath(); ctx.ellipse(sx, sy, 2, 1.4, 0, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.fillStyle = '#f5f2c0';
-      ctx.beginPath(); ctx.arc(11, 0, 3, 0, Math.PI * 2); ctx.fill();
+
+      // sticky round toe pads along the sides — a gecko's climbing trademark
+      ctx.fillStyle = '#f5f2c0'; ctx.strokeStyle = '#3f9142'; ctx.lineWidth = 0.8;
+      for (const [sx, sy] of [[-9, -9], [3, -10], [-9, 9], [3, 10]]) {
+        ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+
+      // big lidless eyes — a gecko's most iconic trait
+      ctx.fillStyle = '#f5f2c0'; ctx.strokeStyle = '#2f7a34'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(10, -4, 3.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(10, 4, 3.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#1c2b16';
-      ctx.beginPath(); ctx.arc(12, 0, 1.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(11.5, -4, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(11.5, 4, 1.6, 0, Math.PI * 2); ctx.fill();
     } else if (type === 'spider') {
       ctx.strokeStyle = '#2a1f45'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
       for (const legAngle of [-2.3, -1.6, -0.9, -0.3, 0.3, 0.9, 1.6, 2.3]) {
@@ -1681,6 +1693,18 @@
     G.speedGrowthPct = Math.round(clamp(G.speedGrowthPct + delta, 0, 10) * 100) / 100;
   }
 
+  function adjustDmgGrowthPct(delta) {
+    G.dmgGrowthPct = clamp(G.dmgGrowthPct + delta, 0, 300);
+  }
+
+  function adjustRangeGrowthPct(delta) {
+    G.rangeGrowthPct = clamp(G.rangeGrowthPct + delta, 0, 100);
+  }
+
+  function adjustCostGrowthPct(delta) {
+    G.costGrowthPct = clamp(G.costGrowthPct + delta, 0, 300);
+  }
+
   function drawTunerStatRow(cx, y, label, value, onDec, onInc) {
     ctx.font = `${11 * SCALE}px sans-serif`;
     ctx.fillStyle = '#dfe3ff';
@@ -1700,32 +1724,38 @@
     ctx.fillStyle = '#ffe98a';
     ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('🛠 Pest Tuner (dev only) — tweak HP/Speed', 14 * SCALE, panelY + 16 * SCALE);
+    const title = '🛠 Pest Tuner (dev only) — tweak HP/Speed';
+    ctx.fillText(title, 14 * SCALE, panelY + 16 * SCALE);
+    const titleW = ctx.measureText(title).width;
 
-    const growthRowY = panelY + 34 * SCALE;
-    const growthBtnSize = 16 * SCALE;
-    ctx.font = `${11.5 * SCALE}px sans-serif`;
-    const hpLabel = `Per-level HP growth: ${G.hpGrowthPct.toFixed(2)}%`;
-    const spLabel = `Per-level Speed growth: ${G.speedGrowthPct.toFixed(2)}%`;
-    const hpLabelW = ctx.measureText(hpLabel).width;
-    const spLabelW = ctx.measureText(spLabel).width;
-    const controlGap = 40 * SCALE;
-    const hpControlW = hpLabelW + 6 * SCALE + growthBtnSize * 2 + 4 * SCALE;
-    const spControlW = spLabelW + 6 * SCALE + growthBtnSize * 2 + 4 * SCALE;
-    let gx = CW / 2 - (hpControlW + controlGap + spControlW) / 2;
+    // Growth controls sit on the same row as the title (to its right) instead
+    // of their own row, so they don't crowd the per-pest rows below.
+    const rowCenterY = panelY + 12 * SCALE;
+    const growthBtnSize = 14 * SCALE;
+    let gx = 14 * SCALE + titleW + 18 * SCALE;
 
+    ctx.font = `${11 * SCALE}px sans-serif`;
     ctx.fillStyle = '#dfe3ff';
-    ctx.textAlign = 'left';
-    ctx.fillText(hpLabel, gx, growthRowY + 4 * SCALE);
-    drawMiniButton(gx + hpLabelW + 6 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '−', () => adjustHpGrowthPct(-0.25));
-    drawMiniButton(gx + hpLabelW + 6 * SCALE + growthBtnSize + 4 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '+', () => adjustHpGrowthPct(0.25));
-    gx += hpControlW + controlGap;
+    const prefixLabel = 'Per Level Increases:';
+    ctx.fillText(prefixLabel, gx, rowCenterY + 4 * SCALE);
+    gx += ctx.measureText(prefixLabel).width + 8 * SCALE;
 
-    ctx.font = `${11.5 * SCALE}px sans-serif`;
+    const hpLabel = `HP ${G.hpGrowthPct.toFixed(2)}%`;
+    ctx.fillText(hpLabel, gx, rowCenterY + 4 * SCALE);
+    gx += ctx.measureText(hpLabel).width + 6 * SCALE;
+    drawMiniButton(gx, rowCenterY - growthBtnSize / 2, growthBtnSize, '−', () => adjustHpGrowthPct(-0.25));
+    gx += growthBtnSize + 4 * SCALE;
+    drawMiniButton(gx, rowCenterY - growthBtnSize / 2, growthBtnSize, '+', () => adjustHpGrowthPct(0.25));
+    gx += growthBtnSize + 16 * SCALE;
+
+    ctx.font = `${11 * SCALE}px sans-serif`;
     ctx.fillStyle = '#dfe3ff';
-    ctx.fillText(spLabel, gx, growthRowY + 4 * SCALE);
-    drawMiniButton(gx + spLabelW + 6 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '−', () => adjustSpeedGrowthPct(-0.25));
-    drawMiniButton(gx + spLabelW + 6 * SCALE + growthBtnSize + 4 * SCALE, growthRowY - growthBtnSize / 2, growthBtnSize, '+', () => adjustSpeedGrowthPct(0.25));
+    const spLabel = `Speed ${G.speedGrowthPct.toFixed(2)}%`;
+    ctx.fillText(spLabel, gx, rowCenterY + 4 * SCALE);
+    gx += ctx.measureText(spLabel).width + 6 * SCALE;
+    drawMiniButton(gx, rowCenterY - growthBtnSize / 2, growthBtnSize, '−', () => adjustSpeedGrowthPct(-0.25));
+    gx += growthBtnSize + 4 * SCALE;
+    drawMiniButton(gx, rowCenterY - growthBtnSize / 2, growthBtnSize, '+', () => adjustSpeedGrowthPct(0.25));
 
     const curHpMul = waveGrowthMul(G.hpGrowthPct, G.waveNumber);
     const curSpeedMul = waveGrowthMul(G.speedGrowthPct, G.waveNumber);
@@ -1765,7 +1795,48 @@
     ctx.fillStyle = '#ffe98a';
     ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('🛠 Friend Tuner (dev only) — tweak starting Damage/Range', 14 * SCALE, panelY + 16 * SCALE);
+    const friendTitle = '🛠 Friend Tuner (dev only) — tweak starting Damage/Range';
+    ctx.fillText(friendTitle, 14 * SCALE, panelY + 16 * SCALE);
+    const friendTitleW = ctx.measureText(friendTitle).width;
+
+    // Growth controls sit on the same row as the title (to its right), matching
+    // the Pest Tuner's layout so they don't crowd the per-friend rows below.
+    const friendRowCenterY = panelY + 12 * SCALE;
+    const friendBtnSize = 14 * SCALE;
+    let fgx = 14 * SCALE + friendTitleW + 18 * SCALE;
+
+    ctx.font = `${11 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#dfe3ff';
+    const friendPrefixLabel = 'Per Level Increases:';
+    ctx.fillText(friendPrefixLabel, fgx, friendRowCenterY + 4 * SCALE);
+    fgx += ctx.measureText(friendPrefixLabel).width + 8 * SCALE;
+
+    const dmgGrowthLabel = `Damage ${G.dmgGrowthPct}%`;
+    ctx.fillText(dmgGrowthLabel, fgx, friendRowCenterY + 4 * SCALE);
+    fgx += ctx.measureText(dmgGrowthLabel).width + 6 * SCALE;
+    drawMiniButton(fgx, friendRowCenterY - friendBtnSize / 2, friendBtnSize, '−', () => adjustDmgGrowthPct(-1));
+    fgx += friendBtnSize + 4 * SCALE;
+    drawMiniButton(fgx, friendRowCenterY - friendBtnSize / 2, friendBtnSize, '+', () => adjustDmgGrowthPct(1));
+    fgx += friendBtnSize + 16 * SCALE;
+
+    ctx.font = `${11 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#dfe3ff';
+    const costGrowthLabel = `Cost ${G.costGrowthPct}%`;
+    ctx.fillText(costGrowthLabel, fgx, friendRowCenterY + 4 * SCALE);
+    fgx += ctx.measureText(costGrowthLabel).width + 6 * SCALE;
+    drawMiniButton(fgx, friendRowCenterY - friendBtnSize / 2, friendBtnSize, '−', () => adjustCostGrowthPct(-1));
+    fgx += friendBtnSize + 4 * SCALE;
+    drawMiniButton(fgx, friendRowCenterY - friendBtnSize / 2, friendBtnSize, '+', () => adjustCostGrowthPct(1));
+    fgx += friendBtnSize + 16 * SCALE;
+
+    ctx.font = `${11 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#dfe3ff';
+    const rangeGrowthLabel = `Range ${G.rangeGrowthPct}%`;
+    ctx.fillText(rangeGrowthLabel, fgx, friendRowCenterY + 4 * SCALE);
+    fgx += ctx.measureText(rangeGrowthLabel).width + 6 * SCALE;
+    drawMiniButton(fgx, friendRowCenterY - friendBtnSize / 2, friendBtnSize, '−', () => adjustRangeGrowthPct(-1));
+    fgx += friendBtnSize + 4 * SCALE;
+    drawMiniButton(fgx, friendRowCenterY - friendBtnSize / 2, friendBtnSize, '+', () => adjustRangeGrowthPct(1));
 
     const colW = CW / TOWER_ORDER.length;
     for (let i = 0; i < TOWER_ORDER.length; i++) {
@@ -1861,9 +1932,7 @@
       const shownLevels = towerLevelPreview(G.placingType, 10).map(l => `Lv${l.level} ⚔${l.damage} 🎯${l.range}`);
       const line1 = shownLevels.slice(0, 5).join('   ');
       const line2 = shownLevels.slice(5).join('   ');
-      const dmgPct = Math.round((UPGRADE_DMG_MUL - 1) * 100);
-      const costPct = Math.round((UPGRADE_COST_MUL - 1) * 100);
-      const line3 = `Lv11–${MAX_LEVEL}: +${dmgPct}% dmg, +${costPct}% cost per extra level`;
+      const line3 = `Lv11–${MAX_LEVEL}: +${G.dmgGrowthPct}% dmg, +${G.costGrowthPct}% cost per extra level`;
       const availW = CW - 165 * SCALE - 16 * SCALE - (bx + 6 * SCALE) - 10 * SCALE;
       let previewFont = 9.5;
       ctx.font = `${previewFont * SCALE}px sans-serif`;
@@ -1951,9 +2020,16 @@
       roundRect(px + 10 * SCALE, upgY, btnW, btnH, 7 * SCALE);
       ctx.fill();
       ctx.fillStyle = afford ? '#123' : 'rgba(255,255,255,0.6)';
-      ctx.font = `bold ${12 * SCALE}px sans-serif`;
+      const upgLabel = `⬆️ Upgrade — 🪙${cost}`;
+      const upgAvailW = btnW - 12 * SCALE;
+      let upgFont = 12;
+      ctx.font = `bold ${upgFont * SCALE}px sans-serif`;
+      while (upgFont > 8 && ctx.measureText(upgLabel).width > upgAvailW) {
+        upgFont -= 0.5;
+        ctx.font = `bold ${upgFont * SCALE}px sans-serif`;
+      }
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(`⬆️ Upgrade — 🪙${cost}`, px + 10 * SCALE + btnW / 2, upgY + btnH / 2);
+      ctx.fillText(upgLabel, px + 10 * SCALE + btnW / 2, upgY + btnH / 2);
       ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
       G.uiButtons.push({ x: px + 10 * SCALE, y: upgY, w: btnW, h: btnH, action: () => upgradeTower(t) });
     } else {
@@ -1972,9 +2048,16 @@
     roundRect(px + 10 * SCALE, sellY, btnW, btnH, 7 * SCALE);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${12 * SCALE}px sans-serif`;
+    const sellLabel = `💰 Sell — +${sellValue(t)}`;
+    const sellAvailW = btnW - 12 * SCALE;
+    let sellFont = 12;
+    ctx.font = `bold ${sellFont * SCALE}px sans-serif`;
+    while (sellFont > 8 && ctx.measureText(sellLabel).width > sellAvailW) {
+      sellFont -= 0.5;
+      ctx.font = `bold ${sellFont * SCALE}px sans-serif`;
+    }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`💰 Sell — +${sellValue(t)}`, px + 10 * SCALE + btnW / 2, sellY + btnH / 2);
+    ctx.fillText(sellLabel, px + 10 * SCALE + btnW / 2, sellY + btnH / 2);
     ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
     G.uiButtons.push({ x: px + 10 * SCALE, y: sellY, w: btnW, h: btnH, action: () => sellTower(t) });
   }

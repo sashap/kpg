@@ -9,7 +9,7 @@ A little collection of games we're building together — just for fun! Pick one 
 
 **Tower Defense** · 999 Waves · Co-op Friends
 
-Ants, aphids, mosquitoes, caterpillars and snails are invading the garden! Team up Axolotl and Lizard next to each other for a Best Friends bonus, then unlock Spider, Ladybug, Bee and Worm friends as you earn coins. Place them wisely, upgrade your favorites, and see how far through the 999 waves you can get.
+Ants, aphids, mosquitoes, caterpillars and snails are invading the garden! Team up Axolotl and Gecko next to each other for a Best Friends bonus, then unlock Spider, Ladybug, Bee and Worm friends as you earn coins. Place them wisely, upgrade your favorites, and see how far through the 999 waves you can get.
 
 ### 💗 Splat Battle: Axolotl vs. Lizard 🦎
 `axolotl-vs-lizard.html`
