@@ -1732,7 +1732,7 @@
     // speed toggle
     ctx.textAlign = 'right';
     const speedX = helpCX - helpR - 10 * SCALE, speedY = rowY;
-    const speedW = 56 * SCALE, speedH = 30 * SCALE;
+    const speedW = 64 * SCALE, speedH = 30 * SCALE;
     roundRect(speedX - speedW, speedY - speedH / 2, speedW, speedH, 8 * SCALE);
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
     ctx.fill();
@@ -1740,7 +1740,8 @@
     ctx.font = `bold ${14 * SCALE}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(G.speedMul === 0.5 ? '.5x' : `${G.speedMul}x`, speedX - speedW / 2, speedY + 1);
+    const speedIcon = G.speedMul >= 2 ? '⏩' : '▶';
+    ctx.fillText(`${speedIcon} ${G.speedMul === 0.5 ? '.5x' : `${G.speedMul}x`}`, speedX - speedW / 2, speedY + 1);
     ctx.textBaseline = 'alphabetic';
     G.uiButtons.push({ x: speedX - speedW, y: speedY - speedH / 2, w: speedW, h: speedH, action: () => {
       G.speedMul = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(G.speedMul) + 1) % SPEED_OPTIONS.length];
