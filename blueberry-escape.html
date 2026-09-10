@@ -80,6 +80,40 @@
   .helpSteps { text-align: left; padding-left: 22px; line-height: 1.6; font-size: 15px; margin: 0; }
   .helpSteps li { margin-bottom: 9px; }
   .helpSteps b { color: #ffd93d; }
+
+  /* Start-screen control summary: keyboard and touch side by side, with a
+     little map of the two touch zones so the scheme is obvious at a glance. */
+  .controls {
+    display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+    margin-top: 24px; text-align: left;
+  }
+  .ctrlCol {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 14px; padding: 12px 16px 13px; flex: 1 1 250px; max-width: 320px;
+  }
+  .ctrlHead { font-weight: bold; font-size: 14.5px; color: #ffd93d; margin-bottom: 8px; }
+  .ctrlLine { font-size: 13.5px; line-height: 1.75; opacity: 0.95; }
+  .ctrlLine b {
+    display: inline-block; background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.28); border-radius: 5px;
+    padding: 0 6px; margin: 0 1px; font-size: 12.5px;
+  }
+  .ctrlNote { font-size: 12.5px; opacity: 0.8; margin-top: 8px; line-height: 1.5; }
+  .ctrlNote b { color: #ffe98a; }
+  .touchDiagram {
+    display: flex; height: 56px; margin: 4px 0 2px;
+    border: 2px solid rgba(255,255,255,0.3); border-radius: 9px; overflow: hidden;
+  }
+  .touchDiagram > div {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 1px; font-size: 11px; opacity: 0.95;
+  }
+  .touchDiagram span { font-size: 17px; line-height: 1; }
+  .touchDiagram .tdMove {
+    background: rgba(143,123,216,0.4);
+    border-right: 2px dashed rgba(255,255,255,0.4);
+  }
+  .touchDiagram .tdJump { background: rgba(255,158,203,0.34); }
   /* Level-complete score readout — kept bright and high-contrast, since the
      panel's body text is deliberately dimmed. */
   .scoreBig {
@@ -101,8 +135,8 @@
     <div class="panel">
       <h1>🫐 Blueberry Escape 🥣</h1>
       <p class="sub">You're a blueberry on the kitchen counter, and someone is about to bake with you!
-      Dodge the grabbing hand, climb out of the blender, and ride the spoons past the stove — three
-      escapes stand between you and the open window.</p>
+      Dodge the grabbing hand, climb out of the blender, and ride the spoons up through the pot lid —
+      three escapes stand between you and the open window.</p>
       <div class="berryRow" id="berryRow"></div>
       <div class="levelPick">
         <select id="levelSelect" aria-label="Which levels to play"></select>
@@ -110,8 +144,24 @@
       <div class="btnRow">
         <button id="btnStart">▶️ Let's Escape!</button>
       </div>
-      <p class="note">Move with ← → (or A / D) &nbsp;·&nbsp; Jump with SPACE, ↑, or W &nbsp;·&nbsp;
-      On a touch screen, use the buttons at the bottom.</p>
+      <div class="controls">
+        <div class="ctrlCol">
+          <div class="ctrlHead">⌨️ Keyboard</div>
+          <div class="ctrlLine"><b>←</b> <b>→</b> &nbsp;or&nbsp; <b>A</b> <b>D</b> &nbsp;— move</div>
+          <div class="ctrlLine"><b>SPACE</b>, <b>↑</b> or <b>W</b> &nbsp;— jump</div>
+          <div class="ctrlNote">hold jump longer to jump higher</div>
+        </div>
+        <div class="ctrlCol">
+          <div class="ctrlHead">👆 Touch screen</div>
+          <div class="touchDiagram" role="img"
+               aria-label="Left half of the screen moves, right half jumps">
+            <div class="tdMove"><span>⇄</span>slide to move</div>
+            <div class="tdJump"><span>⤒</span>touch to jump</div>
+          </div>
+          <div class="ctrlNote">Put a finger down <b>anywhere</b> on the left and slide — the stick
+          appears where you touched. Hold the right side to jump higher. Both hands work at once.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -141,6 +191,7 @@
       <h1 class="small">❓ How to Play</h1>
       <ol class="helpSteps">
         <li>Pick your blueberry, then <b>move</b> with ← → (or A / D) and <b>jump</b> with SPACE, ↑, or W. Hold jump longer to jump higher.</li>
+        <li><b>On a touch screen:</b> press a finger anywhere on the <b>left half</b> and slide it left or right to steer — the stick appears wherever you touched. Touch anywhere on the <b>right half</b> to jump, holding for a higher jump. You can steer and jump at the same time.</li>
         <li><b>Level 1 — The Counter:</b> hazards come in waves that alternate. On a <b>grab wave</b>, a shadow shows where the hand will land — it reaches any height, so run out of the shadow sideways.</li>
         <li>On a <b>swipe wave</b>, a hand sweeps sideways through one band of height, and a flashing red band shows exactly where a second beforehand. It says <b>GET UP HIGH</b> or <b>DUCK DOWN LOW</b> — do what it says, or jump the hand.</li>
         <li>Climb the butcher block, toaster, kettle, canisters and shelves to change height fast. Don't fall in the sink!</li>
@@ -160,7 +211,6 @@
     </div>
   </div>
 
-  <div id="touchControls" class="hidden"></div>
 </div>
 
 <script>
@@ -2809,6 +2859,7 @@
     G.toast = null; G.toastQueue = [];
     buildLevel(G.level);
     G.state = 'PLAYING';
+    touch.hintT = 5;   // fading "how to steer" prompt, for touch players
     hideAllOverlays();
     showToast(LEVELS[G.level - 1].intro);
   }
@@ -2848,11 +2899,13 @@
     // start with a phantom jump or a run in some direction.
     G.keys.clear();
     G.jumpQueued = 0;
+    touch.stickId = null; touch.jumpIds.clear();
     document.getElementById('btnContinue').disabled = false;
     G.level++;
     G.levelStartScore = G.score;
     buildLevel(G.level);
     G.state = 'PLAYING';
+    touch.hintT = 4;
     hideAllOverlays();
     showToast(LEVELS[G.level - 1].intro);
   }
@@ -2948,51 +3001,124 @@
     const action = KEY_MAP[e.key];
     if (action) G.keys.delete(action);
   });
-  window.addEventListener('blur', () => G.keys.clear());
+  window.addEventListener('blur', () => {
+    G.keys.clear();
+    if (typeof touch !== 'undefined') { touch.stickId = null; touch.jumpIds.clear(); }
+  });
 
-  // ---- touch controls: three big buttons, only while actually playing ----
-  const touchEl = document.getElementById('touchControls');
-  touchEl.innerHTML = `
-    <button class="tcBtn" data-act="left" aria-label="Move left">◀</button>
-    <button class="tcBtn" data-act="right" aria-label="Move right">▶</button>
-    <button class="tcBtn tcJump" data-act="jump" aria-label="Jump">⤒<br><span>JUMP</span></button>`;
-  const tcStyle = document.createElement('style');
-  tcStyle.textContent = `
-    #touchControls { position: absolute; left: 0; right: 0; bottom: 0; height: 0; pointer-events: none; }
-    #touchControls.hidden { display: none; }
-    #touchControls .tcBtn {
-      position: absolute; bottom: 18px; pointer-events: auto;
-      width: 74px; height: 74px; padding: 0; border-radius: 18px;
-      font-size: 26px; line-height: 1; touch-action: none; user-select: none;
-      background: linear-gradient(rgba(143,123,216,0.85), rgba(90,68,168,0.85));
-      border: 3px solid rgba(224,214,255,0.9); opacity: 0.92;
-    }
-    #touchControls .tcBtn[data-act="left"] { left: 18px; }
-    #touchControls .tcBtn[data-act="right"] { left: 104px; }
-    #touchControls .tcJump {
-      right: 18px; width: 96px; height: 96px; border-radius: 50%; font-size: 22px;
-      background: linear-gradient(rgba(255,158,203,0.9), rgba(224,85,154,0.9));
-      border-color: #ffd6ec;
-    }
-    #touchControls .tcJump span { font-size: 11px; font-weight: normal; }`;
-  document.head.appendChild(tcStyle);
+  // ---- touch controls -----------------------------------------------------
+  // Champions-Island style, because fixed on-screen buttons meant hunting for
+  // a target you can't feel. Instead: put a finger down anywhere on the LEFT
+  // half and slide left/right to steer — the stick appears wherever you
+  // touched, so you can never miss it. Touch anywhere on the RIGHT half to
+  // jump, holding for a higher jump. Both hands work at once.
+  const TOUCH_DEADZONE = 12;   // SCALE units of slide before you start moving
+  const TOUCH_STICK_MAX = 62;  // how far the knob is drawn from the anchor
+  const touch = {
+    stickId: null, anchorX: 0, anchorY: 0, curX: 0,
+    jumpIds: new Set(), used: false, hintT: 0,
+  };
 
-  for (const btn of touchEl.querySelectorAll('.tcBtn')) {
-    const act = btn.getAttribute('data-act');
-    const press = (e) => {
-      e.preventDefault();
-      ensureAudio();
-      if (act === 'jump' && !G.keys.has('jump')) G.jumpQueued = PHYS.jumpBuffer;
-      G.keys.add(act);
-    };
-    const release = (e) => { e.preventDefault(); G.keys.delete(act); };
-    btn.addEventListener('pointerdown', press);
-    btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', release);
-    btn.addEventListener('pointerleave', release);
+  function touchZoneOf(pt) {
+    if (pt.y < HUD_H) return null;           // leave the HUD taps alone
+    return pt.x < CW / 2 ? 'move' : 'jump';
   }
-  function updateTouchControls() {
-    touchEl.classList.toggle('hidden', G.state !== 'PLAYING');
+
+  function clearTouchMove() {
+    touch.stickId = null;
+    G.keys.delete('left');
+    G.keys.delete('right');
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    // Mouse stays keyboard-only, so desktop clicks keep working normally and
+    // don't fight the HUD button handler.
+    if (e.pointerType === 'mouse') return;
+    const pt = canvasPoint(e);
+    const zone = touchZoneOf(pt);
+    if (!zone) return;
+    e.preventDefault();
+    ensureAudio();
+    touch.used = true;
+    if (G.state !== 'PLAYING') return;
+    if (zone === 'move') {
+      if (touch.stickId !== null) return;    // one stick at a time
+      touch.stickId = e.pointerId;
+      touch.anchorX = pt.x; touch.curX = pt.x; touch.anchorY = pt.y;
+      if (canvas.setPointerCapture) {
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not critical */ }
+      }
+    } else {
+      touch.jumpIds.add(e.pointerId);
+      if (!G.keys.has('jump')) G.jumpQueued = PHYS.jumpBuffer;
+      G.keys.add('jump');
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== touch.stickId) return;
+    e.preventDefault();
+    const pt = canvasPoint(e);
+    touch.curX = pt.x;
+    const dx = pt.x - touch.anchorX;
+    const dead = TOUCH_DEADZONE * SCALE;
+    G.keys.delete('left'); G.keys.delete('right');
+    if (dx > dead) G.keys.add('right');
+    else if (dx < -dead) G.keys.add('left');
+  });
+
+  function endTouch(e) {
+    if (e.pointerId === touch.stickId) clearTouchMove();
+    if (touch.jumpIds.has(e.pointerId)) {
+      touch.jumpIds.delete(e.pointerId);
+      if (touch.jumpIds.size === 0) G.keys.delete('jump');
+    }
+  }
+  canvas.addEventListener('pointerup', endTouch);
+  canvas.addEventListener('pointercancel', endTouch);
+
+  // Draws the floating stick while you steer, plus a fading first-run hint so
+  // the scheme is discoverable without having to read anything.
+  function drawTouchControls() {
+    if (!touch.used || G.state !== 'PLAYING') return;
+
+    if (touch.stickId !== null) {
+      const dx = clamp(touch.curX - touch.anchorX, -TOUCH_STICK_MAX * SCALE, TOUCH_STICK_MAX * SCALE);
+      const R = 46 * SCALE;
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      ctx.beginPath(); ctx.arc(touch.anchorX, touch.anchorY, R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+      ctx.lineWidth = 3 * SCALE; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = `bold ${16 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('‹', touch.anchorX - R * 0.74, touch.anchorY);
+      ctx.fillText('›', touch.anchorX + R * 0.74, touch.anchorY);
+      const kg = ctx.createRadialGradient(touch.anchorX + dx, touch.anchorY - 6 * SCALE, 2 * SCALE,
+        touch.anchorX + dx, touch.anchorY, 26 * SCALE);
+      kg.addColorStop(0, 'rgba(255,255,255,0.95)');
+      kg.addColorStop(1, 'rgba(190,205,235,0.55)');
+      ctx.fillStyle = kg;
+      ctx.beginPath(); ctx.arc(touch.anchorX + dx, touch.anchorY, 25 * SCALE, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2 * SCALE; ctx.stroke();
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
+
+    if (touch.hintT > 0) {
+      const a = clamp(touch.hintT / 1.2, 0, 1) * 0.75;
+      const midY = HUD_H + (CH - HUD_H) * 0.5;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `bold ${13 * SCALE}px sans-serif`;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      if (touch.stickId === null) ctx.fillText('slide anywhere here to move', CW * 0.25, midY);
+      ctx.fillText('tap here to jump', CW * 0.75, midY);
+      ctx.strokeStyle = `rgba(255,255,255,${a * 0.35})`;
+      ctx.lineWidth = 2 * SCALE;
+      ctx.setLineDash([8 * SCALE, 8 * SCALE]);
+      ctx.beginPath(); ctx.moveTo(CW / 2, HUD_H); ctx.lineTo(CW / 2, CH); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
   }
 
   // ---- canvas taps: HUD buttons (help / mute) ----
@@ -3066,6 +3192,7 @@
     updateToast(elapsedMs);
     updateParticles(elapsedMs);
     if (G.shake > 0) G.shake = Math.max(0, G.shake - elapsedMs * 0.06);
+    if (touch.hintT > 0 && G.state === 'PLAYING') touch.hintT -= elapsedMs / 1000;
 
     // The level-complete screen holds for a few seconds so you can read your
     // score, counting down on the button, then moves on by itself. Pressing
@@ -3198,7 +3325,7 @@
 
     if (G.state === 'PLAYING' || G.state === 'LEVEL_CLEAR') drawHUD();
     drawToast();
-    updateTouchControls();
+    drawTouchControls();
   }
 
   // ============================================================
