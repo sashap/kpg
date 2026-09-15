@@ -21,15 +21,16 @@ A goofy backyard artillery duel! Axolotl and Lizard take turns lobbing mud balls
 ### 🫐 Blueberry Escape 🥣
 `blueberry-escape.html`
 
-**Platformer** · 3 Levels · Pick Your Berry
+**Platformer** · 4 Levels · Pick Your Berry
 
-You're a blueberry, and someone is about to bake with you! Pick purple, dark blue or light blue — each rolls, jumps and floats a little differently — then survive three kitchen escapes:
+You're a blueberry, and someone is about to bake with you! Pick purple, dark blue or light blue — each rolls, jumps and floats a little differently — then survive four kitchen escapes:
 
 1. **✋ The Counter** — hazards come in alternating waves. A hand grabs from above (its shadow shows where, so dodge sideways), then a hand swipes in from the side aimed at your height (a red band shows where, so jump or drop out of it). Climb the butcher block, toaster, kettle, canisters, spice shelves, tea shelves and window sill to change height fast — and don't fall in the sink, or get flattened by a runaway plate.
 2. **🌀 The Blender** — hop up frozen-berry footholds and measuring marks while full-width blades sweep the jar. When a blade is out there's no way past, so wait for it to pull in — and watch for the motor surging. Meanwhile the purée keeps rising, and it accelerates.
 3. **🍯 The Pot** — land on a stirring spoon and it flings you higher. Climb out through one of the holes in the pot lid, but one hole hisses and glows before it blasts scalding steam, so take a different one. Then hop the rails to the open window.
+4. **🍽️ The Plate** — a top-down dodge arena inspired by Google Doodle Celebrating Popcorn! Run around a giant white porcelain breakfast plate dodging falling and incoming ingredients. Sticky honey and gooey yogurt create puddles that slow you down, crunchy granola clusters fly in all directions like salt bursts, and ripe raspberries pulse and explode into seeds. Hop over gooey puddles and low projectiles, survive the breakfast storm, and hop onto the silver spoon at the rim to catapult to freedom!
 
-Collect the glowing stars along the way for bonus points. The dropdown on the start screen lets you jump straight to any level.
+Collect the spinning gold coins along the way for bonus points. The dropdown on the start screen lets you jump straight to any level.
 
 ## Playing
 

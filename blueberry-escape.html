@@ -135,8 +135,8 @@
     <div class="panel">
       <h1>🫐 Blueberry Escape 🥣</h1>
       <p class="sub">You're a blueberry on the kitchen counter, and someone is about to bake with you!
-      Dodge the grabbing hand, climb out of the blender, and ride the spoons up through the pot lid —
-      three escapes stand between you and the open window.</p>
+      Dodge the grabbing hand, climb out of the blender, ride the spoons up through the pot lid and
+      survive the breakfast storm on the plate — four escapes stand between you and freedom.</p>
       <div class="berryRow" id="berryRow"></div>
       <div class="levelPick">
         <select id="levelSelect" aria-label="Which levels to play"></select>
@@ -147,9 +147,9 @@
       <div class="controls">
         <div class="ctrlCol">
           <div class="ctrlHead">⌨️ Keyboard</div>
-          <div class="ctrlLine"><b>←</b> <b>→</b> &nbsp;or&nbsp; <b>A</b> <b>D</b> &nbsp;— move</div>
-          <div class="ctrlLine"><b>SPACE</b>, <b>↑</b> or <b>W</b> &nbsp;— jump</div>
-          <div class="ctrlNote">hold jump longer to jump higher</div>
+          <div class="ctrlLine"><b>←</b> <b>→</b> &nbsp;or&nbsp; <b>A</b> <b>D</b> &nbsp;— move (<b>↑</b> <b>↓</b> on Plate)</div>
+          <div class="ctrlLine"><b>SPACE</b>, <b>↑</b> or <b>W</b> &nbsp;— jump / hop</div>
+          <div class="ctrlNote">hold jump to jump higher · hop over puddles & granola!</div>
         </div>
         <div class="ctrlCol">
           <div class="ctrlHead">👆 Touch screen</div>
@@ -158,8 +158,8 @@
             <div class="tdMove"><span>⇄</span>slide to move</div>
             <div class="tdJump"><span>⤒</span>touch to jump</div>
           </div>
-          <div class="ctrlNote">Put a finger down <b>anywhere</b> on the left and slide — the stick
-          appears where you touched. Hold the right side to jump higher. Both hands work at once.</div>
+          <div class="ctrlNote">Put a finger down <b>anywhere</b> on the left and slide to steer.
+          Hold the right side to jump/hop. Both hands work at once.</div>
         </div>
       </div>
     </div>
@@ -202,8 +202,13 @@
         <li>The purée keeps rising, so don't linger — climb over the rim to escape.</li>
         <li><b>Level 3 — The Pot:</b> land on a stirring spoon and it will fling you upward. Chain the launches to reach the lid.</li>
         <li>The pot is lidded, so climb out through one of the steam holes — but one hole hisses and glows before it blasts scalding steam, so take a different one. Then hop to the open window to win!</li>
+        <li><b>Level 4 — The Plate:</b> a top-down dodge arena inspired by Google Doodle Celebrating Popcorn! Run around the giant white circular plate dodging a breakfast storm.</li>
+        <li>Sticky <b>honey</b> and gooey <b>yogurt</b> leave puddles that slow you down, crunchy <b>granola</b> flies in all directions like salt, and plump <b>raspberries</b> swell and explode into juice and seed shrapnel!</li>
+        <li><b>Controls:</b> Move in all directions with ← → ↑ ↓ or W A S D (or slide the left stick on touch). Press <b>SPACE</b> (or tap the right side on touch) to hop into the air!</li>
+        <li><b>Pro-tip:</b> Hop over gooey puddles and jump right over flying granola to avoid damage!</li>
+        <li>Survive the breakfast rush, then hop onto the silver spoon at the rim to catapult to sweet freedom!</li>
         <li>You lose a heart each time you're caught. Lose them all and it's back to the mixing bowl.</li>
-        <li>Collect ✨ sugar sparkles along the way for bonus points.</li>
+        <li>Grab the spinning gold coins along the way — each one is worth points.</li>
       </ol>
       <div class="btnRow">
         <button id="btnCloseHelp">Close</button>
@@ -267,11 +272,14 @@
     { id: 1, name: 'The Counter', icon: '✋', intro: '✋ Level 1 — dodge the grabbing hand!' },
     { id: 2, name: 'The Blender', icon: '🌀', intro: '🌀 Level 2 — climb out before it purées you!' },
     { id: 3, name: 'The Pot',     icon: '🍯', intro: '🍯 Level 3 — ride the spoons, dodge the steam!' },
+    { id: 4, name: 'The Plate',   icon: '🍽️', intro: '🍽️ Level 4 — dodge the breakfast storm on the white plate!' },
   ];
+  const LAST_LEVEL = LEVELS.length;
 
   const DODGES_TO_CLEAR = 9;   // hazards you must survive in level 1
   const EVENTS_PER_WAVE = 3;   // how many of one hazard type before switching
   const SWIPE_HEIGHT = 74;     // thickness of the band a side swipe sweeps
+  const COIN_VALUE = 25;       // points per coin
   const STEAM_WARN = 1.0;      // seconds a lid hole hisses before it blows
   const STEAM_BLAST = 1.1;     // seconds the steam is actually dangerous
   const STEAM_HEIGHT = 190;    // how far the steam column reaches (SCALE units)
@@ -293,7 +301,10 @@
     muted: false,
     t: 0,           // ms since page load, advanced by the game loop
     shake: 0,
+    camX: 0,
     camY: 0,
+    speedScale: 1,      // levels may bog the berry down (yogurt!)
+    jumpScale: 1,
     startLevel: 0,      // 0 = play straight through from level 1
     levelStartScore: 0, // score at the start of the current level
     clearTimer: 0,      // countdown on the level-complete screen
@@ -301,7 +312,8 @@
     jumpQueued: 0,  // jump-buffer timer, in seconds
     uiButtons: [],
     particles: [],
-    sparkles: [],
+    coins: [],
+    scorePops: [],
     toast: null,
     toastQueue: [],
     player: null,
@@ -454,7 +466,7 @@
   function makePlayer(x, y) {
     return {
       x, y, vx: 0, vy: 0, r: 13 * SCALE,
-      onGround: false, coyote: 0, facing: 1,
+      onGround: false, coyote: 0, facing: 1, onSlope: false, groundSlope: 0,
       invuln: 0, squash: 0, ridingPlatform: null,
       blink: 0, nextBlink: randRange(1500, 4000),
     };
@@ -467,17 +479,29 @@
 
   function heldLeft() { return G.keys.has('left'); }
   function heldRight() { return G.keys.has('right'); }
-  function heldJump() { return G.keys.has('jump'); }
+  function heldJump() { return G.keys.has('jump') || (G.level !== 4 && G.keys.has('up')); }
+  function heldUp() { return G.keys.has('up'); }
+  function heldDown() { return G.keys.has('down'); }
 
   function updatePlayer(dt) {
     const p = G.player, b = BERRIES[G.berry];
     const L = G.L;
     if (L && L.scriptedMove) return; // a cutscene is driving the berry
 
+    // If level has custom player update (like Level 4 top-down dodge arena), delegate to it
+    if (L && L.customPlayerUpdate) {
+      L.customPlayerUpdate(dt);
+      return;
+    }
+
     // ---- horizontal movement ----
     const dir = (heldRight() ? 1 : 0) - (heldLeft() ? 1 : 0);
-    const target = dir * PHYS.moveSpeed * b.speedMul * SCALE;
-    const accel = (p.onGround ? (dir !== 0 ? PHYS.groundAccel : PHYS.groundFriction) : PHYS.airAccel) * SCALE;
+    // Levels can bog the berry down — wading through yogurt, say. 1 = normal.
+    const target = dir * PHYS.moveSpeed * b.speedMul * G.speedScale * SCALE;
+    let accel = (p.onGround ? (dir !== 0 ? PHYS.groundAccel : PHYS.groundFriction) : PHYS.airAccel) * SCALE;
+    // A curved bowl gives you less and less to push against as it steepens,
+    // so you can scramble a little way up the gentle part and no further.
+    if (p.onGround && p.groundSlope) accel /= 1 + 30 * p.groundSlope * p.groundSlope;
     if (p.vx < target) p.vx = Math.min(target, p.vx + accel * dt);
     else if (p.vx > target) p.vx = Math.max(target, p.vx - accel * dt);
     if (dir !== 0) p.facing = dir;
@@ -486,7 +510,7 @@
     if (p.onGround) p.coyote = PHYS.coyote; else p.coyote = Math.max(0, p.coyote - dt);
     G.jumpQueued = Math.max(0, G.jumpQueued - dt);
     if (G.jumpQueued > 0 && p.coyote > 0) {
-      p.vy = -PHYS.jumpV * b.jumpMul * SCALE;
+      p.vy = -PHYS.jumpV * b.jumpMul * G.jumpScale * SCALE;
       p.onGround = false; p.coyote = 0; G.jumpQueued = 0;
       p.squash = -0.35;
       spawnParticles(p.x, p.y + p.r, 5, 'rgba(255,255,255,0.6)', { lift: 0.4, grav: 0.06, life: 300 });
@@ -508,6 +532,7 @@
     const wasOnGround = p.onGround;
     p.onGround = false;
     p.ridingPlatform = null;
+    if (!L.groundY) { p.onSlope = false; p.groundSlope = 0; }
 
     // ---- vertical collision ----
     const prevBottom = p.y + p.r, prevTop = p.y - p.r;
@@ -539,6 +564,34 @@
       if (box.bottom <= pl.y + 2 || box.top >= pl.y + pl.h - 2) continue;
       if (p.vx > 0 && prevRight <= pl.x && box.right >= pl.x) { p.x = pl.x - p.r; p.vx = 0; }
       else if (p.vx < 0 && prevLeft >= pl.x + pl.w && box.left <= pl.x + pl.w) { p.x = pl.x + pl.w + p.r; p.vx = 0; }
+    }
+
+    // ---- curved ground ----
+    // Some levels have a contoured floor (the mixing bowl) given as a surface
+    // function rather than boxes. Landing on it also means sliding down it:
+    // the steeper the side, the harder gravity drags you back to the bottom.
+    if (L.groundY) {
+      const gy = L.groundY(p.x);
+      if (p.y + p.r >= gy) {
+        if (p.vy > 0) {
+          if (p.vy > 260 * SCALE) {
+            spawnParticles(p.x, gy, 4, 'rgba(255,255,255,0.5)', { grav: 0.04, life: 260 });
+            if (!wasOnGround) playSfx('land');
+          }
+          if (p.vy > 120 * SCALE) p.squash = Math.min(0.45, p.vy / (1400 * SCALE));
+          p.vy = 0;
+        }
+        p.y = gy - p.r;
+        p.onGround = true;
+        const slope = L.groundSlope(p.x);
+        p.groundSlope = slope;
+        p.onSlope = Math.abs(slope) > 0.16;
+        // component of gravity along the slope
+        const gAcc = PHYS.grav * b.gravMul * SCALE;
+        p.vx += slope * gAcc / (1 + slope * slope) * (L.slip || 1) * dt;
+      } else {
+        p.onSlope = false; p.groundSlope = 0;
+      }
     }
 
     // ---- level walls ----
@@ -693,89 +746,131 @@
   function drawPlayer() {
     const p = G.player, def = BERRIES[G.berry];
     if (p.invuln > 0 && Math.floor(G.t / 90) % 2 === 0) return; // damage flicker
-    drawBerry(p.x, p.y, p.r, def, {
+    const z = p.z || 0;
+    if (z > 0) {
+      const shadowAlpha = 0.24 * (1 - clamp(z / (100 * SCALE), 0, 0.6));
+      const shadowScale = 1 - clamp(z / (120 * SCALE), 0, 0.35);
+      ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + p.r * 0.9, p.r * 0.85 * shadowScale, p.r * 0.28 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    drawBerry(p.x, p.y - z, p.r, def, {
       squash: p.squash, facing: p.facing, blink: p.blink,
       worried: G.L && G.L.isScary && G.L.isScary(),
+      noShadow: z > 0,
     });
   }
 
   // ============================================================
-  // 7. SPARKLES (collectibles)
+  // 7. COINS (collectibles)
   // ============================================================
-  function addSparkle(x, y) { G.sparkles.push({ x, y, phase: Math.random() * Math.PI * 2, got: false }); }
+  function addCoin(x, y) {
+    G.coins.push({ x, y, phase: Math.random() * Math.PI * 2, spin: Math.random() * Math.PI * 2, got: false });
+  }
 
-  function updateSparkles(dt) {
+  function updateCoins(dt) {
     const p = G.player;
-    for (const s of G.sparkles) {
-      if (s.got) continue;
-      s.phase += dt * 3;
-      if (Math.hypot(s.x - p.x, s.y - p.y) < p.r + 12 * SCALE) {
-        s.got = true;
-        G.score += 25;
-        spawnParticles(s.x, s.y, 10, '#ffe98a', { minSpd: 0.8, maxSpd: 2.2, grav: 0.02, life: 420 });
+    for (const c of G.coins) {
+      if (c.got) continue;
+      c.phase += dt * 3;
+      c.spin += dt * 3.4;                       // about half a turn a second
+      if (Math.hypot(c.x - p.x, c.y - p.y) < p.r + 13 * SCALE) {
+        c.got = true;
+        G.score += COIN_VALUE;
+        addScorePop(c.x, c.y, '+' + COIN_VALUE);
+        spawnParticles(c.x, c.y, 12, '#ffd54a', { minSpd: 0.8, maxSpd: 2.4, grav: 0.03, life: 460 });
+        spawnParticles(c.x, c.y, 5, '#fff6cf', { minSpd: 0.4, maxSpd: 1.4, grav: 0.01, life: 620 });
         playSfx('collect');
       }
     }
-    G.sparkles = G.sparkles.filter(s => !s.got);
+    G.coins = G.coins.filter(c => !c.got);
   }
 
-  // Drawn rather than an emoji so they can carry a real glow — against a
-  // busy kitchen or a purple blender an emoji sparkle just disappears.
-  function drawSparkles() {
-    for (const s of G.sparkles) {
-      const bob = Math.sin(s.phase) * 3 * SCALE;
-      const x = s.x, y = s.y + bob;
-      const pulse = 0.78 + 0.22 * Math.sin(s.phase * 1.7);
-      const R = 13 * SCALE * pulse;      // star radius
-      const spin = s.phase * 0.5;
+  // Spinning gold coin, drawn rather than an emoji so it can turn edge-on and
+  // carry a glow — a coin reads as "worth picking up" far better than a star.
+  function drawCoins() {
+    for (const c of G.coins) {
+      const bob = Math.sin(c.phase) * 3 * SCALE;
+      const R = 11.5 * SCALE;
+      const face = Math.abs(Math.cos(c.spin));          // 1 = flat on, 0 = edge-on
+      const hw = Math.max(1.8 * SCALE, R * face);
+      const lean = Math.cos(c.spin) >= 0 ? 1 : -1;
 
       ctx.save();
-      ctx.translate(x, y);
-
-      // warm halo so it reads on any background
-      const halo = ctx.createRadialGradient(0, 0, R * 0.15, 0, 0, R * 2.1);
-      halo.addColorStop(0, `rgba(255,235,140,${0.5 * pulse})`);
-      halo.addColorStop(0.45, `rgba(255,215,80,${0.2 * pulse})`);
-      halo.addColorStop(1, 'rgba(255,205,60,0)');
+      ctx.translate(c.x, c.y + bob);
+      // warm halo so it stands out against the kitchen or the purée
+      const halo = ctx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 2);
+      halo.addColorStop(0, 'rgba(255,225,120,0.42)');
+      halo.addColorStop(0.5, 'rgba(255,205,70,0.16)');
+      halo.addColorStop(1, 'rgba(255,200,60,0)');
       ctx.fillStyle = halo;
-      ctx.beginPath(); ctx.arc(0, 0, R * 2.1, 0, Math.PI * 2); ctx.fill();
-
-      ctx.rotate(spin);
-      // four-point star: long spikes, pinched waist
-      const spike = R, waist = R * 0.26;
-      const starPath = () => {
-        ctx.beginPath();
-        for (let i = 0; i < 4; i++) {
-          const a = i * Math.PI / 2;
-          const nx = Math.cos(a), ny = Math.sin(a);
-          const mx = Math.cos(a + Math.PI / 4), my = Math.sin(a + Math.PI / 4);
-          ctx.lineTo(nx * spike, ny * spike);
-          ctx.lineTo(mx * waist, my * waist);
-        }
-        ctx.closePath();
-      };
-      // dark rim first, so it separates from pale backgrounds too
-      ctx.strokeStyle = 'rgba(150,105,20,0.55)';
-      ctx.lineWidth = 2.6 * SCALE;
-      starPath(); ctx.stroke();
-      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, spike);
-      g.addColorStop(0, '#ffffff');
-      g.addColorStop(0.35, '#fff5b8');
-      g.addColorStop(1, '#ffc32e');
-      ctx.fillStyle = g;
-      starPath(); ctx.fill();
-
-      // hot white core + a couple of cross glints
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.beginPath(); ctx.arc(0, 0, R * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = `rgba(255,255,255,${0.75 * pulse})`;
-      ctx.lineWidth = 1.5 * SCALE; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-spike * 0.92, 0); ctx.lineTo(spike * 0.92, 0);
-      ctx.moveTo(0, -spike * 0.92); ctx.lineTo(0, spike * 0.92);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, R * 2, 0, Math.PI * 2); ctx.fill();
+      drawCoinFace(0, 0, R, hw, face, lean);
       ctx.restore();
     }
+  }
+
+  // The coin itself, so the HUD tally can show exactly the same object you
+  // are picking up rather than an emoji that never quite matches.
+  function drawCoinFace(x, y, R, hw, face, lean) {
+    // the coin's thickness, peeking out behind the face as it turns
+    ctx.fillStyle = '#a9741a';
+    ctx.beginPath();
+    ctx.ellipse(x - lean * R * 0.19, y, hw, R, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const g = ctx.createLinearGradient(x - hw, y - R, x + hw, y + R);
+    g.addColorStop(0, '#fff0b8');
+    g.addColorStop(0.45, '#ffc93c');
+    g.addColorStop(1, '#dd9510');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(x, y, hw, R, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#8f6113'; ctx.lineWidth = Math.max(1, R * 0.13); ctx.stroke();
+
+    // embossed ring and star, fading away as the coin turns side-on
+    if (face > 0.22) {
+      ctx.save();
+      ctx.globalAlpha = (face - 0.22) / 0.78;
+      ctx.strokeStyle = 'rgba(255,248,214,0.8)'; ctx.lineWidth = Math.max(1, R * 0.11);
+      ctx.beginPath(); ctx.ellipse(x, y, hw * 0.66, R * 0.66, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#9a6a14';
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5;
+        const rr = (i % 2 === 0 ? 0.46 : 0.2);
+        ctx.lineTo(x + Math.cos(a) * hw * rr, y + Math.sin(a) * R * rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.beginPath();
+    ctx.ellipse(x - hw * 0.34, y - R * 0.42, Math.max(0.8, hw * 0.22), R * 0.17, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Floating "+25" so the reward is unmistakable at the moment you grab one.
+  function addScorePop(x, y, text) {
+    G.scorePops.push({ x, y, text, life: 800, max: 800 });
+  }
+  function updateScorePops(elapsedMs) {
+    for (const sp of G.scorePops) { sp.life -= elapsedMs; sp.y -= elapsedMs * 0.03 * SCALE; }
+    G.scorePops = G.scorePops.filter(sp => sp.life > 0);
+  }
+  function drawScorePops() {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const sp of G.scorePops) {
+      const a = clamp(sp.life / sp.max, 0, 1);
+      ctx.font = `bold ${15 * SCALE}px sans-serif`;
+      ctx.lineWidth = 3.5 * SCALE;
+      ctx.strokeStyle = `rgba(60,40,10,${a * 0.8})`;
+      ctx.strokeText(sp.text, sp.x, sp.y);
+      ctx.fillStyle = `rgba(255,226,110,${a})`;
+      ctx.fillText(sp.text, sp.x, sp.y);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   }
 
   // ============================================================
@@ -834,7 +929,7 @@
       hand: null,
       roller: null,
       rollerTimer: 3.2,
-      sparkleTimer: 1.4,
+      coinTimer: 1.4,
     };
 
     // The sink sits dead centre under the window, as a real kitchen would have
@@ -1124,9 +1219,9 @@
       L.rollerTimer -= dt;
       if (!L.roller && L.rollerTimer <= 0) {
         const fromLeft = Math.random() < 0.5;
-        const rr = 20 * SCALE;   // a proper dinner plate, clearly bigger than you
+        const rr = 30 * SCALE;   // a proper dinner plate, clearly bigger than you
         L.roller = {
-          x: fromLeft ? -24 * SCALE : CW + 24 * SCALE,
+          x: fromLeft ? -34 * SCALE : CW + 34 * SCALE,
           y: L.counterY - rr,
           vx: (fromLeft ? 1 : -1) * randRange(190, 250) * SCALE,
           r: rr, spin: 0,
@@ -1153,11 +1248,11 @@
         } else if (r.x < -70 * SCALE || r.x > CW + 70 * SCALE) { L.roller = null; L.rollerTimer = randRange(3.4, 5.6); }
       }
 
-      // ---------- sugar sparkles ----------
-      L.sparkleTimer -= dt;
-      if (L.sparkleTimer <= 0 && G.sparkles.length < 4) {
-        L.sparkleTimer = randRange(1.8, 3.4);
-        addSparkle(randRange(60, CW - 60) * 1, L.counterY - randRange(30, 130) * SCALE);
+      // ---------- coins ----------
+      L.coinTimer -= dt;
+      if (L.coinTimer <= 0 && G.coins.length < 4) {
+        L.coinTimer = randRange(1.8, 3.4);
+        addCoin(randRange(60, CW - 60) * 1, L.counterY - randRange(30, 130) * SCALE);
       }
     };
 
@@ -1547,7 +1642,7 @@
       }
 
       drawSwipe(L);
-      drawSparkles();
+      drawCoins();
       drawPlayer();
       drawHand(L);
     };
@@ -1989,7 +2084,7 @@
         const t = jitter(++stagIdx);
         const wantX = CW / 2 - stagW / 2 + t * (jarW * 0.5 - stagW - 10 * SCALE);
         cur = addReachable(cur, wantX, y, stagW);
-        if (stagIdx % 3 === 1) addSparkle(cur.x + cur.w / 2, y - 24 * SCALE);
+        if (stagIdx % 3 === 1) addCoin(cur.x + cur.w / 2, y - 24 * SCALE);
       }
       // launch pad on a wall, a bigger hop up — placed on whichever wall the
       // last foothold is nearer, so the long hop stays comfortably in range
@@ -2242,7 +2337,7 @@
         }
       }
 
-      drawSparkles();
+      drawCoins();
       drawPlayer();
     };
 
@@ -2383,7 +2478,7 @@
       };
       platforms.push(sp);
       spoons.push(sp);
-      if (i % 2 === 0) addSparkle(sp.centerX, y - 40 * SCALE);
+      if (i % 2 === 0) addCoin(sp.centerX, y - 40 * SCALE);
     }
 
     // Lid sits within one ordinary jump of the top spoon, so you don't have
@@ -2449,7 +2544,7 @@
       y: rail1.y - 100 * SCALE, w: shelfW, h: 13 * SCALE, kind: 'rail', oneWay: true,
     };
     platforms.push(rail1, rail2);
-    addSparkle(CW / 2, rail1.y - 40 * SCALE);
+    addCoin(CW / 2, rail1.y - 40 * SCALE);
 
     const winW = Math.min(190 * SCALE, CW * 0.42), winH = 140 * SCALE;
     const sillY = rail2.y - 100 * SCALE;
@@ -2767,7 +2862,7 @@
       // the lid goes on last so it sits over the pot mouth, steam above it
       drawLid(L);
 
-      drawSparkles();
+      drawCoins();
       drawPlayer();
     };
 
@@ -2830,12 +2925,1950 @@
   }
 
   // ============================================================
+  // ============================================================
+  // ============================================================
+  // ============================================================
+  // 11b. LEVEL 4 — THE PLATE (TOP-DOWN DODGE ARENA)
+  // ============================================================
+  // Breakfast is served! The blueberry finds itself on a large white porcelain
+  // breakfast plate viewed from above. Ingredients rain down and fly inward:
+  // - Yogurt dollops create slippery, gooey white zones that slow movement.
+  // - Golden Honey streams form thick, sticky puddles that severely slow you down.
+  // - Clusters of crunchy Granola scatter in every direction (like salt waves in Google Doodle Popcorn!).
+  // - Ripe Raspberries land, pulse red, and explode into flying seeds!
+  // Dodge hazards, hop (Spacebar) over puddles and low projectiles, collect sugar stars and mint leaves,
+  // survive until breakfast is complete, then hop onto the Silver Spoon at the top rim to escape!
+  function buildLevel4() {
+    const plateR = Math.min(CW, CH) * 0.46; // Outer rim radius of the plate
+    const basinR = plateR * 0.82;            // Flat inner basin radius (the main play field)
+    const worldW = CW;
+    const worldH = CH;
+    const cx = CW / 2;
+    const cy = CH / 2;
+
+    const spoonX = cx;
+    const spoonY = cy - basinR * 0.78; // Nestled right at the upper edge/rim of the plate!
+
+    const SURVIVE_TIME = 32; // Seconds to survive until the silver spoon arrives!
+
+    const L = {
+      id: 4,
+      isTopDown: true,
+      worldW,
+      worldH,
+      cx,
+      cy,
+      plateR,
+      basinR,
+      spoonX,
+      spoonY,
+      minX: cx - basinR,
+      maxX: cx + basinR,
+      timer: 0,
+      dropTimer: 1.2,
+      granolaTimer: 3.5,
+      nextMintAt: 7.0,
+      canEscape: false,
+      escaped: false,
+      escape: null,
+      inHoney: false,
+      inYogurt: false,
+      // Puddles and Hazards on the plate
+      honeyPuddles: [],
+      yogurtPuddles: [],
+      juiceStains: [],
+      berryFootprints: [],
+      drops: [],
+      raspberries: [],
+      granolas: [],
+      shrapnel: [],
+      mintLeaves: [],
+    };
+
+    // Camera centering on the plate
+    L.customCamera = function () {
+      G.camX = 0;
+      G.camY = 0;
+    };
+
+    // Custom 2D Top-Down movement & collision for Level 4
+    L.customPlayerUpdate = function (dt) {
+      const p = G.player;
+      const def = BERRIES[G.berry];
+      const baseSpd = PHYS.moveSpeed * def.speedMul * SCALE;
+
+      // 1. Check if standing in honey or yogurt puddles (only if blueberry is grounded on plate, z === 0)
+      let inHoney = false;
+      let inYogurt = false;
+      if (!p.z || p.z <= 2 * SCALE) {
+        for (const h of L.honeyPuddles) {
+          let inThis = Math.hypot(p.x - h.x, p.y - h.y) < h.r * 0.95;
+          if (!inThis && h.lobes) {
+            for (const lb of h.lobes) {
+              if (Math.hypot(p.x - (h.x + lb.ox), p.y - (h.y + lb.oy)) < lb.r) {
+                inThis = true;
+                break;
+              }
+            }
+          }
+          if (inThis) {
+            inHoney = true;
+            break;
+          }
+        }
+        for (const y of L.yogurtPuddles) {
+          if (Math.hypot(p.x - y.x, p.y - y.y) < y.r) {
+            inYogurt = true;
+            break;
+          }
+        }
+      }
+      L.inHoney = inHoney;
+      L.inYogurt = inYogurt;
+
+      let speedMul = 1.0;
+      if (inHoney) speedMul = 0.22; // Viscous and super sticky!
+      else if (inYogurt) speedMul = 0.58;
+
+      // 2. Read directional inputs (Arrow keys / WASD / Touch joystick)
+      let dx = 0;
+      let dy = 0;
+      if (heldLeft()) dx -= 1;
+      if (heldRight()) dx += 1;
+      if (heldUp()) dy -= 1;
+      if (heldDown()) dy += 1;
+
+      // Normalize diagonal speed
+      if (dx !== 0 && dy !== 0) {
+        const inv = 1 / Math.SQRT2;
+        dx *= inv;
+        dy *= inv;
+      }
+
+      // Smooth velocity interpolation for responsive, juicy top-down movement
+      const targetVx = dx * baseSpd * speedMul;
+      const targetVy = dy * baseSpd * speedMul;
+      const accel = inHoney ? 6.5 : (inYogurt ? 14 : 22);
+      p.vx = lerp(p.vx, targetVx, clamp(accel * dt, 0, 1));
+      p.vy = lerp(p.vy, targetVy, clamp(accel * dt, 0, 1));
+
+      // Move player position
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Update facing orientation
+      if (Math.abs(p.vx) > 5 * SCALE) {
+        p.facing = p.vx > 0 ? 1 : -1;
+      }
+
+      // 3. Jump / Hop mechanic along Z-axis (Spacebar to hop over puddles and rolling granola)
+      p.z = p.z || 0;
+      p.vz = p.vz || 0;
+      const gravZ = 950 * SCALE;
+
+      if (heldJump() && p.z <= 0) {
+        p.vz = 290 * SCALE * (inHoney ? 0.48 : 1.0); // Thick honey drag resists hopping!
+        p.z = 1;
+        playSfx('jump');
+      }
+
+      if (p.z > 0) {
+        p.vz -= gravZ * dt;
+        p.z += p.vz * dt;
+        if (p.z <= 0) {
+          p.z = 0;
+          p.vz = 0;
+          p.squash = 0.35; // Juiciness squash on landing
+          playSfx('land');
+          // Splash effect if landing in a puddle
+          if (inHoney) {
+            spawnParticles(p.x, p.y, 8, '#f5af23', { minSpd: 0.6, maxSpd: 2.0, life: 300 });
+          } else if (inYogurt) {
+            spawnParticles(p.x, p.y, 8, '#eaf2fc', { minSpd: 0.6, maxSpd: 2.0, life: 300 });
+          }
+        }
+      }
+
+      // 4. Leave subtle sticky footsteps when walking out of puddles
+      if ((inHoney || inYogurt) && (Math.abs(p.vx) > 10 * SCALE || Math.abs(p.vy) > 10 * SCALE)) {
+        if (Math.random() < dt * 14) {
+          L.berryFootprints.push({
+            x: p.x + randRange(-3, 3) * SCALE,
+            y: p.y + randRange(-3, 3) * SCALE,
+            kind: inHoney ? 'honey' : 'yogurt',
+            alpha: 1.0,
+          });
+          if (L.berryFootprints.length > 30) L.berryFootprints.shift();
+        }
+      }
+
+      // 5. Constrain blueberry within circular plate basin boundary
+      const distFromCenter = Math.hypot(p.x - cx, p.y - cy);
+      const maxDist = basinR - p.r;
+      if (distFromCenter > maxDist) {
+        const ang = Math.atan2(p.y - cy, p.x - cx);
+        p.x = cx + Math.cos(ang) * maxDist;
+        p.y = cy + Math.sin(ang) * maxDist;
+        // Dampen normal velocity upon hitting rim
+        const normX = Math.cos(ang);
+        const normY = Math.sin(ang);
+        const dot = p.vx * normX + p.vy * normY;
+        if (dot > 0) {
+          p.vx -= dot * normX;
+          p.vy -= dot * normY;
+        }
+      }
+
+      // Player visual squash & blink recovery
+      p.squash = lerp(p.squash, 0, clamp(10 * dt, 0, 1));
+      if (p.blink > 0) p.blink -= dt;
+      else if (Math.random() < dt * 0.25) p.blink = 0.16;
+      if (p.invuln > 0) p.invuln -= dt;
+    };
+
+    // Helper functions for spawning hazards
+    function getDropInterval() {
+      const progress = clamp(L.timer / SURVIVE_TIME, 0, 1);
+      return lerp(1.5, 0.75, progress);
+    }
+
+    function spawnRandomDrop() {
+      // Ingredients: honey, yogurt, granola cluster, raspberry bomb
+      const kinds = ['honey', 'yogurt', 'granola', 'raspberry'];
+      const kind = pick(kinds);
+
+      // Pick target location within basin
+      const ang = randRange(0, Math.PI * 2);
+      const dist = randRange(15 * SCALE, basinR * 0.88);
+      const targetX = cx + Math.cos(ang) * dist;
+      const targetY = cy + Math.sin(ang) * dist;
+
+      let r = 24 * SCALE;
+      if (kind === 'honey') r = randRange(26, 36) * SCALE;
+      else if (kind === 'yogurt') r = randRange(28, 40) * SCALE;
+      else if (kind === 'granola') r = randRange(18, 25) * SCALE;
+      else if (kind === 'raspberry') r = 18 * SCALE;
+
+      const warnTime = 1.35; // Warning circle duration (Google Doodle style)
+      L.drops.push({
+        kind,
+        x: targetX,
+        y: targetY,
+        r,
+        t: warnTime,
+        warnTime,
+      });
+      playSfx('whoosh');
+    }
+
+    function landDrop(d) {
+      const p = G.player;
+      G.shake = Math.max(G.shake, 6 * SCALE);
+
+      // Check if dropped directly onto player
+      const distToPlayer = Math.hypot(d.x - p.x, d.y - p.y);
+      if (distToPlayer < d.r * 0.85 + p.r && p.invuln <= 0 && (!p.z || p.z < 10 * SCALE)) {
+        if (d.kind === 'honey') hurtPlayer('🍯 Splashed by sticky honey!');
+        else if (d.kind === 'yogurt') hurtPlayer('🥣 Dunked in gooey yogurt!');
+        else if (d.kind === 'granola') hurtPlayer('🌾 Crushed by a falling granola chunk!');
+        else if (d.kind === 'raspberry') hurtPlayer('🍓 Crushed under a heavy raspberry!');
+      }
+
+      if (d.kind === 'honey') {
+        playSfx('land');
+        spawnParticles(d.x, d.y, 14, '#e9a52c', { minSpd: 0.8, maxSpd: 2.5, life: 400 });
+        const numLobes = randRange(5, 8) | 0;
+        const lobes = [];
+        for (let i = 0; i < numLobes; i++) {
+          const la = (i / numLobes) * Math.PI * 2 + randRange(-0.25, 0.25);
+          const ld = randRange(0.28, 0.65) * d.r;
+          const lr = randRange(0.38, 0.72) * d.r;
+          lobes.push({ ox: Math.cos(la) * ld, oy: Math.sin(la) * ld, r: lr });
+        }
+        const drips = [];
+        const numDrips = randRange(2, 5) | 0;
+        for (let i = 0; i < numDrips; i++) {
+          const da = randRange(0, Math.PI * 2);
+          const dd = randRange(d.r * 0.85, d.r * 1.35);
+          drips.push({ ox: Math.cos(da) * dd, oy: Math.sin(da) * dd, r: randRange(3.5, 6.5) * SCALE });
+        }
+        L.honeyPuddles.push({
+          x: d.x,
+          y: d.y,
+          r: d.r,
+          rot: randRange(0, Math.PI * 2),
+          life: randRange(24, 34),
+          maxLife: 30,
+          lobes,
+          drips,
+        });
+        if (L.honeyPuddles.length > 14) L.honeyPuddles.shift();
+      } else if (d.kind === 'yogurt') {
+        playSfx('land');
+        spawnParticles(d.x, d.y, 14, '#f2f7fc', { minSpd: 0.8, maxSpd: 2.5, life: 400 });
+        L.yogurtPuddles.push({
+          x: d.x,
+          y: d.y,
+          r: d.r,
+          rot: randRange(0, Math.PI * 2),
+          life: randRange(10, 15),
+        });
+        if (L.yogurtPuddles.length > 7) L.yogurtPuddles.shift();
+      } else if (d.kind === 'granola') {
+        playSfx('slam');
+        spawnParticles(d.x, d.y, 12, '#c99a63', { minSpd: 1.0, maxSpd: 2.8, life: 400 });
+        // Burst into 4-6 flying granola clusters scattering across the plate (Google Doodle salt projectile style)
+        const count = 5;
+        for (let i = 0; i < count; i++) {
+          const a = (i / count) * Math.PI * 2 + randRange(-0.3, 0.3);
+          const spd = randRange(110, 190) * SCALE;
+          L.granolas.push({
+            x: d.x,
+            y: d.y,
+            vx: Math.cos(a) * spd,
+            vy: Math.sin(a) * spd,
+            r: 7 * SCALE,
+            rot: randRange(0, Math.PI * 2),
+            tone: randInt(0, 2),
+            scale: randRange(0.8, 1.25),
+            life: 3.5,
+          });
+        }
+      } else if (d.kind === 'raspberry') {
+        playSfx('pop');
+        // Lands as an active pulsing bomb ready to detonate!
+        L.raspberries.push({
+          x: d.x,
+          y: d.y,
+          timer: 2.4, // Detonates after fuse ticks
+          fuseTime: 2.4,
+          scale: 1.2,
+          blastRadius: 58 * SCALE,
+        });
+      }
+    }
+
+    function explodeRaspberry(r) {
+      playSfx('slam');
+      G.shake = Math.max(G.shake, 9 * SCALE);
+      spawnParticles(r.x, r.y, 22, '#e61e4d', { minSpd: 1.5, maxSpd: 4.2, life: 550 });
+
+      // Leave permanent juice stain
+      L.juiceStains.push({
+        x: r.x,
+        y: r.y,
+        r: r.blastRadius * 0.75,
+        rot: randRange(0, Math.PI * 2),
+        alpha: 1.0,
+      });
+      if (L.juiceStains.length > 10) L.juiceStains.shift();
+
+      // Check damage to player from explosion blast
+      const p = G.player;
+      const dist = Math.hypot(r.x - p.x, r.y - p.y);
+      if (dist < r.blastRadius && p.invuln <= 0) {
+        hurtPlayer('🍓 Caught in an explosive raspberry blast!');
+      }
+
+      // Shoot out 8 raspberry seeds/shrapnel flying across the plate!
+      const count = 8;
+      for (let i = 0; i < count; i++) {
+        const ang = (i / count) * Math.PI * 2 + randRange(-0.2, 0.2);
+        const spd = randRange(140, 220) * SCALE;
+        L.shrapnel.push({
+          x: r.x,
+          y: r.y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          r: 5 * SCALE,
+          life: 2.8,
+        });
+      }
+    }
+
+    function spawnGranolaSalvo() {
+      // Shoots granola projectiles inwards from the plate rim (Google Doodle Popcorn style!)
+      const numShots = 6;
+      const startAngle = randRange(0, Math.PI * 2);
+      for (let i = 0; i < numShots; i++) {
+        const a = startAngle + (i / numShots) * Math.PI * 2;
+        const spawnX = cx + Math.cos(a) * (basinR + 15 * SCALE);
+        const spawnY = cy + Math.sin(a) * (basinR + 15 * SCALE);
+        // Aim toward interior of plate
+        const targetX = cx + randRange(-basinR * 0.5, basinR * 0.5);
+        const targetY = cy + randRange(-basinR * 0.5, basinR * 0.5);
+        const angleToTarget = Math.atan2(targetY - spawnY, targetX - spawnX);
+        const spd = randRange(120, 180) * SCALE;
+
+        L.granolas.push({
+          x: spawnX,
+          y: spawnY,
+          vx: Math.cos(angleToTarget) * spd,
+          vy: Math.sin(angleToTarget) * spd,
+          r: 7.5 * SCALE,
+          rot: randRange(0, Math.PI * 2),
+          tone: randInt(0, 2),
+          scale: randRange(0.85, 1.25),
+          life: 3.8,
+        });
+      }
+      playSfx('whoosh');
+    }
+
+    L.isScary = function () {
+      const p = G.player;
+      if (L.inHoney || L.inYogurt) return true;
+      if (L.raspberries.some(r => Math.hypot(r.x - p.x, r.y - p.y) < r.blastRadius * 1.3)) return true;
+      if (L.drops.some(d => Math.hypot(d.x - p.x, d.y - p.y) < d.r * 1.6)) return true;
+      return false;
+    };
+
+    L.progressLabel = function () {
+      const pct = Math.round(clamp(L.timer / SURVIVE_TIME, 0, 1) * 100);
+      return L.canEscape ? 'Hop into Silver Spoon!' : `Breakfast Dodge: ${pct}%`;
+    };
+
+    L.progressFrac = function () {
+      return clamp(L.timer / SURVIVE_TIME, 0, 1);
+    };
+
+    L.respawn = function () {
+      const p = G.player;
+      p.x = cx;
+      p.y = cy;
+      p.vx = 0;
+      p.vy = 0;
+      p.z = 0;
+      p.vz = 0;
+      p.invuln = 2.0;
+    };
+
+    L.update = function (dt) {
+      const p = G.player;
+      if (L.escape) {
+        if (updateEscape(L, dt)) clearLevel();
+        return;
+      }
+
+      // Check win condition: Hop or walk into spoon when ready!
+      if (L.canEscape && !L.escaped) {
+        const spoonDist = Math.hypot(p.x - L.spoonX, p.y - L.spoonY);
+        if (spoonDist < 52 * SCALE) {
+          L.escaped = true;
+          p.z = 0;
+          p.vz = 0;
+          startEscape(L, {
+            overX: L.spoonX,
+            apexY: L.spoonY,
+            awayX: 65 * SCALE,
+            awayY: 380 * SCALE,
+            dur: 1.8,
+            trail: '#ffd7e6',
+          });
+          playSfx('launch');
+          playSfx('clear');
+          showToast('🥄 Catapulted to safety! You escaped breakfast!');
+          return;
+        }
+      }
+
+      // Progress timer (counts up to SURVIVE_TIME)
+      if (L.timer < SURVIVE_TIME) {
+        L.timer += dt;
+        if (L.timer >= SURVIVE_TIME && !L.canEscape) {
+          L.canEscape = true;
+          showToast('✨ Breakfast is finished! HOP onto the Silver Spoon at the top!');
+          playSfx('clear');
+          G.shake = 8 * SCALE;
+        }
+      }
+
+      // Periodic Puddle Evaporation / Absorption
+      for (const st of L.juiceStains) st.alpha -= dt * 0.05;
+      L.juiceStains = L.juiceStains.filter(st => st.alpha > 0);
+
+      for (const fp of L.berryFootprints) fp.alpha -= dt * 0.35;
+      L.berryFootprints = L.berryFootprints.filter(fp => fp.alpha > 0);
+
+      for (const p of L.honeyPuddles) p.life -= dt;
+      L.honeyPuddles = L.honeyPuddles.filter(p => p.life > 0);
+
+      for (const p of L.yogurtPuddles) p.life -= dt;
+      L.yogurtPuddles = L.yogurtPuddles.filter(p => p.life > 0);
+
+      // Hazard Spawns: Incoming drops
+      L.dropTimer -= dt;
+      if (L.dropTimer <= 0) {
+        spawnRandomDrop();
+        L.dropTimer = getDropInterval();
+      }
+
+      // Granola Salvo attacks (Google Doodle Popcorn style salt wave!)
+      L.granolaTimer -= dt;
+      if (L.granolaTimer <= 0) {
+        spawnGranolaSalvo();
+        L.granolaTimer = randRange(4.5, 7.5);
+      }
+
+      // Update Drops
+      for (const d of L.drops) {
+        d.t -= dt;
+        if (d.t <= 0) {
+          d.done = true;
+          landDrop(d);
+        }
+      }
+      L.drops = L.drops.filter(d => !d.done);
+
+      // Update Raspberries (tick fuse, then explode)
+      for (const r of L.raspberries) {
+        r.timer -= dt;
+        if (r.timer <= 0) {
+          r.done = true;
+          explodeRaspberry(r);
+        }
+      }
+      L.raspberries = L.raspberries.filter(r => !r.done);
+
+      // Update Flying Granola Projectiles
+      for (const g of L.granolas) {
+        g.x += g.vx * dt;
+        g.y += g.vy * dt;
+        g.rot += dt * 5;
+        g.life -= dt;
+
+        // Check Blueberry collision
+        const distP = Math.hypot(g.x - p.x, g.y - p.y);
+        if (p.invuln <= 0 && distP < g.r + p.r * 0.8 && (p.z || 0) < 14 * SCALE) {
+          hurtPlayer('🌾 Hit by flying crunchy granola!');
+          g.done = true;
+          spawnParticles(g.x, g.y, 8, '#d8ad6b', { minSpd: 0.8, maxSpd: 2.2, life: 350 });
+        }
+
+        // Leave plate boundary
+        const distCenter = Math.hypot(g.x - cx, g.y - cy);
+        if (distCenter > plateR + 80 * SCALE || g.life <= 0) {
+          g.done = true;
+        }
+      }
+      L.granolas = L.granolas.filter(g => !g.done);
+
+      // Update Exploding Raspberry Shrapnel
+      for (const s of L.shrapnel) {
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        s.life -= dt;
+
+        // Check Blueberry collision
+        const distP = Math.hypot(s.x - p.x, s.y - p.y);
+        if (p.invuln <= 0 && distP < s.r + p.r * 0.8 && (p.z || 0) < 16 * SCALE) {
+          hurtPlayer('💥 Blasted by exploding raspberry seed!');
+          s.done = true;
+          spawnParticles(s.x, s.y, 8, '#e61e4d', { minSpd: 1.2, maxSpd: 3.0, life: 400 });
+        }
+
+        const distCenter = Math.hypot(s.x - cx, s.y - cy);
+        if (distCenter > plateR + 80 * SCALE || s.life <= 0) {
+          s.done = true;
+        }
+      }
+      L.shrapnel = L.shrapnel.filter(s => !s.done);
+
+      // Collectibles: Coins / Sugar stars
+      while (G.coins.length < 4) {
+        const ang = randRange(0, Math.PI * 2);
+        const dist = randRange(20 * SCALE, basinR * 0.75);
+        addCoin(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist);
+      }
+
+      // Mint leaves (speed boost or point bonus)
+      if (L.mintLeaves.length < 2 && Math.random() < dt * 0.35) {
+        const ang = randRange(0, Math.PI * 2);
+        const dist = randRange(30 * SCALE, basinR * 0.8);
+        L.mintLeaves.push({
+          x: cx + Math.cos(ang) * dist,
+          y: cy + Math.sin(ang) * dist,
+          r: 10 * SCALE,
+          spin: randRange(0, Math.PI),
+        });
+      }
+
+      // Mint leaf collection
+      for (const m of L.mintLeaves) {
+        const dist = Math.hypot(m.x - p.x, m.y - p.y);
+        if (dist < m.r + p.r) {
+          m.collected = true;
+          G.score += 250;
+          p.invuln = Math.max(p.invuln, 2.5); // refreshing mint invulnerability!
+          playSfx('coin');
+          showToast('🌿 Fresh Mint! Invulnerable sprint!');
+          spawnParticles(m.x, m.y, 14, '#58d68d', { minSpd: 1.2, maxSpd: 3.5, life: 500 });
+        }
+      }
+      L.mintLeaves = L.mintLeaves.filter(m => !m.collected);
+    };
+
+    // ------------------------------------------------------------------
+    // RENDER THE TOP-DOWN SCENE
+    // ------------------------------------------------------------------
+    L.draw = function () {
+      // 1. Kitchen Tabletop background & surrounding breakfast props
+      drawTopDownTable(cx, cy, worldW, worldH, plateR);
+
+      // 2. The white ceramic circular plate
+      drawPlate(cx, cy, plateR, basinR);
+
+      // 3. Spilled liquid stains & puddles on the plate surface
+      // Blueberry juice splatters from popped raspberries
+      for (const st of L.juiceStains) {
+        ctx.fillStyle = `rgba(180, 20, 80, ${st.alpha * 0.45})`;
+        ctx.beginPath();
+        ctx.ellipse(st.x, st.y, st.r, st.r * 0.72, st.rot, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Blueberry sticky footprints
+      for (const fp of L.berryFootprints) {
+        ctx.fillStyle = fp.kind === 'honey'
+          ? `rgba(235, 160, 20, ${fp.alpha * 0.6})`
+          : `rgba(225, 235, 250, ${fp.alpha * 0.6})`;
+        ctx.beginPath();
+        ctx.ellipse(fp.x, fp.y, 4 * SCALE, 2.8 * SCALE, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Yogurt puddles (milky white with glossy sheen)
+      for (const p of L.yogurtPuddles) {
+        ctx.save();
+        const g = ctx.createRadialGradient(p.x - p.r * 0.25, p.y - p.r * 0.25, p.r * 0.1, p.x, p.y, p.r);
+        g.addColorStop(0, '#ffffff');
+        g.addColorStop(0.65, '#f0f5fc');
+        g.addColorStop(1, '#d5e0ee');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.r, p.r * 0.85, p.rot, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.beginPath();
+        ctx.ellipse(p.x - p.r * 0.25, p.y - p.r * 0.25, p.r * 0.32, p.r * 0.18, p.rot, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Honey puddles (irregular, gooey, glowing golden amber)
+      for (const p of L.honeyPuddles) {
+        drawHoneyPuddle(p);
+      }
+
+      // 4. Falling Drops — Shadows & Incoming Warning Rings
+      for (const d of L.drops) {
+        const warnFrac = clamp(1 - d.t / d.warnTime, 0, 1);
+        const ringColor = d.kind === 'honey' ? 'rgba(235, 160, 20,' :
+                          d.kind === 'yogurt' ? 'rgba(120, 160, 220,' :
+                          d.kind === 'granola' ? 'rgba(200, 140, 60,' :
+                          'rgba(230, 40, 80,';
+
+        // Ground shadow growing darker as drop approaches
+        ctx.fillStyle = `rgba(50, 60, 80, ${0.12 + warnFrac * 0.35})`;
+        ctx.beginPath();
+        ctx.ellipse(d.x, d.y, d.r * (0.35 + warnFrac * 0.65), d.r * 0.5 * (0.35 + warnFrac * 0.65), 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pulsing Google Doodle style telegraph circle contracting toward center
+        ctx.strokeStyle = `${ringColor} ${0.35 + warnFrac * 0.6})`;
+        ctx.lineWidth = (2 + warnFrac * 2) * SCALE;
+        ctx.setLineDash([6 * SCALE, 5 * SCALE]);
+        ctx.beginPath();
+        const curRingR = d.r * (2.2 - 1.2 * warnFrac);
+        ctx.ellipse(d.x, d.y, curRingR, curRingR * 0.65, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // When drop is very close to impact (falling down Z axis), draw the falling ingredient above its shadow
+        if (warnFrac > 0.45) {
+          const zOffset = (1 - warnFrac) * 180 * SCALE;
+          const drawY = d.y - zOffset;
+          if (d.kind === 'honey' || d.kind === 'yogurt') {
+            const isHoney = d.kind === 'honey';
+            const g = ctx.createRadialGradient(d.x - d.r * 0.3, drawY - d.r * 0.3, d.r * 0.1, d.x, drawY, d.r);
+            g.addColorStop(0, isHoney ? '#ffe49a' : '#ffffff');
+            g.addColorStop(0.5, isHoney ? '#e9a52c' : '#e2edfa');
+            g.addColorStop(1, isHoney ? '#bd7c12' : '#bfd0e4');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.ellipse(d.x, drawY, d.r * 0.85, d.r * 0.95, 0, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (d.kind === 'raspberry') {
+            drawRaspberryTopDown(d.x, drawY, d.r / (14 * SCALE), 1, false);
+          } else if (d.kind === 'granola') {
+            for (let i = 0; i < 4; i++) {
+              drawGranola(d.x + (i - 1.5) * 8 * SCALE, drawY + (i % 2) * 6 * SCALE, 1.2, i * 1.2, i % 3);
+            }
+          }
+        }
+      }
+
+      // 5. Active Ticking Raspberries (sitting on plate, ready to explode!)
+      for (const r of L.raspberries) {
+        // Red telegraph blast danger radius
+        const blastFrac = clamp(1 - r.timer / r.fuseTime, 0, 1);
+        ctx.fillStyle = `rgba(230, 40, 80, ${0.08 + blastFrac * 0.22})`;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.blastRadius * (0.25 + 0.75 * blastFrac), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(230, 30, 70, ${0.4 + blastFrac * 0.55})`;
+        ctx.lineWidth = 2.2 * SCALE;
+        ctx.setLineDash([5 * SCALE, 4 * SCALE]);
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.blastRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Raspberry with throbbing pulse
+        const pulse = 1 + 0.25 * Math.sin(G.t * 0.02 * (1 + blastFrac * 2));
+        const flash = (r.timer < 0.6 && Math.floor(G.t / 80) % 2 === 0);
+        drawRaspberryTopDown(r.x, r.y, r.scale, pulse, flash);
+      }
+
+      // 6. Collectibles (Golden Sugar Stars/Coins & Fresh Mint Leaves)
+      drawCoins();
+
+      for (const m of L.mintLeaves) {
+        const bob = Math.sin(G.t * 0.007 + m.spin) * 3 * SCALE;
+        ctx.save();
+        ctx.translate(m.x, m.y + bob);
+        ctx.rotate(m.spin);
+        const gLeaf = ctx.createLinearGradient(0, -m.r, 0, m.r);
+        gLeaf.addColorStop(0, '#58d68d');
+        gLeaf.addColorStop(0.5, '#2ecc71');
+        gLeaf.addColorStop(1, '#27ae60');
+        ctx.fillStyle = gLeaf;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, m.r * 1.3, m.r * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#a9dfbf';
+        ctx.lineWidth = 1.4 * SCALE;
+        ctx.beginPath();
+        ctx.moveTo(-m.r * 1.2, 0);
+        ctx.lineTo(m.r * 1.2, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 7. Flying Projectiles (Granola Clusters & Berry Shrapnel flying outward)
+      for (const g of L.granolas) {
+        // Shadow underneath
+        ctx.fillStyle = 'rgba(40,25,10,0.22)';
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y + 12 * SCALE, g.r * 0.9, g.r * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawGranola(g.x, g.y, g.scale, g.rot, g.tone);
+      }
+
+      for (const s of L.shrapnel) {
+        ctx.fillStyle = 'rgba(230, 20, 70, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(s.x, s.y + 6 * SCALE, s.r * 0.8, s.r * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Red berry seed/drupelet
+        const gShrap = ctx.createRadialGradient(s.x - s.r * 0.3, s.y - s.r * 0.3, s.r * 0.1, s.x, s.y, s.r);
+        gShrap.addColorStop(0, '#ff7096');
+        gShrap.addColorStop(0.6, '#d11a4a');
+        gShrap.addColorStop(1, '#800927');
+        ctx.fillStyle = gShrap;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 8. The Escape Silver Spoon resting on the plate edge
+      drawSilverSpoon(L);
+
+      // 9. Blueberry Player
+      drawPlayer();
+
+      // Honey / Yogurt gooey splatters trailing off blueberry when stuck
+      if (L.inHoney || L.inYogurt) {
+        const p = G.player;
+        const dripCol = L.inHoney ? 'rgba(240,175,35,0.85)' : 'rgba(230,240,255,0.9)';
+        ctx.fillStyle = dripCol;
+        for (let i = 0; i < 4; i++) {
+          const ang = (i / 4) * Math.PI * 2 + G.t * 0.005;
+          const dist = p.r * 0.85 + Math.sin(G.t * 0.01 + i) * 3 * SCALE;
+          ctx.beginPath();
+          ctx.arc(p.x + Math.cos(ang) * dist, p.y + Math.sin(ang) * dist, 3 * SCALE, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 10. Catapult spoon escape prompt (when ready and player not yet vaulted)
+      if (L.canEscape && !L.escaped) {
+        drawSpoonPrompt(L);
+      }
+    };
+
+    return L;
+  }
+
+  function drawGranola(x, y, s, rot, tone) {
+    const cols = ['#d8ad6b', '#c08e4e', '#eccf9c'];
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(rot);
+    ctx.fillStyle = cols[tone % 3];
+    roundRect(-5 * s * SCALE, -2.4 * s * SCALE, 10 * s * SCALE, 4.8 * s * SCALE, 2 * s * SCALE);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    roundRect(-4 * s * SCALE, -1.9 * s * SCALE, 5 * s * SCALE, 1.5 * s * SCALE, 0.8 * s * SCALE);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawRaspberryTopDown(x, y, s, pulse, flash) {
+    const R = 14 * s * SCALE;
+    ctx.save();
+    ctx.translate(x, y);
+    if (pulse) ctx.scale(pulse, pulse);
+
+    // Dimpled central core
+    ctx.fillStyle = flash ? '#ff6688' : '#6b1129';
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Outer drupelets in a circular ring
+    const count = 7;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const dr = R * 0.42;
+      const ox = Math.cos(a) * R * 0.62;
+      const oy = Math.sin(a) * R * 0.62;
+      const g = ctx.createRadialGradient(ox - dr * 0.25, oy - dr * 0.3, dr * 0.1, ox, oy, dr);
+      if (flash) {
+        g.addColorStop(0, '#ffa4c2');
+        g.addColorStop(0.5, '#ff3570');
+        g.addColorStop(1, '#b51443');
+      } else {
+        g.addColorStop(0, '#f56396');
+        g.addColorStop(0.55, '#cf275f');
+        g.addColorStop(1, '#8c1639');
+      }
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(ox, oy, dr, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Juicy shine highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath();
+      ctx.arc(ox - dr * 0.25, oy - dr * 0.3, dr * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawSparkle(x, y, r, col) {
+    ctx.save();
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.quadraticCurveTo(x, y, x, y + r);
+    ctx.quadraticCurveTo(x, y, x - r, y);
+    ctx.quadraticCurveTo(x, y, x, y - r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawHoneyPuddle(p) {
+    ctx.save();
+    const alpha = clamp(p.life / 2.5, 0, 1);
+    ctx.globalAlpha = alpha;
+
+    // 1. Darker amber viscous meniscus rim
+    ctx.fillStyle = 'rgba(145, 75, 5, 0.45)';
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, p.r * 1.06, p.r * 0.90, p.rot, 0, Math.PI * 2);
+    if (p.lobes) {
+      for (const lb of p.lobes) {
+        ctx.arc(p.x + lb.ox, p.y + lb.oy, lb.r * 1.08, 0, Math.PI * 2);
+      }
+    }
+    ctx.fill();
+
+    // 2. Main gooey honey body with luminous amber radial gradient
+    const g = ctx.createRadialGradient(p.x - p.r * 0.22, p.y - p.r * 0.22, p.r * 0.08, p.x, p.y, p.r * 1.05);
+    g.addColorStop(0, '#ffea85');
+    g.addColorStop(0.35, '#f4b02a');
+    g.addColorStop(0.75, '#cb790e');
+    g.addColorStop(1, '#944f04');
+    ctx.fillStyle = g;
+
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, p.r, p.r * 0.84, p.rot, 0, Math.PI * 2);
+    if (p.lobes) {
+      for (const lb of p.lobes) {
+        ctx.arc(p.x + lb.ox, p.y + lb.oy, lb.r, 0, Math.PI * 2);
+      }
+    }
+    ctx.fill();
+
+    // 3. Satellite honey droplets
+    if (p.drips) {
+      for (const dp of p.drips) {
+        const dx = p.x + dp.ox;
+        const dy = p.y + dp.oy;
+        const dripG = ctx.createRadialGradient(dx - dp.r * 0.3, dy - dp.r * 0.3, 1, dx, dy, dp.r);
+        dripG.addColorStop(0, '#ffea85');
+        dripG.addColorStop(0.6, '#eb9f1c');
+        dripG.addColorStop(1, '#944f04');
+        ctx.fillStyle = dripG;
+        ctx.beginPath();
+        ctx.arc(dx, dy, dp.r, 0, Math.PI * 2);
+        ctx.fill();
+        // Droplet specular glint
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+        ctx.beginPath();
+        ctx.arc(dx - dp.r * 0.28, dy - dp.r * 0.28, dp.r * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 4. Glossy Specular Highlights (honey surface tension curvature)
+    ctx.fillStyle = 'rgba(255, 255, 240, 0.75)';
+    ctx.beginPath();
+    ctx.ellipse(p.x - p.r * 0.22, p.y - p.r * 0.24, p.r * 0.38, p.r * 0.16, p.rot - 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pin-point bright white gleam
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.beginPath();
+    ctx.arc(p.x - p.r * 0.28, p.y - p.r * 0.28, 2.5 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Specular shine on largest lobe
+    if (p.lobes && p.lobes.length > 0) {
+      const lb0 = p.lobes[0];
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+      ctx.beginPath();
+      ctx.ellipse(p.x + lb0.ox - lb0.r * 0.2, p.y + lb0.oy - lb0.r * 0.2, lb0.r * 0.32, lb0.r * 0.14, p.rot, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function spoonBowlPath(bx, by, bw, bh) {
+    const hw = bw / 2;
+    const hh = bh / 2;
+    ctx.beginPath();
+    // Neck junction at top
+    ctx.moveTo(bx - hw * 0.42, by - hh);
+    // Smooth teardrop curve widening out down the left flank
+    ctx.bezierCurveTo(bx - hw * 1.05, by - hh * 0.35, bx - hw * 1.04, by + hh * 0.28, bx - hw * 0.72, by + hh * 0.74);
+    // Generously rounded bottom scoop tip with horizontal tangent at bottom center (no sharp points!)
+    ctx.bezierCurveTo(bx - hw * 0.44, by + hh * 1.02, bx + hw * 0.44, by + hh * 1.02, bx + hw * 0.72, by + hh * 0.74);
+    // Smooth teardrop curve up the right flank back to neck junction
+    ctx.bezierCurveTo(bx + hw * 1.04, by + hh * 0.28, bx + hw * 1.05, by - hh * 0.35, bx + hw * 0.42, by - hh);
+    ctx.closePath();
+  }
+
+  function spoonHandlePath(bx, neckY, topY, neckW, midW, buttW) {
+    const h = neckY - topY;
+    ctx.beginPath();
+    // Start at neck left
+    ctx.moveTo(bx - neckW / 2, neckY);
+    // Graceful curvature: gently tucks in at waist, then flares out to wide rounded butt end
+    ctx.bezierCurveTo(bx - midW / 2, neckY - h * 0.25, bx - buttW * 0.62, topY + buttW * 0.5, bx - buttW / 2, topY + buttW / 2);
+    // Arched rounded finial at the handle tip
+    ctx.arc(bx, topY + buttW / 2, buttW / 2, Math.PI, 0);
+    // Return curve down right side
+    ctx.bezierCurveTo(bx + buttW * 0.62, topY + buttW * 0.5, bx + midW / 2, neckY - h * 0.25, bx + neckW / 2, neckY);
+    ctx.closePath();
+  }
+
+  function drawSilverSpoon(L) {
+    const bx = L.spoonX;
+    const by = L.spoonY;
+    const bw = 44 * SCALE;
+    const bh = 58 * SCALE;
+    const neckY = by - bh * 0.46;
+    const topY = L.cy - L.plateR - 44 * SCALE;
+    const neckW = 10 * SCALE;
+    const midW = 8 * SCALE;
+    const buttW = 16 * SCALE;
+
+    ctx.save();
+
+    // 1. Drop shadow of spoon resting across plate rim and tabletop
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.26)';
+    spoonHandlePath(bx + 5 * SCALE, neckY + 6 * SCALE, topY + 6 * SCALE, neckW, midW, buttW);
+    ctx.fill();
+    spoonBowlPath(bx + 5 * SCALE, by + 6 * SCALE, bw, bh);
+    ctx.fill();
+
+    // 2. Polished Silver Handle extending outwards over the plate rim
+    spoonHandlePath(bx, neckY, topY, neckW, midW, buttW);
+    const gHandle = ctx.createLinearGradient(bx - buttW, 0, bx + buttW, 0);
+    gHandle.addColorStop(0, '#ffffff');
+    gHandle.addColorStop(0.18, '#f3f6fb');
+    gHandle.addColorStop(0.5, '#c5cfde');
+    gHandle.addColorStop(0.78, '#8c98aa');
+    gHandle.addColorStop(1, '#56606f');
+    ctx.fillStyle = gHandle;
+    ctx.fill();
+    ctx.strokeStyle = '#768192';
+    ctx.lineWidth = 1.3 * SCALE;
+    ctx.stroke();
+
+    // Classic embossed silverware flute / ridge line down the handle
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(bx - neckW * 0.26, neckY - 2 * SCALE);
+    ctx.lineTo(bx - buttW * 0.32, topY + buttW * 0.6);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(70, 80, 95, 0.45)';
+    ctx.beginPath();
+    ctx.moveTo(bx + neckW * 0.26, neckY - 2 * SCALE);
+    ctx.lineTo(bx + buttW * 0.32, topY + buttW * 0.6);
+    ctx.stroke();
+
+    // 3. Spoon Bowl - Polished Outer Convex Shell
+    spoonBowlPath(bx, by, bw, bh);
+    const gBowl = ctx.createLinearGradient(bx - bw * 0.5, by - bh * 0.5, bx + bw * 0.5, by + bh * 0.5);
+    gBowl.addColorStop(0, '#ffffff');
+    gBowl.addColorStop(0.25, '#edf3fa');
+    gBowl.addColorStop(0.62, '#a0adbf');
+    gBowl.addColorStop(1, '#586273');
+    ctx.fillStyle = gBowl;
+    ctx.fill();
+    ctx.strokeStyle = '#7b8696';
+    ctx.lineWidth = 1.5 * SCALE;
+    ctx.stroke();
+
+    // 4. Spoon Bowl - Inner Concave Scoop Cavity (3D Depth)
+    spoonBowlPath(bx, by + 1.2 * SCALE, bw * 0.82, bh * 0.84);
+    const inG = ctx.createRadialGradient(bx - bw * 0.18, by - bh * 0.15, 3 * SCALE, bx + bw * 0.05, by + bh * 0.1, bw * 0.62);
+    inG.addColorStop(0, '#ffffff');       // bright specular catchlight on upper-left slope
+    inG.addColorStop(0.28, '#dce5f2');     // polished chrome basin
+    inG.addColorStop(0.68, '#8794a4');     // concave scoop shadow
+    inG.addColorStop(1, '#4c5563');       // deep cavity contour
+    ctx.fillStyle = inG;
+    ctx.fill();
+
+    // Inner specular curvature highlight arc
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 2.2 * SCALE;
+    ctx.beginPath();
+    ctx.ellipse(bx - bw * 0.08, by, bw * 0.32, bh * 0.34, 0, Math.PI * 0.65, Math.PI * 1.45);
+    ctx.stroke();
+
+    // Bottom scoop reflection gleam
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.beginPath();
+    ctx.ellipse(bx, by + bh * 0.30, bw * 0.26, bh * 0.10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawSpoonPrompt(L) {
+    const bx = L.spoonX;
+    const by = L.spoonY;
+    const bw = 44 * SCALE;
+    const bh = 58 * SCALE;
+    const pulse = 0.55 + 0.45 * Math.sin(G.t * 0.009);
+
+    ctx.save();
+
+    // Golden aura pulsing around the spoon bowl
+    ctx.strokeStyle = `rgba(255, 215, 60, ${pulse})`;
+    ctx.lineWidth = 4.5 * SCALE;
+    spoonBowlPath(bx, by, bw + 10 * SCALE, bh + 10 * SCALE);
+    ctx.stroke();
+
+    // Shimmering sparkle stars orbiting the rim
+    for (let i = 0; i < 4; i++) {
+      const ang = G.t * 0.0035 + (i * Math.PI) / 2;
+      const sx = bx + Math.cos(ang) * (bw * 0.62);
+      const sy = by + Math.sin(ang) * (bh * 0.62);
+      drawSparkle(sx, sy, 3.5 * SCALE, 'rgba(255, 235, 100, 0.95)');
+    }
+
+    // Horizontal Prompt Banner (UPRIGHT, LEVEL, NEVER SIDEWAYS)
+    // Positioned below the spoon bowl so it is fully inside the plate basin
+    const bob = Math.sin(G.t * 0.009) * 4 * SCALE;
+    ctx.font = `bold ${13 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const promptY = by + bh * 0.5 + 20 * SCALE + bob;
+    const text = '⬆ HOP INTO SPOON! ⬆';
+    const tw = ctx.measureText(text).width + 18 * SCALE;
+
+    // Dark badge pill behind text for crystal-clear readability
+    ctx.fillStyle = 'rgba(18, 12, 26, 0.88)';
+    ctx.strokeStyle = `rgba(255, 215, 60, ${pulse})`;
+    ctx.lineWidth = 1.8 * SCALE;
+    roundRect(bx - tw / 2, promptY - 11 * SCALE, tw, 22 * SCALE, 11 * SCALE);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffe98a';
+    ctx.fillText(text, bx, promptY);
+
+    // Bouncing arrow pointing directly up into the spoon scoop
+    const arrowBob = Math.sin(G.t * 0.012) * 3 * SCALE;
+    ctx.font = `bold ${17 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#ffd738';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.lineWidth = 3.5 * SCALE;
+    ctx.strokeText('⬆', bx, by + bh * 0.5 - 4 * SCALE + arrowBob);
+    ctx.fillText('⬆', bx, by + bh * 0.5 - 4 * SCALE + arrowBob);
+
+    ctx.restore();
+  }
+
+  function drawSilverFork(fx, fy) {
+    ctx.save();
+    const handleL = 100 * SCALE;
+    const headL = 74 * SCALE;
+    const buttW = 15 * SCALE;
+    const midW = 7 * SCALE;
+    const neckW = 10 * SCALE;
+    const shoulderW = 26 * SCALE;
+
+    // 1. Cast shadow of the fork on tabletop
+    ctx.save();
+    ctx.translate(4 * SCALE, 6 * SCALE);
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.28)';
+
+    // Handle shadow
+    ctx.beginPath();
+    ctx.moveTo(fx - neckW / 2, fy - 18 * SCALE);
+    ctx.bezierCurveTo(fx - midW / 2, fy + 30 * SCALE, fx - buttW / 2, fy + handleL - 10 * SCALE, fx - buttW / 2, fy + handleL);
+    ctx.arc(fx, fy + handleL, buttW / 2, Math.PI, 0, true);
+    ctx.bezierCurveTo(fx + buttW / 2, fy + handleL - 10 * SCALE, fx + midW / 2, fy + 30 * SCALE, fx + neckW / 2, fy - 18 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+
+    // Head / Shoulder & tines shadow
+    ctx.beginPath();
+    ctx.moveTo(fx - neckW / 2, fy - 18 * SCALE);
+    ctx.bezierCurveTo(fx - shoulderW * 0.45, fy - 32 * SCALE, fx - shoulderW / 2, fy - 40 * SCALE, fx - shoulderW / 2, fy - 48 * SCALE);
+    ctx.lineTo(fx + shoulderW / 2, fy - 48 * SCALE);
+    ctx.bezierCurveTo(fx + shoulderW / 2, fy - 40 * SCALE, fx + shoulderW * 0.45, fy - 32 * SCALE, fx + neckW / 2, fy - 18 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4 tines shadow
+    for (let i = 0; i < 4; i++) {
+      const frac = (i - 1.5) / 1.5;
+      const tx = fx + frac * (shoulderW * 0.40);
+      roundRect(tx - 1.6 * SCALE, fy - 48 * SCALE - headL * 0.65, 3.2 * SCALE, headL * 0.68, 1.5 * SCALE);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 2. Fork Handle (polished silver gradient)
+    const gFork = ctx.createLinearGradient(fx - buttW, 0, fx + buttW, 0);
+    gFork.addColorStop(0, '#ffffff');
+    gFork.addColorStop(0.2, '#edf3fa');
+    gFork.addColorStop(0.55, '#c0cbda');
+    gFork.addColorStop(0.82, '#828e9f');
+    gFork.addColorStop(1, '#525c6a');
+    ctx.fillStyle = gFork;
+
+    ctx.beginPath();
+    ctx.moveTo(fx - neckW / 2, fy - 18 * SCALE);
+    ctx.bezierCurveTo(fx - midW / 2, fy + 30 * SCALE, fx - buttW / 2, fy + handleL - 10 * SCALE, fx - buttW / 2, fy + handleL);
+    ctx.arc(fx, fy + handleL, buttW / 2, Math.PI, 0, true);
+    ctx.bezierCurveTo(fx + buttW / 2, fy + handleL - 10 * SCALE, fx + midW / 2, fy + 30 * SCALE, fx + neckW / 2, fy - 18 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#747f90';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.stroke();
+
+    // Embossed handle fluting
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.1 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(fx - neckW * 0.25, fy - 14 * SCALE);
+    ctx.lineTo(fx - buttW * 0.28, fy + handleL - 6 * SCALE);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(60, 70, 85, 0.45)';
+    ctx.beginPath();
+    ctx.moveTo(fx + neckW * 0.25, fy - 14 * SCALE);
+    ctx.lineTo(fx + buttW * 0.28, fy + handleL - 6 * SCALE);
+    ctx.stroke();
+
+    // 3. Fork Shoulder (the curving base of the head)
+    ctx.beginPath();
+    ctx.moveTo(fx - neckW / 2, fy - 18 * SCALE);
+    ctx.bezierCurveTo(fx - shoulderW * 0.48, fy - 32 * SCALE, fx - shoulderW / 2, fy - 40 * SCALE, fx - shoulderW / 2, fy - 48 * SCALE);
+    ctx.bezierCurveTo(fx - shoulderW * 0.2, fy - 44 * SCALE, fx + shoulderW * 0.2, fy - 44 * SCALE, fx + shoulderW / 2, fy - 48 * SCALE);
+    ctx.bezierCurveTo(fx + shoulderW / 2, fy - 40 * SCALE, fx + shoulderW * 0.48, fy - 32 * SCALE, fx + neckW / 2, fy - 18 * SCALE);
+    ctx.closePath();
+    ctx.fillStyle = gFork;
+    ctx.fill();
+    ctx.strokeStyle = '#747f90';
+    ctx.stroke();
+
+    // Concave scoop highlight on shoulder
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.beginPath();
+    ctx.ellipse(fx - 2 * SCALE, fy - 32 * SCALE, shoulderW * 0.24, 6 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Four Silver Tines
+    const tineTopY = fy - 48 * SCALE - headL * 0.68;
+    const tineBottomY = fy - 47 * SCALE;
+    for (let i = 0; i < 4; i++) {
+      const frac = (i - 1.5) / 1.5;
+      const rootX = fx + frac * (shoulderW * 0.38);
+      const tipX = fx + frac * (shoulderW * 0.42);
+      const tw = 3.2 * SCALE;
+
+      const tineG = ctx.createLinearGradient(tipX - tw / 2, 0, tipX + tw / 2, 0);
+      tineG.addColorStop(0, '#ffffff');
+      tineG.addColorStop(0.3, '#edf2f8');
+      tineG.addColorStop(0.7, '#a2aec0');
+      tineG.addColorStop(1, '#56606f');
+
+      ctx.fillStyle = tineG;
+      ctx.beginPath();
+      ctx.moveTo(rootX - tw / 2, tineBottomY);
+      ctx.lineTo(tipX - tw / 2, tineTopY + 2 * SCALE);
+      ctx.arc(tipX, tineTopY + 2 * SCALE, tw / 2, Math.PI, 0);
+      ctx.lineTo(rootX + tw / 2, tineBottomY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#6e798a';
+      ctx.lineWidth = 0.8 * SCALE;
+      ctx.stroke();
+
+      // Sharp tine highlight line
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillRect(tipX - 0.7 * SCALE, tineTopY + 4 * SCALE, 1.2 * SCALE, (tineBottomY - tineTopY) * 0.75);
+    }
+
+    ctx.restore();
+  }
+
+  function drawCupOfTea(tx, ty) {
+    ctx.save();
+    const saucerR = 48 * SCALE;
+    const cupR = 28 * SCALE;
+    const teaR = 23 * SCALE;
+
+    // 1. Saucer cast shadow on wood planks
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.32)';
+    ctx.beginPath();
+    ctx.ellipse(tx + 6 * SCALE, ty + 10 * SCALE, saucerR + 6 * SCALE, saucerR + 5 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Porcelain Saucer
+    const saucerG = ctx.createRadialGradient(tx - saucerR * 0.25, ty - saucerR * 0.25, 4 * SCALE, tx, ty, saucerR);
+    saucerG.addColorStop(0, '#ffffff');
+    saucerG.addColorStop(0.65, '#f0f4f9');
+    saucerG.addColorStop(0.92, '#d6e0ec');
+    saucerG.addColorStop(1, '#a8b5c6');
+    ctx.fillStyle = saucerG;
+    ctx.beginPath();
+    ctx.arc(tx, ty, saucerR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b8c5d4';
+    ctx.lineWidth = 1.5 * SCALE;
+    ctx.stroke();
+
+    // Gilded gold rim accent on saucer
+    ctx.strokeStyle = 'rgba(215, 165, 55, 0.85)';
+    ctx.lineWidth = 1.8 * SCALE;
+    ctx.beginPath();
+    ctx.arc(tx, ty, saucerR - 3.5 * SCALE, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Saucer inner indentation well
+    ctx.strokeStyle = 'rgba(160, 175, 195, 0.5)';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.beginPath();
+    ctx.arc(tx, ty, saucerR * 0.68, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 3. Teacup Handle extending out to the right
+    const hx = tx + cupR * 0.85;
+    const hy = ty + 6 * SCALE;
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(hx + 8 * SCALE, hy + 5 * SCALE, 10 * SCALE, 7 * SCALE, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#f2f6fc';
+    ctx.strokeStyle = '#9ca9ba';
+    ctx.lineWidth = 1.4 * SCALE;
+    ctx.beginPath();
+    ctx.ellipse(hx + 6 * SCALE, hy, 10 * SCALE, 6.5 * SCALE, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Inner hole of handle
+    ctx.fillStyle = saucerG;
+    ctx.beginPath();
+    ctx.ellipse(hx + 6 * SCALE, hy, 5 * SCALE, 3 * SCALE, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b8c5d4';
+    ctx.stroke();
+
+    // 4. Teacup Rim & Wall
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.22)';
+    ctx.beginPath();
+    ctx.arc(tx + 4 * SCALE, ty + 6 * SCALE, cupR + 2 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    const cupG = ctx.createRadialGradient(tx - cupR * 0.3, ty - cupR * 0.3, 3 * SCALE, tx, ty, cupR);
+    cupG.addColorStop(0, '#ffffff');
+    cupG.addColorStop(0.7, '#eff3f9');
+    cupG.addColorStop(1, '#bbc8d8');
+    ctx.fillStyle = cupG;
+    ctx.beginPath();
+    ctx.arc(tx, ty, cupR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b0bdd0';
+    ctx.lineWidth = 1.8 * SCALE;
+    ctx.stroke();
+
+    // Fine gold line on cup rim
+    ctx.strokeStyle = 'rgba(215, 165, 55, 0.9)';
+    ctx.lineWidth = 1.4 * SCALE;
+    ctx.beginPath();
+    ctx.arc(tx, ty, cupR - 1.5 * SCALE, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 5. Brewed Tea Liquid (glowing warm amber-black tea)
+    const teaG = ctx.createRadialGradient(tx - teaR * 0.25, ty - teaR * 0.25, 2 * SCALE, tx, ty, teaR);
+    teaG.addColorStop(0, '#f2a632');       // bright translucent amber center
+    teaG.addColorStop(0.45, '#c86812');    // rich brewed tea
+    teaG.addColorStop(0.82, '#7e2d04');    // deep reddish amber
+    teaG.addColorStop(1, '#3e1300');       // dark cup edge
+    ctx.fillStyle = teaG;
+    ctx.beginPath();
+    ctx.arc(tx, ty, teaR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Specular liquid crescent reflection
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 2.2 * SCALE;
+    ctx.beginPath();
+    ctx.arc(tx, ty, teaR * 0.78, Math.PI * 1.05, Math.PI * 1.6);
+    ctx.stroke();
+
+    // Secondary soft surface sheen highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.beginPath();
+    ctx.ellipse(tx - teaR * 0.35, ty - teaR * 0.28, teaR * 0.26, teaR * 0.12, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 6. Tea bag string draping over the saucer with cute tag
+    ctx.strokeStyle = '#f3f0e8';
+    ctx.lineWidth = 1.4 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(tx + teaR * 0.45, ty - teaR * 0.45);
+    ctx.bezierCurveTo(tx + cupR + 6 * SCALE, ty - cupR * 0.7, tx + saucerR * 0.5, ty - saucerR * 0.65, tx + saucerR * 0.65, ty - saucerR * 0.72);
+    ctx.stroke();
+
+    // Small tea tag lying on saucer/table
+    const tagX = tx + saucerR * 0.65;
+    const tagY = ty - saucerR * 0.72;
+    ctx.save();
+    ctx.translate(tagX, tagY);
+    ctx.rotate(-0.35);
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.22)';
+    roundRect(1.5 * SCALE, 2 * SCALE, 14 * SCALE, 18 * SCALE, 2.5 * SCALE);
+    ctx.fill();
+    ctx.fillStyle = '#f8f5ee';
+    roundRect(0, 0, 14 * SCALE, 18 * SCALE, 2.5 * SCALE);
+    ctx.fill();
+    ctx.strokeStyle = '#d6cdb8';
+    ctx.lineWidth = 0.8 * SCALE;
+    ctx.stroke();
+    ctx.fillStyle = '#489c44';
+    ctx.font = `bold ${8 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🫖', 7 * SCALE, 9 * SCALE);
+    ctx.restore();
+
+    // 7. Animated Wisps of Warm Steam
+    for (let i = 0; i < 3; i++) {
+      const steamPhase = G.t * 0.0022 + i * 1.8;
+      const sx = tx + Math.sin(steamPhase * 1.5) * 8 * SCALE;
+      const sy = ty - teaR * 0.4 - ((steamPhase % 3.0) / 3.0) * 36 * SCALE;
+      const steamAlpha = Math.sin(((steamPhase % 3.0) / 3.0) * Math.PI) * 0.28;
+      if (steamAlpha > 0) {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${steamAlpha})`;
+        ctx.lineWidth = 2.2 * SCALE;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.bezierCurveTo(sx + 6 * SCALE, sy - 8 * SCALE, sx - 6 * SCALE, sy - 16 * SCALE, sx + 2 * SCALE, sy - 24 * SCALE);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawHoneyJarProp(jx, jy) {
+    const jarR = 34 * SCALE;
+    ctx.save();
+
+    // 1. Drop shadow on wood
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.30)';
+    ctx.beginPath();
+    ctx.arc(jx + 5 * SCALE, jy + 8 * SCALE, jarR + 2 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Honey Pot Glass / Ceramic Base
+    const jarG = ctx.createRadialGradient(jx - jarR * 0.25, jy - jarR * 0.25, jarR * 0.1, jx, jy, jarR);
+    jarG.addColorStop(0, '#ffe882');
+    jarG.addColorStop(0.4, '#ea9f1b');
+    jarG.addColorStop(0.82, '#b26a08');
+    jarG.addColorStop(1, '#663900');
+    ctx.fillStyle = jarG;
+    ctx.beginPath();
+    ctx.arc(jx, jy, jarR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glass rim highlight
+    ctx.strokeStyle = 'rgba(255, 250, 220, 0.85)';
+    ctx.lineWidth = 3 * SCALE;
+    ctx.beginPath();
+    ctx.arc(jx, jy, jarR - 1.5 * SCALE, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Golden honey surface sheen
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.beginPath();
+    ctx.ellipse(jx - jarR * 0.25, jy - jarR * 0.25, jarR * 0.35, jarR * 0.18, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Wooden Honey Dipper resting across the jar
+    ctx.save();
+    ctx.translate(jx, jy);
+    ctx.rotate(0.5);
+
+    // Dipper handle
+    const dhL = 68 * SCALE;
+    const dhW = 5 * SCALE;
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.22)';
+    roundRect(-dhL * 0.3 + 3 * SCALE, -dhW / 2 + 4 * SCALE, dhL, dhW, 2.5 * SCALE);
+    ctx.fill();
+
+    const gDipper = ctx.createLinearGradient(0, -dhW, 0, dhW);
+    gDipper.addColorStop(0, '#e8be82');
+    gDipper.addColorStop(0.5, '#c99657');
+    gDipper.addColorStop(1, '#8f6027');
+    ctx.fillStyle = gDipper;
+    roundRect(-dhL * 0.3, -dhW / 2, dhL, dhW, 2.5 * SCALE);
+    ctx.fill();
+
+    // Ribbed dipper head
+    const headX = -dhL * 0.3 + 8 * SCALE;
+    for (let r = -2; r <= 2; r++) {
+      const ribR = (7 - Math.abs(r) * 1.4) * SCALE;
+      ctx.fillStyle = '#b88344';
+      ctx.beginPath();
+      ctx.ellipse(headX + r * 3.6 * SCALE, 0, 1.8 * SCALE, ribR, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Sticky honey glaze on dipper head
+    ctx.fillStyle = 'rgba(245, 175, 35, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(headX, 0, 8 * SCALE, 7.5 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.beginPath();
+    ctx.arc(headX - 2 * SCALE, -2 * SCALE, 2.5 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // Badge label
+    ctx.font = `bold ${8.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(40, 20, 5, 0.85)';
+    ctx.fillText('🍯 HONEY', jx, jy + jarR * 0.52);
+
+    ctx.restore();
+  }
+
+  function drawYogurtContainerProp(yx, yy) {
+    const potR = 34 * SCALE;
+    ctx.save();
+
+    // Drop shadow
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.28)';
+    ctx.beginPath();
+    ctx.arc(yx + 5 * SCALE, yy + 8 * SCALE, potR + 2 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Outer ceramic bowl rim (soft pastel blue-white glaze)
+    const potG = ctx.createRadialGradient(yx - potR * 0.25, yy - potR * 0.25, 3 * SCALE, yx, yy, potR);
+    potG.addColorStop(0, '#ffffff');
+    potG.addColorStop(0.75, '#e4ebf5');
+    potG.addColorStop(1, '#b0c2d8');
+    ctx.fillStyle = potG;
+    ctx.beginPath();
+    ctx.arc(yx, yy, potR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#9fb0c8';
+    ctx.lineWidth = 2 * SCALE;
+    ctx.stroke();
+
+    // Inner Greek Yogurt basin
+    const yInnerR = potR * 0.85;
+    const yG = ctx.createRadialGradient(yx - yInnerR * 0.2, yy - yInnerR * 0.2, 2 * SCALE, yx, yy, yInnerR);
+    yG.addColorStop(0, '#ffffff');
+    yG.addColorStop(0.65, '#f5f9ff');
+    yG.addColorStop(0.92, '#e2ecf8');
+    yG.addColorStop(1, '#c5d5e8');
+    ctx.fillStyle = yG;
+    ctx.beginPath();
+    ctx.arc(yx, yy, yInnerR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sculpted creamy swirl folds
+    ctx.strokeStyle = 'rgba(180, 200, 225, 0.6)';
+    ctx.lineWidth = 2.2 * SCALE;
+    ctx.beginPath();
+    ctx.arc(yx, yy, yInnerR * 0.55, 0.4, 2.8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(yx + 2 * SCALE, yy - 2 * SCALE, yInnerR * 0.32, 2.2, 5.5);
+    ctx.stroke();
+
+    // Fresh Raspberry & Mint garnish on top of yogurt
+    const berryX = yx - 2 * SCALE;
+    const berryY = yy - 2 * SCALE;
+    const berryR = 7 * SCALE;
+    ctx.fillStyle = '#d61a4c';
+    ctx.beginPath();
+    ctx.arc(berryX, berryY, berryR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(berryX - 2 * SCALE, berryY - 2 * SCALE, 2 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mint leaf
+    ctx.fillStyle = '#42a842';
+    ctx.beginPath();
+    ctx.ellipse(berryX + 6 * SCALE, berryY - 4 * SCALE, 5 * SCALE, 2.5 * SCALE, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Badge label
+    ctx.font = `bold ${8.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(50, 75, 110, 0.85)';
+    ctx.fillText('🥣 YOGURT', yx, yy + potR * 0.54);
+
+    ctx.restore();
+  }
+
+  function drawGranolaContainerProp(gx, gy) {
+    const bowlR = 36 * SCALE;
+    ctx.save();
+
+    // Drop shadow
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.30)';
+    ctx.beginPath();
+    ctx.arc(gx + 5 * SCALE, gy + 8 * SCALE, bowlR + 2 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Warm artisanal stoneware bowl rim
+    const bowlG = ctx.createRadialGradient(gx - bowlR * 0.25, gy - bowlR * 0.25, 3 * SCALE, gx, gy, bowlR);
+    bowlG.addColorStop(0, '#f2dfc6');
+    bowlG.addColorStop(0.7, '#d6b896');
+    bowlG.addColorStop(1, '#9e7a54');
+    ctx.fillStyle = bowlG;
+    ctx.beginPath();
+    ctx.arc(gx, gy, bowlR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#85633e';
+    ctx.lineWidth = 2.2 * SCALE;
+    ctx.stroke();
+
+    // Bowl interior filled with crunchy toasted granola clusters & grains
+    const innerR = bowlR * 0.84;
+    ctx.fillStyle = '#a6723b';
+    ctx.beginPath();
+    ctx.arc(gx, gy, innerR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Granola clusters, rolled oats & seeds
+    const tones = ['#f0c785', '#dca255', '#b67a33', '#88531e', '#eccda4'];
+    for (let i = 0; i < 28; i++) {
+      const a = (i * 137.5) * (Math.PI / 180);
+      const d = Math.sqrt(i / 28) * (innerR - 4 * SCALE);
+      const ox = gx + Math.cos(a) * d;
+      const oy = gy + Math.sin(a) * d;
+      const grw = (4 + (i % 4) * 1.5) * SCALE;
+      const grh = (2.5 + (i % 3) * 1.2) * SCALE;
+      ctx.fillStyle = tones[i % tones.length];
+      ctx.beginPath();
+      ctx.ellipse(ox, oy, grw / 2, grh / 2, a + i * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // A few toasted oat flakes spilled on the table nearby
+    ctx.fillStyle = '#deb06f';
+    for (let s = 0; s < 4; s++) {
+      const sa = 0.5 + s * 0.8;
+      const sx = gx + Math.cos(sa) * (bowlR + 9 * SCALE);
+      const sy = gy + Math.sin(sa) * (bowlR + 9 * SCALE);
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, 3 * SCALE, 1.8 * SCALE, sa, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Badge label
+    ctx.font = `bold ${8.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(55, 30, 8, 0.88)';
+    ctx.fillText('🌾 GRANOLA', gx, gy + bowlR * 0.54);
+
+    ctx.restore();
+  }
+
+  function drawFoldedTeaNapkin(nx, ny) {
+    ctx.save();
+    ctx.translate(nx, ny);
+    ctx.rotate(-0.06);
+
+    const nw = 68 * SCALE;
+    const nh = 82 * SCALE;
+
+    // 1. Cast shadow on table
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.24)';
+    roundRect(-nw / 2 + 4 * SCALE, -nh / 2 + 6 * SCALE, nw, nh, 6 * SCALE);
+    ctx.fill();
+
+    // 2. Base folded napkin body (crisp warm linen cloth)
+    ctx.fillStyle = '#faf7f0';
+    roundRect(-nw / 2, -nh / 2, nw, nh, 5 * SCALE);
+    ctx.fill();
+
+    // Delicate stitched hemline around perimeter
+    ctx.strokeStyle = 'rgba(185, 155, 130, 0.45)';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.setLineDash([3.5 * SCALE, 3.5 * SCALE]);
+    roundRect(-nw / 2 + 4 * SCALE, -nh / 2 + 4 * SCALE, nw - 8 * SCALE, nh - 8 * SCALE, 3.5 * SCALE);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 3. Layered folds showing multiple fabric thicknesses
+    // First horizontal fold crease shadow
+    const creaseY = -nh * 0.12;
+    ctx.fillStyle = 'rgba(30, 15, 5, 0.12)';
+    ctx.fillRect(-nw / 2 + 3 * SCALE, creaseY, nw - 6 * SCALE, 2.5 * SCALE);
+
+    // Folded upper flap layer
+    const flapG = ctx.createLinearGradient(0, creaseY, 0, nh / 2);
+    flapG.addColorStop(0, '#f4eee2');
+    flapG.addColorStop(0.12, '#fcfaf6');
+    flapG.addColorStop(1, '#f7f1e6');
+    ctx.fillStyle = flapG;
+    roundRect(-nw / 2 + 2 * SCALE, creaseY + 1 * SCALE, nw - 4 * SCALE, nh / 2 - creaseY - 2 * SCALE, 4 * SCALE);
+    ctx.fill();
+
+    // Decorative diagonal fold pocket
+    ctx.beginPath();
+    ctx.moveTo(-nw / 2 + 6 * SCALE, nh / 2 - 4 * SCALE);
+    ctx.lineTo(nw / 2 - 6 * SCALE, creaseY + 8 * SCALE);
+    ctx.lineTo(nw / 2 - 6 * SCALE, nh / 2 - 4 * SCALE);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(235, 225, 208, 0.65)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(185, 155, 130, 0.35)';
+    ctx.lineWidth = 1 * SCALE;
+    ctx.stroke();
+
+    // 4. Embroidered botanical tea sprig accent on corner
+    ctx.font = `${11 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🌿', nw * 0.22, nh * 0.28);
+
+    ctx.restore();
+  }
+
+  function drawMilkPitcherProp(mx, my, targetX, targetY) {
+    ctx.save();
+    ctx.translate(mx, my);
+
+    // Angle pointing spout towards teacup
+    const ang = Math.atan2(targetY - my, targetX - mx);
+    ctx.rotate(ang);
+
+    const bodyR = 24 * SCALE;
+    const spoutL = 34 * SCALE;
+
+    // Pitcher outer silhouette helper
+    function pitcherOutline() {
+      ctx.beginPath();
+      ctx.moveTo(spoutL, 0);
+      ctx.bezierCurveTo(spoutL * 0.72, bodyR * 0.42, bodyR * 0.85, bodyR, 0, bodyR);
+      ctx.bezierCurveTo(-bodyR, bodyR, -bodyR, -bodyR, 0, -bodyR);
+      ctx.bezierCurveTo(bodyR * 0.85, -bodyR, spoutL * 0.72, -bodyR * 0.42, spoutL, 0);
+      ctx.closePath();
+    }
+
+    // 1. Cast shadow on tabletop
+    ctx.save();
+    ctx.translate(4 * SCALE, 6 * SCALE);
+    ctx.fillStyle = 'rgba(25, 15, 8, 0.28)';
+    pitcherOutline();
+    ctx.fill();
+    // Handle shadow
+    ctx.beginPath();
+    ctx.ellipse(-bodyR - 6 * SCALE, 0, 8 * SCALE, 4.5 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 2. Looped porcelain handle at back (opposite spout)
+    ctx.fillStyle = '#f0f5fb';
+    ctx.strokeStyle = '#a4b3c6';
+    ctx.lineWidth = 1.4 * SCALE;
+    ctx.beginPath();
+    ctx.ellipse(-bodyR - 6 * SCALE, 0, 7.5 * SCALE, 4.2 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Inner hole of handle
+    ctx.fillStyle = 'rgba(40, 20, 10, 0.26)';
+    ctx.beginPath();
+    ctx.ellipse(-bodyR - 6 * SCALE, 0, 3.8 * SCALE, 2 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Glazed porcelain pitcher body
+    pitcherOutline();
+    const gBody = ctx.createRadialGradient(-bodyR * 0.3, -bodyR * 0.3, 3 * SCALE, 0, 0, bodyR * 1.3);
+    gBody.addColorStop(0, '#ffffff');
+    gBody.addColorStop(0.55, '#f0f5fb');
+    gBody.addColorStop(0.85, '#d0dceb');
+    gBody.addColorStop(1, '#9eafc2');
+    ctx.fillStyle = gBody;
+    ctx.fill();
+    ctx.strokeStyle = '#a6b6ca';
+    ctx.lineWidth = 1.6 * SCALE;
+    ctx.stroke();
+
+    // Fine gilded gold rim accent matching teacup
+    ctx.strokeStyle = 'rgba(215, 165, 55, 0.85)';
+    ctx.lineWidth = 1.4 * SCALE;
+    ctx.stroke();
+
+    // 4. Inner mouth opening filled with creamy white whole milk
+    const inR = bodyR * 0.74;
+    const inSpout = spoutL * 0.72;
+    ctx.beginPath();
+    ctx.moveTo(inSpout, 0);
+    ctx.bezierCurveTo(inSpout * 0.7, inR * 0.42, inR * 0.85, inR, 0, inR);
+    ctx.bezierCurveTo(-inR, inR, -inR, -inR, 0, -inR);
+    ctx.bezierCurveTo(inR * 0.85, -inR, inSpout * 0.7, -inR * 0.42, inSpout, 0);
+    ctx.closePath();
+
+    // Creamy white milk gradient
+    const gMilk = ctx.createRadialGradient(-inR * 0.2, -inR * 0.2, 2 * SCALE, 0, 0, inR);
+    gMilk.addColorStop(0, '#ffffff');
+    gMilk.addColorStop(0.65, '#fbfcfe');
+    gMilk.addColorStop(0.9, '#edf3fa');
+    gMilk.addColorStop(1, '#cad7e8');
+    ctx.fillStyle = gMilk;
+    ctx.fill();
+
+    // Inner rim shadow
+    ctx.strokeStyle = 'rgba(145, 165, 188, 0.55)';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.stroke();
+
+    // Cream surface tension highlight (specular glint on milk)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(-inR * 0.22, -inR * 0.22, inR * 0.32, inR * 0.15, 0.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // Badge label below the pitcher (unrotated, level text)
+    ctx.font = `bold ${8.5 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(45, 65, 95, 0.88)';
+    ctx.fillText('🥛 MILK', mx, my + bodyR * 1.38);
+  }
+
+  function drawTopDownTable(cx, cy, worldW, worldH, plateR) {
+    // Warm kitchen tabletop with wood planks
+    const plankW = 90 * SCALE;
+    const numPlanks = Math.ceil(worldH / plankW);
+    for (let i = 0; i <= numPlanks; i++) {
+      const py = i * plankW;
+      const g = ctx.createLinearGradient(0, py, 0, py + plankW);
+      if (i % 2 === 0) {
+        g.addColorStop(0, '#c79255');
+        g.addColorStop(0.5, '#b88143');
+        g.addColorStop(1, '#9e6a32');
+      } else {
+        g.addColorStop(0, '#be874b');
+        g.addColorStop(0.5, '#ad7539');
+        g.addColorStop(1, '#94602a');
+      }
+      ctx.fillStyle = g;
+      ctx.fillRect(0, py, worldW, plankW);
+
+      // Plank seam line
+      ctx.fillStyle = 'rgba(45,26,10,0.45)';
+      ctx.fillRect(0, py + plankW - 1.5 * SCALE, worldW, 2 * SCALE);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(0, py, worldW, 1 * SCALE);
+    }
+
+    // Warm overhead kitchen spotlight focused on the breakfast plate
+    const spot = ctx.createRadialGradient(cx, cy, plateR * 0.35, cx, cy, plateR * 1.55);
+    spot.addColorStop(0, 'rgba(255,248,225,0.42)');
+    spot.addColorStop(0.5, 'rgba(255,235,190,0.18)');
+    spot.addColorStop(1, 'rgba(40,20,8,0.38)');
+    ctx.fillStyle = spot;
+    ctx.fillRect(0, 0, worldW, worldH);
+
+    // Tabletop Breakfast Props around the plate
+    // LEFT SIDE: Breakfast Station & Fine Silverware
+    // 1. Folded linen cloth napkin
+    const napX = cx - plateR - 48 * SCALE;
+    const napY = cy + 40 * SCALE;
+    ctx.save();
+    ctx.translate(napX, napY);
+    ctx.rotate(0.08);
+    ctx.fillStyle = 'rgba(40,20,10,0.22)';
+    roundRect(-42 * SCALE, -75 * SCALE, 84 * SCALE, 150 * SCALE, 7 * SCALE);
+    ctx.fill();
+    ctx.fillStyle = '#f8f4ec';
+    roundRect(-45 * SCALE, -78 * SCALE, 84 * SCALE, 150 * SCALE, 7 * SCALE);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(205,135,115,0.45)';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.setLineDash([4 * SCALE, 4 * SCALE]);
+    roundRect(-39 * SCALE, -72 * SCALE, 72 * SCALE, 138 * SCALE, 5 * SCALE);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // 2. Refined Silver Fork resting neatly alongside the plate
+    const forkX = cx - plateR - 44 * SCALE;
+    const forkY = cy;
+    drawSilverFork(forkX, forkY);
+
+    // 3. Breakfast Containers on the left table
+    const yogX = cx - plateR - 116 * SCALE;
+    const yogY = cy - 128 * SCALE;
+    drawYogurtContainerProp(yogX, yogY);
+
+    const honeyX = cx - plateR - 126 * SCALE;
+    const honeyY = cy + 12 * SCALE;
+    drawHoneyJarProp(honeyX, honeyY);
+
+    const granX = cx - plateR - 114 * SCALE;
+    const granY = cy + 152 * SCALE;
+    drawGranolaContainerProp(granX, granY);
+
+    // RIGHT SIDE: Tea Service
+    // 1. Folded linen tea napkin
+    const napX2 = cx + plateR + 82 * SCALE;
+    const napY2 = cy + 120 * SCALE;
+    drawFoldedTeaNapkin(napX2, napY2);
+
+    // 2. Ceramic milk creamer pitcher next to the tea cup
+    const teaX = cx + plateR + 86 * SCALE;
+    const teaY = cy - 10 * SCALE;
+    const milkX = cx + plateR + 92 * SCALE;
+    const milkY = cy - 126 * SCALE;
+    drawMilkPitcherProp(milkX, milkY, teaX, teaY);
+
+    // 3. Cup of hot steeped tea
+    drawCupOfTea(teaX, teaY);
+  }
+
+  function drawPlate(cx, cy, plateR, basinR) {
+    // 1. Soft plate drop shadow on the tabletop
+    ctx.fillStyle = 'rgba(45, 24, 10, 0.34)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 8 * SCALE, cy + 14 * SCALE, plateR + 8 * SCALE, plateR + 8 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Outer rim of the white ceramic plate
+    const gRim = ctx.createRadialGradient(cx - plateR * 0.2, cy - plateR * 0.2, plateR * 0.1, cx, cy, plateR);
+    gRim.addColorStop(0, '#ffffff');
+    gRim.addColorStop(0.55, '#f4f6fb');
+    gRim.addColorStop(0.88, '#e7ecf5');
+    gRim.addColorStop(1, '#c8d1e2');
+    ctx.fillStyle = gRim;
+    ctx.beginPath();
+    ctx.arc(cx, cy, plateR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#c0c8d8';
+    ctx.lineWidth = 2 * SCALE;
+    ctx.stroke();
+
+    // 3. Fine porcelain decorative concentric rim rings
+    ctx.strokeStyle = 'rgba(180, 195, 215, 0.55)';
+    ctx.lineWidth = 1.6 * SCALE;
+    ctx.beginPath(); ctx.arc(cx, cy, plateR - 10 * SCALE, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, basinR + 12 * SCALE, 0, Math.PI * 2); ctx.stroke();
+
+    // 4. Inner bevel / depression dropping into the basin
+    const gBevel = ctx.createRadialGradient(cx, cy, basinR - 22 * SCALE, cx, cy, basinR);
+    gBevel.addColorStop(0, '#fdfdff');
+    gBevel.addColorStop(0.65, '#e4ebf5');
+    gBevel.addColorStop(1, '#cfd8e8');
+    ctx.fillStyle = gBevel;
+    ctx.beginPath();
+    ctx.arc(cx, cy, basinR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 5. Clean, bright porcelain white inner basin (the play area)
+    const gBasin = ctx.createRadialGradient(cx - basinR * 0.15, cy - basinR * 0.15, basinR * 0.05, cx, cy, basinR - 10 * SCALE);
+    gBasin.addColorStop(0, '#ffffff');
+    gBasin.addColorStop(0.7, '#fafcff');
+    gBasin.addColorStop(1, '#edf2fa');
+    ctx.fillStyle = gBasin;
+    ctx.beginPath();
+    ctx.arc(cx, cy, basinR - 8 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 6. Ceramic specular highlight arc on upper-left rim
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 4 * SCALE;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, plateR - 18 * SCALE, -Math.PI * 0.88, -Math.PI * 0.28);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // 12. GAME FLOW
   // ============================================================
   function buildLevel(n) {
-    G.sparkles = [];
+    G.coins = [];
+    G.scorePops = [];
     G.particles = [];
-    const L = n === 1 ? buildLevel1() : n === 2 ? buildLevel2() : buildLevel3();
+    const L = n === 1 ? buildLevel1() : n === 2 ? buildLevel2()
+      : n === 3 ? buildLevel3() : buildLevel4();
     G.L = L;
     G.player = makePlayer(0, 0);
     L.respawn();
@@ -2869,7 +4902,7 @@
     const survivalBonus = 250 + G.hearts * 100;
     G.score += survivalBonus;
     spawnParticles(G.player.x, G.player.y, 26, '#ffe98a', { minSpd: 1.2, maxSpd: 3.6, grav: 0.05, life: 700 });
-    if (G.level >= 3) { endGame(true); return; }
+    if (G.level >= LAST_LEVEL) { endGame(true); return; }
 
     // Breathe for a few seconds and show what this level was worth, rather
     // than snapping straight into the next one.
@@ -2882,7 +4915,9 @@
     document.getElementById('clearSub').innerHTML =
       (G.level === 1
         ? 'The hand gives up... and dumps the whole bowl into the blender. Uh oh.'
-        : 'Out of the blender — straight into a pot of bubbling jam. Keep going!')
+        : G.level === 2
+        ? 'Out of the blender — straight into a pot of bubbling jam. Keep going!'
+        : 'Out the window, off the ledge and — plop — right onto a big breakfast plate. Dodge!')
       + `<br><br><b class="scoreBig">${lv.icon} ${lv.name}: ${earned} points</b>`
       + `<br><span class="scoreDetail">including <b>${survivalBonus}</b> for escaping with `
       + `${G.hearts} heart${G.hearts === 1 ? '' : 's'} left</span>`
@@ -2919,7 +4954,7 @@
     if (G.score > best) saveBest(G.score);
     if (won) {
       title.textContent = '🌳 You Escaped! 🌳';
-      sub.textContent = `${BERRIES[G.berry].name} made it out the window and rolled off to freedom! `
+      sub.textContent = `${BERRIES[G.berry].name} vaulted off the silver spoon and rolled into sweet freedom! `
         + `Score: ${G.score}${G.score > best ? ' — new best!' : ` (best ${Math.max(best, G.score)})`}`;
       for (let i = 0; i < 60; i++) {
         G.particles.push({
@@ -2964,6 +4999,12 @@
   // ============================================================
   function updateCamera(snap) {
     const L = G.L, p = G.player;
+    if (!L) return;
+    if (L.customCamera) {
+      L.customCamera(snap);
+      return;
+    }
+    G.camX = 0;
     if (L.worldH <= CH) { G.camY = 0; return; }
     const target = clamp(p.y - CH * 0.58, 0, L.worldH - CH);
     G.camY = snap ? target : lerp(G.camY, target, 0.16);
@@ -2975,11 +5016,14 @@
   const KEY_MAP = {
     ArrowLeft: 'left', a: 'left', A: 'left',
     ArrowRight: 'right', d: 'right', D: 'right',
-    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump',
+    ArrowUp: 'up', w: 'up', W: 'up',
+    ArrowDown: 'down', s: 'down', S: 'down',
+    ' ': 'jump',
   };
 
   window.addEventListener('keydown', (e) => {
-    const action = KEY_MAP[e.key];
+    // Determine action. For levels 1-3, 'up' is also treated as jump!
+    let action = KEY_MAP[e.key];
     if (action) e.preventDefault();
     if (G.state === 'MENU') {
       if (e.key === '1') selectBerry('purple');
@@ -2994,6 +5038,10 @@
     if (G.state === 'LEVEL_CLEAR') return;
     if (G.state === 'GAME_OVER' || G.state === 'WIN') { if (e.key === 'Enter') startGame(); return; }
     if (!action) return;
+
+    if (G.level !== 4 && action === 'up') {
+      if (!G.keys.has('jump')) G.jumpQueued = PHYS.jumpBuffer;
+    }
     if (action === 'jump' && !G.keys.has('jump')) G.jumpQueued = PHYS.jumpBuffer;
     G.keys.add(action);
   });
@@ -3009,13 +5057,13 @@
   // ---- touch controls -----------------------------------------------------
   // Champions-Island style, because fixed on-screen buttons meant hunting for
   // a target you can't feel. Instead: put a finger down anywhere on the LEFT
-  // half and slide left/right to steer — the stick appears wherever you
+  // half and slide in any direction to steer — the stick appears wherever you
   // touched, so you can never miss it. Touch anywhere on the RIGHT half to
   // jump, holding for a higher jump. Both hands work at once.
   const TOUCH_DEADZONE = 12;   // SCALE units of slide before you start moving
   const TOUCH_STICK_MAX = 62;  // how far the knob is drawn from the anchor
   const touch = {
-    stickId: null, anchorX: 0, anchorY: 0, curX: 0,
+    stickId: null, anchorX: 0, anchorY: 0, curX: 0, curY: 0,
     jumpIds: new Set(), used: false, hintT: 0,
   };
 
@@ -3028,6 +5076,8 @@
     touch.stickId = null;
     G.keys.delete('left');
     G.keys.delete('right');
+    G.keys.delete('up');
+    G.keys.delete('down');
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -3044,7 +5094,8 @@
     if (zone === 'move') {
       if (touch.stickId !== null) return;    // one stick at a time
       touch.stickId = e.pointerId;
-      touch.anchorX = pt.x; touch.curX = pt.x; touch.anchorY = pt.y;
+      touch.anchorX = pt.x; touch.curX = pt.x;
+      touch.anchorY = pt.y; touch.curY = pt.y;
       if (canvas.setPointerCapture) {
         try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not critical */ }
       }
@@ -3060,11 +5111,19 @@
     e.preventDefault();
     const pt = canvasPoint(e);
     touch.curX = pt.x;
+    touch.curY = pt.y;
     const dx = pt.x - touch.anchorX;
+    const dy = pt.y - touch.anchorY;
     const dead = TOUCH_DEADZONE * SCALE;
     G.keys.delete('left'); G.keys.delete('right');
     if (dx > dead) G.keys.add('right');
     else if (dx < -dead) G.keys.add('left');
+
+    if (G.level === 4) {
+      G.keys.delete('up'); G.keys.delete('down');
+      if (dy > dead) G.keys.add('down');
+      else if (dy < -dead) G.keys.add('up');
+    }
   });
 
   function endTouch(e) {
@@ -3084,6 +5143,7 @@
 
     if (touch.stickId !== null) {
       const dx = clamp(touch.curX - touch.anchorX, -TOUCH_STICK_MAX * SCALE, TOUCH_STICK_MAX * SCALE);
+      const dy = G.level === 4 ? clamp(touch.curY - touch.anchorY, -TOUCH_STICK_MAX * SCALE, TOUCH_STICK_MAX * SCALE) : 0;
       const R = 46 * SCALE;
       ctx.fillStyle = 'rgba(255,255,255,0.10)';
       ctx.beginPath(); ctx.arc(touch.anchorX, touch.anchorY, R, 0, Math.PI * 2); ctx.fill();
@@ -3094,12 +5154,16 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('‹', touch.anchorX - R * 0.74, touch.anchorY);
       ctx.fillText('›', touch.anchorX + R * 0.74, touch.anchorY);
-      const kg = ctx.createRadialGradient(touch.anchorX + dx, touch.anchorY - 6 * SCALE, 2 * SCALE,
-        touch.anchorX + dx, touch.anchorY, 26 * SCALE);
+      if (G.level === 4) {
+        ctx.fillText('˄', touch.anchorX, touch.anchorY - R * 0.74);
+        ctx.fillText('˅', touch.anchorX, touch.anchorY + R * 0.74);
+      }
+      const kg = ctx.createRadialGradient(touch.anchorX + dx, touch.anchorY + dy - 6 * SCALE, 2 * SCALE,
+        touch.anchorX + dx, touch.anchorY + dy, 26 * SCALE);
       kg.addColorStop(0, 'rgba(255,255,255,0.95)');
       kg.addColorStop(1, 'rgba(190,205,235,0.55)');
       ctx.fillStyle = kg;
-      ctx.beginPath(); ctx.arc(touch.anchorX + dx, touch.anchorY, 25 * SCALE, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(touch.anchorX + dx, touch.anchorY + dy, 25 * SCALE, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2 * SCALE; ctx.stroke();
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
@@ -3191,6 +5255,7 @@
   function update(elapsedMs) {
     updateToast(elapsedMs);
     updateParticles(elapsedMs);
+    updateScorePops(elapsedMs);
     if (G.shake > 0) G.shake = Math.max(0, G.shake - elapsedMs * 0.06);
     if (touch.hintT > 0 && G.state === 'PLAYING') touch.hintT -= elapsedMs / 1000;
 
@@ -3211,6 +5276,7 @@
     if (G.state !== 'PLAYING') return;
 
     const dt = Math.min(0.032, elapsedMs / 1000); // clamp so a stall can't tunnel us through the floor
+    G.speedScale = 1; G.jumpScale = 1;             // levels re-apply any slow below
     if (G.L.moveThings) G.L.moveThings(dt);        // moving platforms first
     updatePlayer(dt);
 
@@ -3224,7 +5290,7 @@
 
     G.L.update(dt);
     if (G.state !== 'PLAYING') return; // level may have ended mid-update
-    updateSparkles(dt);
+    updateCoins(dt);
     updateCamera(0);
   }
 
@@ -3247,7 +5313,14 @@
     // score
     ctx.fillStyle = '#ffe98a';
     ctx.font = `bold ${15 * SCALE}px sans-serif`;
-    ctx.fillText(`✨ ${G.score}`, 12 * SCALE + G.maxHearts * 22 * SCALE + 14 * SCALE, HUD_H * 0.5);
+    const coinX = 12 * SCALE + G.maxHearts * 22 * SCALE + 20 * SCALE;
+    const coinR = 8.5 * SCALE;
+    const hudSpin = G.t * 0.0034;                   // same lazy turn as the pickups
+    const hudFace = Math.abs(Math.cos(hudSpin));
+    drawCoinFace(coinX, HUD_H * 0.5, coinR,
+      Math.max(1.4 * SCALE, coinR * hudFace), hudFace, Math.cos(hudSpin) >= 0 ? 1 : -1);
+    ctx.fillStyle = '#ffe98a';
+    ctx.fillText(`${G.score}`, coinX + coinR + 8 * SCALE, HUD_H * 0.5);
 
     // level + objective
     const lv = LEVELS[G.level - 1];
@@ -3318,9 +5391,10 @@
     if (G.shake > 0) {
       ctx.translate(randRange(-G.shake, G.shake) * 0.3, randRange(-G.shake, G.shake) * 0.3);
     }
-    ctx.translate(0, -G.camY);
+    ctx.translate(-G.camX, -G.camY);
     G.L.draw();
     drawParticles();
+    drawScorePops();
     ctx.restore();
 
     if (G.state === 'PLAYING' || G.state === 'LEVEL_CLEAR') drawHUD();
