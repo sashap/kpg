@@ -26,6 +26,7 @@ function create(id){
  function signedShore(x,z){let land=water?!inside(x,z,water):false;for(const p of polygons)if(inside(x,z,p)){land=true;break;}for(const p of ponds)if(inside(x,z,p))land=false;let d=Infinity;for(const p of edges)d=Math.min(d,distance(x,z,p));return (land?1:-1)*d;}
  const ramps=site.id==='coyote'?[[37.58813,-122.33112],[37.58850,-122.32970],[37.58886,-122.32830]].map(project):[];
  const promenade=site.id==='coyote'?promenadeModel.create(raw,project,signedShore):null;
+ const trail=site.id==='third'?waterfront.trail(raw,project):null;
  const waterDatum=elevations.waterDatum(site.id);
  const elevationAt=(x,z)=>elevations.height(site.id,site.origin[0]+z/111320,site.origin[1]-x/(111320*Math.cos(site.origin[0]*Math.PI/180)));
  const shoreAccess=waterfront.access(site.id,project,elevationAt,waterDatum);
@@ -49,6 +50,7 @@ function create(id){
   // Cut a smooth corridor below the engineered deck so neither terrain nor
   // its grass overlays can poke through the paving between DEM vertices.
   const path=promenade?.nearest(x,z);if(path&&path.distance<23){const cut=clamp((23-path.distance)/11,0,1);y-=Math.max(0,y-(promenade.height-.18))*cut;}
+  const paved=trail?.nearest(x,z);if(paved&&paved.distance<20){const blend=clamp((20-paved.distance)/16,0,1);y=y*(1-blend)+(trail.height-.16)*blend;}
   const ramp=promenade?.rampAt(x,z,8);if(ramp)y=Math.min(y,ramp.height-.18);
   const entry=shoreAccess?.at(x,z,1.4);if(entry)y=Math.min(y,entry.height-.12);
   return y;
@@ -98,12 +100,12 @@ function create(id){
  function floatTop(x,z){for(const o of floating)if(Math.hypot(x-o.point[0],z-o.point[1])<o.radius)return o.top;return -Infinity;}
  // A small footprint bridges the cracks between riprap. Use the same support
  // height for feet and collision, so a neighboring rock cannot trap the rider.
- function walkHeight(x,z){let y=Math.max(terrainHeight(x,z),rockTop(x,z,.28),floatTop(x,z),shoreAccess?.at(x,z)?.height??-Infinity,shoreAccess?.dockAt(x,z)??-Infinity,promenade?.surface(x,z)??-Infinity);for(const p of dockLines)if(onDock(p,x,z,1.2))y=Math.max(y,.65);return y;}
- function bedHeight(x,z){let y=Math.max(terrainHeight(x,z),rockTop(x,z),floatTop(x,z),shoreAccess?.at(x,z)?.height??-Infinity,shoreAccess?.dockAt(x,z)??-Infinity,promenade?.surface(x,z)??-Infinity);for(const p of dockLines)if(onDock(p,x,z,1.15))y=Math.max(y,.65);return y;}
+ function walkHeight(x,z){let y=Math.max(terrainHeight(x,z),rockTop(x,z,.28),floatTop(x,z),shoreAccess?.at(x,z)?.height??-Infinity,shoreAccess?.dockAt(x,z)??-Infinity,promenade?.surface(x,z)??-Infinity,trail?.surface(x,z)??-Infinity);for(const p of dockLines)if(onDock(p,x,z,1.2))y=Math.max(y,.65);return y;}
+ function bedHeight(x,z){let y=Math.max(terrainHeight(x,z),rockTop(x,z),floatTop(x,z),shoreAccess?.at(x,z)?.height??-Infinity,shoreAccess?.dockAt(x,z)??-Infinity,promenade?.surface(x,z)??-Infinity,trail?.surface(x,z)??-Infinity);for(const p of dockLines)if(onDock(p,x,z,1.15))y=Math.max(y,.65);return y;}
  function blocked(x,z,r=.3,feet=walkHeight(x,z)){for(let i=Math.floor((x-r)/64);i<=Math.floor((x+r)/64);i++)for(let j=Math.floor((z-r)/64);j<=Math.floor((z+r)/64);j++)for(const b of solidBins.get(i+','+j)||[])if(feet<b.y+b.height&&feet+1.7>b.y&&(inside(x,z,b.points)||distance(x,z,b.points)<r))return true;return false;}
  function rockStep(x,z){return Number.isFinite(rockTop(x,z,.5));}
  const launch=project(site.launch),castle={x:launch[0],z:launch[1],floor:0,dock:{x:launch[0],z:launch[1]},path:[],walls:[],towers:[],solids:[],platforms:[],arches:[],sites:[]};
- return {site,limit:site.limit,project,coast,water,polygons,ponds,shoreRocks,ramps,promenade,shoreAccess,bankHeight,floating,features,solids,addSolid,tanks,levee,lessonRV,parkingLayout,raw,surfaces:[near,middle,far,...(launchSurface?[launchSurface]:[])],near,elevationAt,waterDatum,signedShore,terrainHeight,bedHeight,walkHeight,blocked,rockStep,cameraBlocked:(x,y,z,r=.18)=>walkHeight(x,z)>y-r||blocked(x,z,r,y),castle};
+ return {site,limit:site.limit,project,coast,water,polygons,ponds,shoreRocks,ramps,promenade,trail,shoreAccess,bankHeight,floating,features,solids,addSolid,tanks,levee,lessonRV,parkingLayout,raw,surfaces:[near,middle,far,...(launchSurface?[launchSurface]:[])],near,elevationAt,waterDatum,signedShore,terrainHeight,bedHeight,walkHeight,blocked,rockStep,cameraBlocked:(x,y,z,r=.18)=>walkHeight(x,z)>y-r||blocked(x,z,r,y),castle};
 }
 const api={sites,create,inside,distance};root.FoilLocations=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);

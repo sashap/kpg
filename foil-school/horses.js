@@ -26,14 +26,14 @@ function targetSpeed(forward){if(forward<0)return forward*1.05;if(forward<.4)ret
 function gait(speed){const v=Math.abs(speed);return v<.08?'Resting':speed<0?'Backing':v<2.3?'Walk':v<4.7?'Trot':v<6.8?'Canter':'Gallop';}
 // LF, RF, LH, RH: four-beat walk, diagonal trot, right-lead canter,
 // then a four-beat gallop with a suspension phase (Penn State Extension).
-function foot(phase,index,speed){const v=Math.abs(speed),g=gait(speed),offsets=g==='Trot'||g==='Backing'?[0,.5,.5,0]:g==='Canter'?[.31,.57,0,.31]:g==='Gallop'?[.39,.53,0,.14]:[.25,.75,0,.5],duty=g==='Walk'||g==='Backing'?.68:g==='Trot'?.48:g==='Canter'?.43:.37,t=((phase/TAU+offsets[index])%1+1)%1,amplitude=Math.min(.61,.10+v*.058),lift=g==='Walk'?.14:g==='Trot'?.23:.31;
+function foot(phase,index,speed){const v=Math.abs(speed),g=gait(speed),offsets=g==='Trot'||g==='Backing'?[0,.5,.5,0]:g==='Canter'?[.31,.57,0,.31]:g==='Gallop'?[.39,.53,0,.14]:[.25,.75,0,.5],duty=g==='Walk'||g==='Backing'?.68:g==='Trot'?.48:g==='Canter'?.43:.37,t=((phase/TAU+offsets[index])%1+1)%1,amplitude=Math.min(.66,.18+v*.15),lift=g==='Walk'?.14:g==='Trot'?.23:.31;
  if(v<.08)return {z:0,lift:0,stance:true,phase:t};if(t<duty)return {z:amplitude*(1-2*t/duty)*Math.sign(speed),lift:0,stance:true,phase:t};const swing=(t-duty)/(1-duty);return {z:-amplitude*Math.cos(swing*Math.PI)*Math.sign(speed),lift:Math.sin(swing*Math.PI)*lift,stance:false,phase:t};
 }
 function step(session,world,dt){const h=session.horse;if(!h)return;h.mountTime=Math.max(0,h.mountTime-dt);const forward=-clamp(session.controls.balance,-1,1),rough=support(world,h.x,h.z,h.heading),onSteps=Math.abs(rough?.pitch||0)>.20,target=h.stopping||h.mountTime>0?0:Math.min(onSteps?1.7:9.1,targetSpeed(forward)),delta=target-h.speed;h.speed+=clamp(delta,-5.5*dt,2.1*dt);if(Math.abs(h.speed)<.025&&target===0){h.speed=0;h.stopping=false;}
  const steer=clamp(session.controls.steer,-1,1),turnRate=1.55/(1+Math.abs(h.speed)*.20),angle=wrap(h.heading-steer*turnRate*dt),p=support(world,h.x,h.z,angle);if(p)h.heading=angle;
  const distance=h.speed*dt,n=Math.max(1,Math.ceil(Math.abs(distance)/.12)),dx=Math.sin(h.heading)*distance/n,dz=Math.cos(h.heading)*distance/n;let moved=0;h.blocked=false;
  for(let i=0;i<n;i++){const next=support(world,h.x+dx,h.z+dz,h.heading);if(!next||Math.abs(next.y-h.y)>.42){h.blocked=true;h.speed=0;break;}h.x+=dx;h.z+=dz;h.y=next.y;h.pitch+=(next.pitch-h.pitch)*(1-Math.exp(-dt*10));h.roll+=(next.roll-h.roll)*(1-Math.exp(-dt*10));moved+=Math.hypot(dx,dz);}
- h.distance+=moved;h.gait=gait(h.speed);const frequency=h.gait==='Walk'||h.gait==='Backing'?.65+Math.abs(h.speed)*.23:h.gait==='Trot'?1.1+Math.abs(h.speed)*.12:1.55+Math.abs(h.speed)*.065;if(moved>.0001)h.phase+=TAU*frequency*dt;
+ h.distance+=moved;h.gait=gait(h.speed);const duty=h.gait==='Walk'||h.gait==='Backing'?.68:h.gait==='Trot'?.48:h.gait==='Canter'?.43:.37,frequency=Math.abs(h.speed)*duty/(2*Math.min(.66,.18+Math.abs(h.speed)*.15));if(moved>.0001)h.phase+=TAU*frequency*dt;
  session.x=h.x;session.z=h.z;session.walkY=h.y;session.heading=h.heading;session.speed=Math.abs(h.speed);session.status=h.blocked?'Easy — turn toward open ground':h.gait;session.height=0;
 }
 const api={spawn,support,nearby,mount,dismount,targetSpeed,gait,foot,step};root.FoilHorses=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;

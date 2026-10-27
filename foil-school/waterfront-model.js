@@ -22,9 +22,9 @@ function access(site,project,elevation,datum){
  if(site!=='third')return null;
  // Aerial + daytime launch photos: the concrete ramp is north of the lower
  // parking/turf area; the sandy kite beach is a separate access farther south.
- const a=project([37.57347,-122.27946]),b=project([37.57372,-122.27953]),dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz),top=Math.max(2.9,elevation(...a)-datum),width=4.2;
+ const a=project([37.57347,-122.27946]),b=project([37.57372,-122.27953]),dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz),top=3.15,width=4.2;
  const ramp={a,b,length,width,top,nx:-dz/length,nz:dx/length};
- function at(x,z,buffer=0){const t=((x-a[0])*dx+(z-a[1])*dz)/(length*length),cross=((x-a[0])*dz-(z-a[1])*dx)/length;if(t<-.02-buffer/length||t>1.03+buffer/length||Math.abs(cross)>width/2+buffer)return null;return {height:top+(-.45-top)*clamp(t,0,1),t,cross};}
+ function at(x,z,buffer=0){const t=((x-a[0])*dx+(z-a[1])*dz)/(length*length),cross=((x-a[0])*dz-(z-a[1])*dx)/length;if(t<-.02-buffer/length||t>1.03+buffer/length||Math.abs(cross)>width/2+buffer)return null;return {height:top+.008+(-.45-top)*clamp((t*length-2)/(length-2),0,1),t,cross};}
  const dock=project([37.57316,-122.27917]),gangway=project([37.57316,-122.27935]);
  function dockAt(x,z){if(Math.abs(x-dock[0])<2.6&&Math.abs(z-dock[1])<1.9)return .48;const t=clamp((x-gangway[0])/(dock[0]-gangway[0]),0,1);if(x<=gangway[0]&&x>=dock[0]&&Math.abs(z-dock[1])<.65)return 2.1*(1-t)+.48*t;return -Infinity;}
  const flag=project([37.573485,-122.27948]);
@@ -42,15 +42,16 @@ function access(site,project,elevation,datum){
  ].map(p=>p.map(project));
  return {ramp,at,dock,gangway,dockAt,flag,inStaging,fences};
 }
-function levee(features,shore,terrain,access,beaches,inside,distance){
- const trail=features.paths.find(p=>p.id==='44422697'),segments=[];if(!trail)return segments;
- for(let i=1;i<trail.points.length;i++){const a=trail.points[i-1],b=trail.points[i],dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz),n=Math.ceil(length/3);let nx=-dz/length,nz=dx/length;if(shore((a[0]+b[0])/2+nx*4,(a[1]+b[1])/2+nz*4)>shore((a[0]+b[0])/2-nx*4,(a[1]+b[1])/2-nz*4)){nx=-nx;nz=-nz;}
-  for(let j=0;j<n;j++){const u=j/n,v=(j+1)/n,x=a[0]+dx*(u+v)/2,z=a[1]+dz*(u+v)/2,d=shore(x,z);if(access.inStaging(x,z)||d<3||d>32||Math.hypot(x,z)>1450||access.at(x,z,5)||Math.hypot(x-access.gangway[0],z-access.gangway[1])<5||beaches.some(p=>inside(x,z,p)||distance(x,z,p)<7))continue;
-   const aa=[a[0]+dx*u+nx*2.8,a[1]+dz*u+nz*2.8],bb=[a[0]+dx*v+nx*2.8,a[1]+dz*v+nz*2.8],points=[[aa[0]-nx*.28,aa[1]-nz*.28],[bb[0]-nx*.28,bb[1]-nz*.28],[bb[0]+nx*.28,bb[1]+nz*.28],[aa[0]+nx*.28,aa[1]+nz*.28],[aa[0]-nx*.28,aa[1]-nz*.28]],ya=terrain(a[0]+dx*u,a[1]+dz*u)+.13,yb=terrain(a[0]+dx*v,a[1]+dz*v)+.13;
-   segments.push({a:aa,b:bb,ya,yb,nx,nz,points,y:Math.min(ya,yb)-.2,height:.98});
-  }
- }
- return segments;
+// The golf-course waterfront trail has no storm-surge wall. Its newly paved
+// surface follows one continuous engineered grade, not the coarse terrain grid.
+function levee(){return [];}
+function trail(raw,project){
+ const source=raw.paths.find(p=>p.id==='44422697');if(!source)return null;
+ const points=source.points.map(project),segments=[],bins=new Map(),height=3.15,width=3.8;
+ for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz),s={a,b,dx,dz,length};segments.push(s);for(let x=Math.floor((Math.min(a[0],b[0])-22)/64);x<=Math.floor((Math.max(a[0],b[0])+22)/64);x++)for(let z=Math.floor((Math.min(a[1],b[1])-22)/64);z<=Math.floor((Math.max(a[1],b[1])+22)/64);z++){const k=x+','+z;if(!bins.has(k))bins.set(k,[]);bins.get(k).push(s);}}
+ function nearest(x,z){let best=null;for(const s of bins.get(Math.floor(x/64)+','+Math.floor(z/64))||[]){const t=clamp(((x-s.a[0])*s.dx+(z-s.a[1])*s.dz)/(s.length*s.length),0,1),px=s.a[0]+t*s.dx,pz=s.a[1]+t*s.dz,distance=Math.hypot(x-px,z-pz);if(!best||distance<best.distance)best={x:px,z:pz,distance};}return best;}
+ const surface=(x,z)=>{const p=nearest(x,z);return p&&p.distance<=width/2+.04?height:-Infinity;};
+ return {id:source.id,points,segments,height,width,nearest,surface};
 }
-const api={parking,access,levee,lotIds};root.FoilWaterfront=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={parking,access,levee,trail,lotIds};root.FoilWaterfront=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);
