@@ -23,7 +23,7 @@ if(process.argv[3]==='smoke'){console.log('errors',errors);assert.deepEqual(erro
 if(process.argv[3]==='travel'){await (await import('./travel-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='catalog'){
  await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:650,deviceScaleFactor:1,mobile:false});
- await evaluate("foilTest.start(3,{free:true,conditions:{swell:.08,chop:.55,waveLength:12}});foilTest.session.controls.trim=.68;foilTest.previewPose({standing:true,standAmount:1,trim:.68,height:.58,speed:6,foiling:true,status:'Flying on foil',flight:12,heading:Math.PI/2,wingAngle:-.8,wingTarget:-.8,wingSide:-1,time:18});foilTest.step(0);document.getElementById('toast').classList.add('hidden');foilTest.inspectScenery([-6,3.4,-6],[0,1.35,0])");await frames();await screenshot('catalog');assert.deepEqual(errors,[]);ws.close();process.exit(0);
+ await evaluate("foilTest.start(3,{free:true,conditions:{swell:.08,chop:.55,waveLength:12}});foilTest.session.controls.trim=.68;foilTest.previewPose({standing:true,standAmount:1,trim:.68,height:.58,speed:6,foiling:true,status:'Flying on foil',flight:12,x:60,z:50,heading:Math.PI/2,wingAngle:-.35,wingTarget:-.35,wingSide:-1,time:18});foilTest.step(0);document.getElementById('toast').classList.add('hidden');foilTest.inspectScenery([52,3.5,57],[60,1.4,50])");await frames();await screenshot('catalog');assert.deepEqual(errors,[]);ws.close();process.exit(0);
 }
 if(process.argv[3]==='horses'){await (await import('./horse-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='polish'){

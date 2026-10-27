@@ -14,3 +14,8 @@ test('Third Avenue lower concrete ramp has a clear, continuous walkable slope in
   const s=new Session();s.dismount();Object.assign(s,{mode:'walking',x:r.a[0],z:r.a[1],walkY:r.top,heading:Math.atan2(r.b[0]-r.a[0],r.b[1]-r.a[1]),speed:0});s.controls.balance=-1;for(let i=0;i<25*60;i++)s.step(1/60);assert.ok(Math.hypot(s.x-r.a[0],s.z-r.a[1])>r.length*.8,'Player can walk down the ramp into the bay');assert.ok(g.walkHeight(...a.dock)>.4);assert.ok(g.features.paths.some(p=>p.id==='44422697'&&p.surface==='asphalt'));
  }finally{world.activate('academy');}
 });
+test('Third golf-course waterfront paving is smooth, unobstructed and has no surge barrier',()=>{
+ const g=L.create('third'),t=g.trail;assert.equal(g.levee.length,0);assert.ok(t.points.length>30);
+ for(const s of t.segments)for(let u=0;u<=1;u+=.2){const x=s.a[0]+s.dx*u,z=s.a[1]+s.dz*u;assert.equal(t.surface(x,z),t.height);assert.ok(g.terrainHeight(x,z)<t.height+.025);assert.ok(Math.abs(g.walkHeight(x,z)-t.height)<.025);}
+ for(const r of g.shoreRocks){const p=t.nearest(r.x,r.z);if(p)assert.ok(p.distance>t.width/2+Math.max(r.rx,r.rz));}
+});

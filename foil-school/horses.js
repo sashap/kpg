@@ -11,7 +11,7 @@ function support(world,x,z,heading){const c=Math.cos(heading),s=Math.sin(heading
  let previous=null;for(let f=-.95;f<=1.21;f+=.18){const height=ground(world,x+f*s,z+f*c);if(previous!==null&&Math.abs(height-previous)>.44)return null;previous=height;}
  const y=ground(world,x,z);return {y,pitch:Math.atan2((samples[4]+samples[5]-samples[0]-samples[1])/2,2.15),roll:Math.atan2((samples[1]+samples[3]+samples[5]-samples[0]-samples[2]-samples[4])/3,.86)};
 }
-function spawn(world){const site=world.location.id,positions={shoreline:[37.43237,-122.08845],third:[37.57338,-122.27948],coyote:[37.58891,-122.32817],crissy:[37.80595,-122.45042]},origin=world.geography?world.geography.project(positions[site]):[-199,-76];
+function spawn(world){const site=world.location.id,positions={shoreline:[37.43237,-122.08845],third:[37.57357,-122.27958],coyote:[37.58891,-122.32817],crissy:[37.80595,-122.45042]},origin=world.geography?world.geography.project(positions[site]):[-199,-76];
  for(let r=0;r<=32;r+=2)for(let j=0;j<(r?24:1);j++){const angle=j*TAU/24,x=origin[0]+Math.cos(angle)*r,z=origin[1]+Math.sin(angle)*r,p=support(world,x,z,0);if(!p)continue;if(world.geography?.features.paths.some(q=>root.FoilLocations.distance(x,z,q.points)<3))continue;
   return [{id:site+'-horse',name:site==='shoreline'||site==='crissy'?'Clover':'Willow',coat:site==='third'||site==='crissy'?'buckskin':'bay',x,z,y:p.y,heading:0,speed:0,phase:0,pitch:p.pitch,roll:p.roll,gait:'Resting',distance:0,blocked:false,mountTime:0}];
  }return [];
