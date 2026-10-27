@@ -15,3 +15,16 @@ test('wind from astern pushes a stopped board, fades at wind speed and cannot cr
  for(const wind of [0,.7,Math.PI,-Math.PI/2]){s.windFrom=wind;s.heading=wind+Math.PI;s.trim=.68;s.speed=0;assert.ok(Math.abs(s.wingForces().forward-initial)<1e-8);}
 });
 test('pop is unavailable when the wing is backwinded even with a high power setting',()=>{const s=session(1,6);s.height=.4;s.foiling=true;assert.equal(s.popReady(),false);});
+
+test('oversheet warning and lost drive begin at 90 percent, not 85 percent',()=>{
+ const s=new Session(0,{free:true,conditions:{wind:8.2,swell:0,gust:0}});Object.assign(s,{heading:Math.PI/2,angle:Math.PI/2,standing:true,standAmount:1,wingSide:-1,wingAngle:-.8,wingTarget:-.8,speed:0});
+ const forces=[];for(const trim of [.85,.89,.90,1]){s.trim=s.controls.trim=trim;forces.push(s.wingForces().forward);assert.equal(s.powerInfo().code==='oversheeted',trim>=.90);}
+ assert.ok(forces[1]>forces[0]&&forces[2]>forces[1]);assert.ok(forces[3]<forces[2]*.65);
+});
+
+test('head-to-wind sheeting pushes astern gently; easing and flagging remove that force',()=>{
+ for(const wind of [0,.7,-1.2,Math.PI])for(const angle of [-1,0,1]){const s=session(angle,0);s.windFrom=s.config.windFrom=wind;s.heading=wind;s.trim=s.controls.trim=.78;s.sampleWind();const head=s.wingForces().forward;assert.ok(head<-.4);tick(s,4);assert.ok(s.speed<-.1&&s.speed>=-1.5);assert.ok(!s.foiling,'Reverse motion cannot create foil lift');s.speed=0;s.lateralSpeed=0;s.heading=wind+Math.PI;assert.ok(s.wingForces().forward>Math.abs(head)*2.5,'Downwind push is much stronger than backing');s.trim=0;assert.equal(Math.abs(s.wingForces().forward),0);s.heading=wind;assert.equal(Math.abs(s.wingForces().forward),0);s.trim=.8;s.flagged=true;assert.equal(Math.abs(s.wingForces().forward),0);}
+});
+test('the correct outboard wing develops more close-hauled drive on either tack',()=>{
+ for(const side of [-1,1]){const s=session(-side,4);s.heading=s.windFrom+side*Math.PI/3;const low=s.wingForces().forward;s.wingAngle=0;const high=s.wingForces().forward;assert.ok(low>high*1.35&&high>0);s.wingAngle=side;assert.ok(s.wingForces().forward<0,'Wrong side still backwinds, even close hauled');}
+});

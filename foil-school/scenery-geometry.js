@@ -19,5 +19,19 @@ function bridge(raw,project,terrain){const west=sample(raw.bridgeApproaches[0].m
  const smooth=t=>t*t*(3-2*t),start=Math.max(2.3,terrain(...west[0])+.3),end=Math.max(2.3,terrain(...east.at(-1))+.3);
  for(let i=0;i<points.length;i++){if(i)distance+=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);const s=distance-westLength;ys.push(s<0?start+(12-start)*smooth(distance/westLength):s>mainLength?12+(end-12)*smooth((s-mainLength)/eastLength):12+37*Math.exp(-(((s-1700)/1100)**4)));}
  return {points,ys,westLength,mainLength,eastLength,westCount:west.length,eastStart:west.length+main.length-2};}
-const api={sample,ribbon,drape,bridge};root.FoilSceneryGeometry=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+// Published bridge dimensions: 1280 m main span, 343 m side spans, 2737 m
+// including approaches. A shared sampled deck prevents gaps at the towers.
+function goldenGate(project,terrain){
+ const a=project([37.81406,-122.477844]),b=project([37.8255059,-122.4791861]),dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz),nx=dz/length,nz=-dx/length;
+ const side=343/length,start=-.62,end=start+2737/length;
+ const smooth=t=>t*t*(3-2*t),southY=terrain(a[0]+dx*start,a[1]+dz*start)+.2,northY=terrain(a[0]+dx*end,a[1]+dz*end)+.2;
+ const deckY=t=>t< -side?southY+(75-southY)*smooth((t-start)/(-side-start)):t>1+side?75+(northY-75)*smooth((t-1-side)/(end-1-side)):75+2.5*Math.sin(Math.PI*Math.max(0,Math.min(1,t)));
+ const point=(t,offset=0,y=deckY(t))=>[a[0]+dx*t+nx*offset,y,a[1]+dz*t+nz*offset];
+ // Side cables meet the anchor blocks; hangers continue throughout both side spans.
+ const cableY=t=>t<0?80+147*((t+side)/side)**.74:t>1?80+147*((1+side-t)/side)**.74:89+552*(t-.5)**2;
+ const cuts=[start,-.354,-side,0,1,1+side,end],samples=[];
+ for(let i=1;i<cuts.length;i++){const lo=cuts[i-1],hi=cuts[i],n=Math.ceil((hi-lo)*length/15.24);if(i===1)samples.push(lo);for(let j=1;j<=n;j++)samples.push(lo+(hi-lo)*j/n);}
+ return {point,deckY,cableY,samples,side,start,end,length};
+}
+const api={sample,ribbon,drape,bridge,goldenGate};root.FoilSceneryGeometry=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);

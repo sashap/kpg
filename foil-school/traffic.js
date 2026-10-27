@@ -4,8 +4,8 @@ const TAU=Math.PI*2;
 function routes(world,windFrom,seed=12389){const random=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;},out=[],lake=world.location.id==='shoreline',axis=windFrom+Math.PI/2;
  for(let attempt=0;attempt<1800&&out.length<25;attempt++){
   const r=45+random()*(lake?155:360),a=random()*TAU,cx=Math.sin(a)*r,cz=Math.cos(a)*r,long=lake?30+random()*35:55+random()*65,short=12+random()*15,points=[];
-  for(let i=0;i<96;i++){const p=i/96*TAU,u=Math.cos(p)*long,v=Math.sin(p)*short,x=cx+u*Math.sin(axis)+v*Math.cos(axis),z=cz+u*Math.cos(axis)-v*Math.sin(axis);if(world.bedHeight(x,z)>-1.8)break;points.push({x,z});}
-  if(points.length===96)out.push({cx,cz,long,short,axis,phase:random()*TAU,speed:3.5+random()*1.6});
+  for(let i=0;i<96;i++){const p=i/96*TAU,u=Math.cos(p)*long,v=Math.sin(p)*short,x=cx+u*Math.sin(axis)+v*Math.cos(axis),z=cz+u*Math.cos(axis)-v*Math.sin(axis);const ex=cx+Math.cos(p)*(long+12)*Math.sin(axis)+Math.sin(p)*(short+(lake?12:25))*Math.cos(axis),ez=cz+Math.cos(p)*(long+12)*Math.cos(axis)-Math.sin(p)*(short+(lake?12:25))*Math.sin(axis);if([[x,z],[x-2,z],[x+2,z],[x,z-2],[x,z+2],[ex,ez]].some(([px,pz])=>world.bedHeight(px,pz)>-1.8))break;points.push({x,z});}
+  if(points.length===96&&[-.6,0,.6].every(u=>[-.6,0,.6].every(v=>world.bedHeight(cx+u*long*Math.sin(axis)+v*short*Math.cos(axis),cz+u*long*Math.cos(axis)-v*short*Math.sin(axis))< -1.8)))out.push({cx,cz,long,short,axis,phase:random()*TAU,speed:3.5+random()*1.6});
  }
  return out;
 }
@@ -41,7 +41,7 @@ function create({THREE,scene,world,sea}){
    const crouch=-r.pumpCharge*.13+Math.sin(p.phase)*.015,hip=.94+crouch;put('hips',human,0,hip,0,.16,.15,.12);put('body',human,0,hip+.26,0);put('head',human,0,hip+.66,.015,.105,.14,.10);put('helmet',human,0,hip+.74,.0,.112,.08,.11,null,palette[i%5]);
    for(const side of [-1,1]){const foot=[side*.08,.22,side*.31],knee=[side*.11,.57+crouch,.12+side*.22];put('feet',human,...foot,.10,.07,.24);limb('legs',[side*.105,hip,0],knee,.072);limb('legs',knee,foot,.048);}
    pilot.renderAngle+=(r.wingAngle-pilot.renderAngle)*(1-Math.exp(-Math.max(dt,elapsed)*5));const wingAngle=pilot.renderAngle;
-   wing.position.set(-wingAngle*.40,off?.22:1.95+crouch,.25);wing.rotation.set(off?.04:-.15,-wingAngle*.15,off?.03:wingAngle*.82);wing.scale.set(1,1,1);wing.updateMatrix();wing.matrixWorld.multiplyMatrices(base.matrixWorld,wing.matrix);
+   wing.position.set(-wingAngle*.40,off?.22:1.95+crouch,.25);wing.rotation.set(off?.04:.05+r.trim*.30,-wingAngle*.15,off?.03:wingAngle*(.82+r.trim*.10));wing.scale.set(1,1,1);wing.updateMatrix();wing.matrixWorld.multiplyMatrices(base.matrixWorld,wing.matrix);
    put('canopy',wing,0,0,0,1,1,1,null,palette[i%5]);put('tube',wing,0,0,0);put('trailing',wing,0,0,0);put('strut',wing,0,0,0);for(const x of [-2.125,2.125])for(const t of [0,1])put('tips',wing,...point(x,t).toArray(),t?.045:.069);
    for(const a of [-1,1]){const hand=off?V(a*.28,1.25,.28+Math.sin(s.time*3+a)*.12):V(0,-.11,a*.27).applyMatrix4(wing.matrix),elbow=[a*.27-wingAngle*.12,off?1.0:1.48+crouch,.14+a*.12];limb('arms',[a*.19,hip+.43,0],elbow,.048);limb('arms',elbow,hand.toArray(),.035);}
    if(!off&&r.speed>1.5)for(const side of [-1,1]){const q=new THREE.Quaternion().setFromUnitVectors(Y,V(side*.10,0,-1).normalize());put('wake',base,side*.22,-flight+.025,-2,.28,.85,.12,q);}

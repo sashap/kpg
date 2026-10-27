@@ -73,3 +73,14 @@
 .landmark-label b{font-size:6.5px;letter-spacing:.6px}.landmark-label small{font-size:6px}.landmark-label i{width:4px;height:4px;margin-right:4px}
 .landmark-label:after{content:'';position:absolute;left:50%;top:100%;width:1px;height:var(--leader,12px);background:#51787388}
 @media(max-width:760px){.landmark-label{padding:2px 4px}.landmark-label b{font-size:6px;letter-spacing:.4px}}
+
+/* Quiet key legends around the body pad; keep the wing panel readable. */
+.balance-control .joy-label{font-size:8px;font-weight:500;letter-spacing:0;color:#617c72}
+#body-keys,#drive-description,#wing-load{display:none!important}
+@media(max-width:760px){.balance-control .joy-label{font-size:7px}}
+
+/* Light keyboard keycaps share the controllers’ existing small type. */
+.control-key{font-family:inherit;font-size:8px;font-weight:500;line-height:1;letter-spacing:0;color:#617c72;display:grid;place-items:center;min-width:16px;height:14px;padding:0 2px;border:1px solid #66837930;border-bottom-color:#66837945;border-radius:4px;background:#ffffff70;box-shadow:0 1px 0 #67877812;pointer-events:none}
+.wing-key{pointer-events:none}.wing-key rect{fill:#ffffff70;stroke:#66837940;stroke-width:.7}.wing-key text{fill:#617c72;font-family:inherit;font-size:9px;font-weight:500;letter-spacing:0}
+.travel-key{position:absolute}.travel-key.left{left:3px;top:50%;transform:translateY(-50%)}.travel-key.right{right:3px;top:50%;transform:translateY(-50%)}.travel-key.top{right:1px;top:0}.travel-key.bottom{right:1px;bottom:0}
+@media(max-width:760px){.control-key{font-size:7px;min-width:14px;height:13px}.travel-key.top,.travel-key.bottom{right:0}#walk-top,.walk-back-label{padding-right:16px;font-size:6px;letter-spacing:.05em}}

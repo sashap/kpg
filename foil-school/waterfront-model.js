@@ -1,7 +1,7 @@
 /* Shared, photo-guided waterfront layout. Coordinates are metres after projection. */
 (function(root){'use strict';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const lotIds={shoreline:['32405130','199282342'],third:['138632877'],coyote:['30637118','1250229259','1095764670','370817280','1250229260','1041282472']};
+const lotIds={kahului:['289835437','452966553','289836357','289836359','puunene-harbor-parking'],shoreline:['32405130','199282342'],third:['138632877'],coyote:['30637118','1250229259','1095764670','370817280','1250229260','1041282472']};
 function parking(site,features,inside,distance){
  const lots=features.parking.filter(p=>(lotIds[site]||[]).includes(p.id)),aisles=features.parkingAisles.filter(a=>lots.some(l=>a.points.some(p=>inside(...p,l.points)||distance(...p,l.points)<8))),stalls=[];
  for(const aisle of aisles){let remaining=1.5;
@@ -53,5 +53,9 @@ function trail(raw,project){
  const surface=(x,z)=>{const p=nearest(x,z);return p&&p.distance<=width/2+.04?height:-Infinity;};
  return {id:source.id,points,segments,height,width,nearest,surface};
 }
-const api={parking,access,levee,trail,lotIds};root.FoilWaterfront=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+// Arbor's daytime north/upper-launch views show an open grass bank here.
+// Trees belong to inland fairway groups, not a row along the waterfront path.
+const golfBankOutline=[[37.57334,-122.27990],[37.57406,-122.27998],[37.57462,-122.28165],[37.57485,-122.28415],[37.57469,-122.28545],[37.57420,-122.28530],[37.57410,-122.28295],[37.57331,-122.28090],[37.57334,-122.27990]];
+function golfBank(project){return golfBankOutline.map(project);}
+const api={parking,access,levee,trail,lotIds,golfBank};root.FoilWaterfront=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);

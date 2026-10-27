@@ -36,9 +36,9 @@ Collect the spinning gold coins along the way for bonus points. The dropdown on 
 ### Foil Academy
 [Play Foil Academy](foil-academy.html)
 
-**3D Wingfoiling** · 19 Courses · 5 Locations · Keyboard & Touch
+**3D Wingfoiling** · 19 Courses · 6 Locations · Keyboard & Touch
 
-Learn to taxi, lift onto the hydrofoil, balance, pump, turn, and land aerial tricks. Practice in Academy Bay or explore recreations of Shoreline Park Lake, 3rd Avenue, Coyote Point, and Crissy Field. Free Foiling lets you choose the wind, waves, weather, and up to 25 other foilers. Swim ashore to explore, visit the castle ruins in Academy Bay, or find Clover and Willow for a bonus horse ride. Push the right joystick farther to progress from walking to galloping.
+Learn to taxi, lift onto the hydrofoil, balance, pump, turn, and land aerial tricks. Practice in Academy Bay or explore recreations of Shoreline Park Lake, 3rd Avenue, Coyote Point, Crissy Field, and Kahului Harbor on Maui. Kahului includes Ho‘aloha Park, outrigger canoes, palms, cargo ships, and the island's mountain backdrop. Shoreline includes its sailing-scow playground. Free Foiling lets you choose the wind, waves, weather, and up to 25 other foilers. Swim ashore to explore, visit the castle ruins in Academy Bay, or find Clover and Willow for a bonus horse ride. Push the right joystick farther to progress from walking to galloping.
 
 Play with a laptop keyboard or the two touch controllers on an iPad or iPhone. The single `foil-academy.html` includes its 3D engine, artwork, and sound, so it needs no subfolder files or internet connection after loading. On iPad/iPhone, open it as a webpage in Safari rather than a Files preview. See the [Foil Academy guide](foil-school/README.md) for controls, local hosting, scenery references, and development instructions. The `foil-school/` folder contains source files; the old `foil-school.html` duplicate is no longer needed.
 

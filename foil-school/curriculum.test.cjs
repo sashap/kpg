@@ -14,7 +14,7 @@ function runCourse(index){const s=new Session(index),id=s.config.id;let detail='
  assert.ok(s.complete,JSON.stringify({id,goals:s.goals(),detail,reason:s.fallReason}));assert.equal(s.stats.crashes,0);assert.ok(s.time<65);return s;
 }
 for(let index=0;index<LESSONS.length;index++)test('Course '+(index+1)+' · '+LESSONS[index].name+' is achievable from launch',()=>runCourse(index));
-test('Every course works with each real location’s wind, launch tack and teaching waves',()=>{const world=require('./world.js');const issues=[];try{for(const site of ['shoreline','third','coyote','crissy']){world.activate(site);for(let i=0;i<LESSONS.length;i++){try{runCourse(i);}catch(e){issues.push(site+' · '+LESSONS[i].id+' · '+e.message);}}}assert.deepEqual(issues,[]);}finally{world.activate('academy');}});
+test('Every course works with each real location’s wind, launch tack and teaching waves',()=>{const world=require('./world.js');const issues=[];try{for(const site of ['shoreline','third','coyote','crissy','kahului']){world.activate(site);for(let i=0;i<LESSONS.length;i++){try{runCourse(i);}catch(e){issues.push(site+' · '+LESSONS[i].id+' · '+e.message);}}}assert.deepEqual(issues,[]);}finally{world.activate('academy');}});
 test('touches, stance changes, S-turns and airs require the actual move and a clean exit',()=>{
  const s=new Session(2);fly(s,12);assert.equal(s.stats.touchGoes,0);s.controls.balance=-.24;s.controls.trim=.38;tick(s,3);assert.equal(s.stats.touchGoes,0,'Landing alone is not a touch-and-go');
  const feet=new Session(8);feet.stand();feet.switchFeet();tick(feet,3);assert.equal(feet.stance,-1);assert.equal(feet.stats.footSwitches,0,'Switching on the surface is practice only');
