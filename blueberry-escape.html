@@ -135,8 +135,8 @@
     <div class="panel">
       <h1>🫐 Blueberry Escape 🥣</h1>
       <p class="sub">You're a blueberry on the kitchen counter, and someone is about to bake with you!
-      Dodge the grabbing hand, climb out of the blender, ride the spoons up through the pot lid and
-      survive the breakfast storm on the plate — four escapes stand between you and freedom.</p>
+      Dodge the grabbing hand, climb out of the blender, ride the spoons up through the pot lid,
+      survive the breakfast storm on the plate, and journey across the farm back to the blueberry patch — five escapes stand between you and freedom.</p>
       <div class="berryRow" id="berryRow"></div>
       <div class="levelPick">
         <select id="levelSelect" aria-label="Which levels to play"></select>
@@ -207,6 +207,7 @@
         <li><b>Controls:</b> Move in all directions with ← → ↑ ↓ or W A S D (or slide the left stick on touch). Press <b>SPACE</b> (or tap the right side on touch) to hop into the air!</li>
         <li><b>Pro-tip:</b> Hop over gooey puddles and jump right over flying granola to avoid damage!</li>
         <li>Survive the breakfast rush, then hop onto the silver spoon at the rim to catapult to sweet freedom!</li>
+        <li><b>Level 5 — The Farm:</b> a challenging side-scrolling finale across an expansive country farm! Hop along the dirt road, wooden fences, high hay bale stacks, and stone walls. Watch out for larger jumping squirrels, giant black crows that swoop in from the sky, angry charging geese, and colossal vintage tractors in red, green, and blue rolling along the road! Bounce off tractor hoods, pass the red barn and farm animals, and return home to the blueberry patch to win!</li>
         <li>You lose a heart each time you're caught. Lose them all and it's back to the mixing bowl.</li>
         <li>Grab the spinning gold coins along the way — each one is worth points.</li>
       </ol>
@@ -273,6 +274,7 @@
     { id: 2, name: 'The Blender', icon: '🌀', intro: '🌀 Level 2 — climb out before it purées you!' },
     { id: 3, name: 'The Pot',     icon: '🍯', intro: '🍯 Level 3 — ride the spoons, dodge the steam!' },
     { id: 4, name: 'The Plate',   icon: '🍽️', intro: '🍽️ Level 4 — dodge the breakfast storm on the white plate!' },
+    { id: 5, name: 'The Farm',    icon: '🚜', intro: '🚜 Level 5 — avoid giant tractors, crows, jumping squirrels & geese!' },
   ];
   const LAST_LEVEL = LEVELS.length;
 
@@ -4861,6 +4863,1918 @@
     ctx.restore();
   }
 
+  // ============================================================
+  // ============================================================
+  // ============================================================
+  // 11c. LEVEL 5 — THE FARM (SIDE-SCROLLING OUTDOOR ADVENTURE)
+  // ============================================================
+  // Having vaulted off the silver spoon, the blueberry lands on a country farm!
+  // Run from left to right along a scenic farm road, hopping over fences,
+  // stacked hay bales, crates, and stone walls.
+  // Dodge hungry scurrying squirrels that dart and hop, swooping crows diving
+  // from above, grumpy farmyard geese that honk and charge, and massive vintage
+  // farm tractors chugging along the dirt road in vibrant red, green, and blue.
+  // Pass the big red barn, grazing dairy cows, sheep, and a muddy pig pen,
+  // and finally arrive home safe and sound at the lush Blueberry Patch!
+  function buildLevel5() {
+    const worldW = Math.max(7600 * SCALE, CW * 8.5);
+    const worldH = CH;
+    const roadY = CH - 54 * SCALE;
+    const platforms = [];
+
+    // Continuous country dirt road
+    platforms.push({ x: -100 * SCALE, y: roadY, w: worldW + 200 * SCALE, h: CH, kind: 'road' });
+
+    // 1. Split-rail Wooden Fences (one-way top rail platforms)
+    const fences = [
+      { x: 440 * SCALE,  w: 220 * SCALE, y: roadY - 76 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+      { x: 1320 * SCALE, w: 260 * SCALE, y: roadY - 78 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+      { x: 2360 * SCALE, w: 280 * SCALE, y: roadY - 80 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+      { x: 3200 * SCALE, w: 260 * SCALE, y: roadY - 82 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+      { x: 4200 * SCALE, w: 290 * SCALE, y: roadY - 80 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+      { x: 5080 * SCALE, w: 280 * SCALE, y: roadY - 84 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+      { x: 6020 * SCALE, w: 290 * SCALE, y: roadY - 82 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+      { x: 6720 * SCALE, w: 220 * SCALE, y: roadY - 78 * SCALE, h: 10 * SCALE, kind: 'fence', oneWay: true },
+    ];
+    for (const f of fences) platforms.push(f);
+
+    // 2. Stacked Golden Straw Hay Bales
+    const hayBales = [
+      // Section 1: Barnyard stepped pyramid
+      { x: 740 * SCALE,  y: roadY - 46 * SCALE,  w: 84 * SCALE, h: 46 * SCALE, kind: 'hay', oneWay: true },
+      { x: 830 * SCALE,  y: roadY - 92 * SCALE,  w: 84 * SCALE, h: 46 * SCALE, kind: 'hay', oneWay: true },
+      { x: 925 * SCALE,  y: roadY - 138 * SCALE, w: 84 * SCALE, h: 46 * SCALE, kind: 'hay', oneWay: true },
+      { x: 1025 * SCALE, y: roadY - 92 * SCALE,  w: 84 * SCALE, h: 46 * SCALE, kind: 'hay', oneWay: true },
+      { x: 1140 * SCALE, y: roadY - 72 * SCALE,  w: 92 * SCALE, h: 72 * SCALE, kind: 'roundhay', oneWay: true },
+      // Section 2: Orchard stepped bales
+      { x: 2780 * SCALE, y: roadY - 55 * SCALE,  w: 90 * SCALE, h: 55 * SCALE, kind: 'hay', oneWay: true },
+      { x: 2880 * SCALE, y: roadY - 110 * SCALE, w: 90 * SCALE, h: 55 * SCALE, kind: 'hay', oneWay: true },
+      { x: 2990 * SCALE, y: roadY - 65 * SCALE,  w: 95 * SCALE, h: 65 * SCALE, kind: 'roundhay', oneWay: true },
+      // Section 3: Midfield high observation stack
+      { x: 4620 * SCALE, y: roadY - 58 * SCALE,  w: 92 * SCALE, h: 58 * SCALE, kind: 'hay', oneWay: true },
+      { x: 4720 * SCALE, y: roadY - 116 * SCALE, w: 92 * SCALE, h: 58 * SCALE, kind: 'hay', oneWay: true },
+      { x: 4830 * SCALE, y: roadY - 174 * SCALE, w: 92 * SCALE, h: 58 * SCALE, kind: 'hay', oneWay: true },
+      { x: 4940 * SCALE, y: roadY - 116 * SCALE, w: 92 * SCALE, h: 58 * SCALE, kind: 'hay', oneWay: true },
+      // Section 4: Late stage tractor haven stack
+      { x: 6420 * SCALE, y: roadY - 60 * SCALE,  w: 95 * SCALE, h: 60 * SCALE, kind: 'hay', oneWay: true },
+      { x: 6525 * SCALE, y: roadY - 120 * SCALE, w: 95 * SCALE, h: 60 * SCALE, kind: 'hay', oneWay: true },
+    ];
+    for (const hb of hayBales) platforms.push(hb);
+
+    // 3. Rustic Stone Walls
+    const stoneWalls = [
+      { x: 240 * SCALE,  y: roadY - 40 * SCALE,  w: 120 * SCALE, h: 40 * SCALE, kind: 'stonewall', oneWay: true },
+      { x: 1740 * SCALE, y: roadY - 52 * SCALE,  w: 130 * SCALE, h: 52 * SCALE, kind: 'stonewall', oneWay: true },
+      { x: 3620 * SCALE, y: roadY - 60 * SCALE,  w: 140 * SCALE, h: 60 * SCALE, kind: 'stonewall', oneWay: true },
+      { x: 5500 * SCALE, y: roadY - 56 * SCALE,  w: 135 * SCALE, h: 56 * SCALE, kind: 'stonewall', oneWay: true },
+      { x: 5740 * SCALE, y: roadY - 105 * SCALE, w: 120 * SCALE, h: 50 * SCALE, kind: 'stonewall', oneWay: true },
+    ];
+    for (const sw of stoneWalls) platforms.push(sw);
+
+    // 4. Farm Crates, Barrels & Troughs
+    const farmProps = [
+      { x: 1980 * SCALE, y: roadY - 50 * SCALE, w: 72 * SCALE,  h: 50 * SCALE, kind: 'crate', oneWay: true },
+      { x: 2065 * SCALE, y: roadY - 96 * SCALE, w: 74 * SCALE,  h: 48 * SCALE, kind: 'crate', oneWay: true },
+      { x: 2200 * SCALE, y: roadY - 38 * SCALE, w: 90 * SCALE,  h: 38 * SCALE, kind: 'trough', oneWay: true },
+      { x: 3960 * SCALE, y: roadY - 48 * SCALE, w: 74 * SCALE,  h: 48 * SCALE, kind: 'crate', oneWay: true },
+      { x: 4045 * SCALE, y: roadY - 95 * SCALE, w: 74 * SCALE,  h: 48 * SCALE, kind: 'crate', oneWay: true },
+      { x: 5880 * SCALE, y: roadY - 38 * SCALE, w: 95 * SCALE,  h: 38 * SCALE, kind: 'trough', oneWay: true },
+      { x: 6980 * SCALE, y: roadY - 38 * SCALE, w: 60 * SCALE,  h: 38 * SCALE, kind: 'bushel', oneWay: true },
+    ];
+    for (const fp of farmProps) platforms.push(fp);
+
+    // 5. Blueberry Patch entrance mound
+    platforms.push({ x: 7100 * SCALE, y: roadY - 18 * SCALE, w: 800 * SCALE, h: 55 * SCALE, kind: 'patch', oneWay: true });
+
+    // Safe Checkpoint locations along the road
+    const checkpoints = [
+      { x: 80 * SCALE,   reached: true },
+      { x: 1650 * SCALE, reached: false },
+      { x: 3450 * SCALE, reached: false },
+      { x: 5250 * SCALE, reached: false },
+    ];
+
+    // Collectible Gold Coins placed over jumps and atop obstacles
+    const coinLocations = [
+      [300, roadY - 65 * SCALE],
+      [480, roadY - 110 * SCALE], [540, roadY - 125 * SCALE], [600, roadY - 110 * SCALE],
+      [780, roadY - 75 * SCALE], [870, roadY - 120 * SCALE], [965, roadY - 168 * SCALE],
+      [1065, roadY - 120 * SCALE], [1185, roadY - 100 * SCALE],
+      [1380, roadY - 110 * SCALE], [1450, roadY - 120 * SCALE], [1520, roadY - 110 * SCALE],
+      [1805, roadY - 80 * SCALE],
+      [2015, roadY - 80 * SCALE], [2100, roadY - 125 * SCALE], [2245, roadY - 65 * SCALE],
+      [2420, roadY - 110 * SCALE], [2500, roadY - 120 * SCALE],
+      [2820, roadY - 85 * SCALE], [2925, roadY - 140 * SCALE], [3035, roadY - 95 * SCALE],
+      [3260, roadY - 112 * SCALE], [3330, roadY - 125 * SCALE], [3400, roadY - 112 * SCALE],
+      [3690, roadY - 90 * SCALE],
+      [4000, roadY - 78 * SCALE], [4080, roadY - 125 * SCALE],
+      [4260, roadY - 110 * SCALE], [4340, roadY - 125 * SCALE], [4420, roadY - 110 * SCALE],
+      [4665, roadY - 85 * SCALE], [4765, roadY - 145 * SCALE], [4875, roadY - 200 * SCALE], [4985, roadY - 145 * SCALE],
+      [5140, roadY - 115 * SCALE], [5220, roadY - 130 * SCALE],
+      [5565, roadY - 85 * SCALE], [5800, roadY - 135 * SCALE], [5925, roadY - 68 * SCALE],
+      [6080, roadY - 115 * SCALE], [6160, roadY - 130 * SCALE], [6240, roadY - 115 * SCALE],
+      [6465, roadY - 90 * SCALE], [6570, roadY - 150 * SCALE],
+      [6780, roadY - 110 * SCALE], [6860, roadY - 115 * SCALE], [7010, roadY - 65 * SCALE],
+      [7120, roadY - 50 * SCALE], [7160, roadY - 68 * SCALE], [7200, roadY - 50 * SCALE],
+    ];
+    for (const [cx, cy] of coinLocations) {
+      addCoin(cx * SCALE, cy);
+    }
+
+    // Multiple Patrolling Vintage Tractors with different sizes and classic farm colors
+    const tractors = [
+      {
+        id: 'red',
+        color: '#d61a1a',
+        dark: '#780c0c',
+        light: '#f53838',
+        name: 'Big Red Farmall',
+        x: 2200 * SCALE,
+        y: roadY,
+        dir: -1,
+        spd: 125 * SCALE,
+        minX: 1450 * SCALE,
+        maxX: 2280 * SCALE,
+        scaleW: 1.25,
+        scaleH: 1.25,
+        spin: 0,
+        turnTimer: 0,
+        honkTimer: 2.2,
+      },
+      {
+        id: 'green',
+        color: '#2e7d32',
+        dark: '#1b5e20',
+        light: '#4caf50',
+        name: 'Giant Green John Deere',
+        x: 4050 * SCALE,
+        y: roadY,
+        dir: -1,
+        spd: 140 * SCALE,
+        minX: 3350 * SCALE,
+        maxX: 4120 * SCALE,
+        scaleW: 1.35,
+        scaleH: 1.35,
+        spin: 0,
+        turnTimer: 0,
+        honkTimer: 2.0,
+      },
+      {
+        id: 'blue',
+        color: '#1976d2',
+        dark: '#0d47a1',
+        light: '#42a5f5',
+        name: 'Colossal Blue Ford Tractor',
+        x: 6200 * SCALE,
+        y: roadY,
+        dir: -1,
+        spd: 130 * SCALE,
+        minX: 5350 * SCALE,
+        maxX: 6350 * SCALE,
+        scaleW: 1.3,
+        scaleH: 1.3,
+        spin: 0,
+        turnTimer: 0,
+        honkTimer: 2.5,
+      },
+    ];
+
+    // Scurrying, jumping, unpredictable squirrels
+    const squirrels = [
+      { x: 500 * SCALE,  minX: 450 * SCALE,  maxX: 650 * SCALE,  baseY: roadY - 76 * SCALE, y: roadY - 76 * SCALE, vy: 0, dir: 1, spd: 85 * SCALE, twitchT: 0, jumpT: 2.2, startledT: 0 },
+      { x: 1380 * SCALE, minX: 1330 * SCALE, maxX: 1560 * SCALE, baseY: roadY - 78 * SCALE, y: roadY - 78 * SCALE, vy: 0, dir: 1, spd: 90 * SCALE, twitchT: 0, jumpT: 1.8, startledT: 0 },
+      { x: 2420 * SCALE, minX: 2370 * SCALE, maxX: 2620 * SCALE, baseY: roadY - 80 * SCALE, y: roadY - 80 * SCALE, vy: 0, dir: -1, spd: 95 * SCALE, twitchT: 0, jumpT: 2.5, startledT: 0 },
+      { x: 3260 * SCALE, minX: 3210 * SCALE, maxX: 3440 * SCALE, baseY: roadY - 82 * SCALE, y: roadY - 82 * SCALE, vy: 0, dir: 1, spd: 90 * SCALE, twitchT: 0, jumpT: 2.0, startledT: 0 },
+      { x: 4260 * SCALE, minX: 4210 * SCALE, maxX: 4470 * SCALE, baseY: roadY - 80 * SCALE, y: roadY - 80 * SCALE, vy: 0, dir: -1, spd: 100 * SCALE, twitchT: 0, jumpT: 1.7, startledT: 0 },
+      { x: 5140 * SCALE, minX: 5090 * SCALE, maxX: 5340 * SCALE, baseY: roadY - 84 * SCALE, y: roadY - 84 * SCALE, vy: 0, dir: 1, spd: 95 * SCALE, twitchT: 0, jumpT: 2.1, startledT: 0 },
+      { x: 6080 * SCALE, minX: 6030 * SCALE, maxX: 6290 * SCALE, baseY: roadY - 82 * SCALE, y: roadY - 82 * SCALE, vy: 0, dir: -1, spd: 90 * SCALE, twitchT: 0, jumpT: 1.9, startledT: 0 },
+      { x: 6780 * SCALE, minX: 6730 * SCALE, maxX: 6920 * SCALE, baseY: roadY - 78 * SCALE, y: roadY - 78 * SCALE, vy: 0, dir: 1, spd: 85 * SCALE, twitchT: 0, jumpT: 2.3, startledT: 0 },
+    ];
+
+    // Hungry, swooping black crows flying in from above and soaring back up
+    const birds = [
+      {
+        entryX: 850 * SCALE, entryY: -70 * SCALE,
+        perchX: 965 * SCALE, perchY: roadY - 175 * SCALE,
+        x: 965 * SCALE, y: roadY - 175 * SCALE,
+        state: 'PERCHED', startX: 0, startY: 0, targetX: 0, targetY: 0,
+        t: 0, flap: 0, cooldown: 1.0,
+      },
+      {
+        entryX: 1950 * SCALE, entryY: -70 * SCALE,
+        perchX: 2065 * SCALE, perchY: roadY - 170 * SCALE,
+        x: 2065 * SCALE, y: roadY - 170 * SCALE,
+        state: 'PERCHED', startX: 0, startY: 0, targetX: 0, targetY: 0,
+        t: 0, flap: 0, cooldown: 1.2,
+      },
+      {
+        entryX: 2850 * SCALE, entryY: -70 * SCALE,
+        perchX: 2950 * SCALE, perchY: roadY - 175 * SCALE,
+        x: 2950 * SCALE, y: roadY - 175 * SCALE,
+        state: 'PERCHED', startX: 0, startY: 0, targetX: 0, targetY: 0,
+        t: 0, flap: 0, cooldown: 1.5,
+      },
+      {
+        entryX: 3800 * SCALE, entryY: -70 * SCALE,
+        perchX: 3950 * SCALE, perchY: roadY - 180 * SCALE,
+        x: 3950 * SCALE, y: roadY - 180 * SCALE,
+        state: 'PERCHED', startX: 0, startY: 0, targetX: 0, targetY: 0,
+        t: 0, flap: 0, cooldown: 1.0,
+      },
+      {
+        entryX: 4750 * SCALE, entryY: -70 * SCALE,
+        perchX: 4830 * SCALE, perchY: roadY - 215 * SCALE,
+        x: 4830 * SCALE, y: roadY - 215 * SCALE,
+        state: 'PERCHED', startX: 0, startY: 0, targetX: 0, targetY: 0,
+        t: 0, flap: 0, cooldown: 1.2,
+      },
+      {
+        entryX: 5650 * SCALE, entryY: -70 * SCALE,
+        perchX: 5740 * SCALE, perchY: roadY - 185 * SCALE,
+        x: 5740 * SCALE, y: roadY - 185 * SCALE,
+        state: 'PERCHED', startX: 0, startY: 0, targetX: 0, targetY: 0,
+        t: 0, flap: 0, cooldown: 1.4,
+      },
+      {
+        entryX: 6550 * SCALE, entryY: -70 * SCALE,
+        perchX: 6650 * SCALE, perchY: roadY - 180 * SCALE,
+        x: 6650 * SCALE, y: roadY - 180 * SCALE,
+        state: 'PERCHED', startX: 0, startY: 0, targetX: 0, targetY: 0,
+        t: 0, flap: 0, cooldown: 1.1,
+      },
+    ];
+
+    // Grumpy Farmyard Geese patrolling the road that honk and charge!
+    const geese = [
+      { x: 1680 * SCALE, minX: 1580 * SCALE, maxX: 1760 * SCALE, dir: -1, spd: 45 * SCALE, chargeSpd: 110 * SCALE, state: 'PATROL', honkT: 0, wingFlap: 0, startledT: 0 },
+      { x: 3580 * SCALE, minX: 3480 * SCALE, maxX: 3680 * SCALE, dir: 1,  spd: 45 * SCALE, chargeSpd: 110 * SCALE, state: 'PATROL', honkT: 0, wingFlap: 0, startledT: 0 },
+      { x: 5460 * SCALE, minX: 5360 * SCALE, maxX: 5560 * SCALE, dir: -1, spd: 45 * SCALE, chargeSpd: 110 * SCALE, state: 'PATROL', honkT: 0, wingFlap: 0, startledT: 0 },
+      { x: 6940 * SCALE, minX: 6860 * SCALE, maxX: 7040 * SCALE, dir: -1, spd: 45 * SCALE, chargeSpd: 110 * SCALE, state: 'PATROL', honkT: 0, wingFlap: 0, startledT: 0 },
+    ];
+
+    const L = {
+      id: 5,
+      worldW,
+      worldH,
+      minX: 0,
+      maxX: worldW,
+      roadY,
+      platforms,
+      fences,
+      hayBales,
+      stoneWalls,
+      farmProps,
+      checkpoints,
+      respawnX: 80 * SCALE,
+      respawnY: roadY - 13 * SCALE,
+      tractors,
+      tractorSmoke: [],
+      smokeTimer: 0,
+      squirrels,
+      birds,
+      geese,
+      escaped: false,
+      escape: null,
+    };
+
+    // Smooth horizontal camera scrolling tracking player across farm world
+    L.customCamera = function (snap) {
+      const p = G.player;
+      if (!p) return;
+      const targetX = clamp(p.x - CW * 0.35, 0, Math.max(0, L.worldW - CW));
+      G.camX = snap ? targetX : lerp(G.camX, targetX, 0.15);
+      G.camY = 0;
+    };
+
+    L.respawn = function () {
+      const p = G.player;
+      p.x = L.respawnX;
+      p.y = L.respawnY;
+      p.vx = 0;
+      p.vy = 0;
+      p.z = 0;
+      p.vz = 0;
+      p.invuln = 1.8;
+      L.customCamera(true);
+    };
+
+    L.progressFrac = function () {
+      const p = G.player;
+      return clamp(p.x / (7120 * SCALE), 0, 1);
+    };
+
+    L.progressLabel = function () {
+      const pct = Math.min(100, Math.round(L.progressFrac() * 100));
+      return L.escaped ? '🫐 Home at the Patch!' : `Farm Journey: ${pct}%`;
+    };
+
+    L.isScary = function () {
+      const p = G.player;
+      for (const tr of L.tractors) {
+        if (Math.abs(p.x - tr.x) < 240 * SCALE * tr.scaleW && p.y > roadY - 60 * SCALE) return true;
+      }
+      for (const b of L.birds) {
+        if (b.state === 'DIVING' && Math.hypot(p.x - b.x, p.y - b.y) < 180 * SCALE) return true;
+      }
+      for (const s of L.squirrels) {
+        if (s.startledT <= 0 && Math.hypot(p.x - s.x, p.y - s.y) < 75 * SCALE) return true;
+      }
+      for (const g of L.geese) {
+        if (g.startledT <= 0 && g.state === 'CHARGE' && Math.abs(p.x - g.x) < 160 * SCALE) return true;
+      }
+      return false;
+    };
+
+    L.update = function (dt) {
+      const p = G.player;
+
+      // Escape celebration sequence
+      if (L.escape) {
+        if (updateEscape(L, dt)) clearLevel();
+        return;
+      }
+
+      // Checkpoints update
+      for (const cp of L.checkpoints) {
+        if (!cp.reached && p.x >= cp.x && p.onGround) {
+          cp.reached = true;
+          L.respawnX = cp.x;
+          L.respawnY = roadY - p.r;
+          showToast('⛳ Farm Checkpoint Reached!');
+          playSfx('collect');
+          spawnParticles(cp.x, roadY - 20 * SCALE, 12, '#9dffb0', { minSpd: 0.8, maxSpd: 2.2, life: 400 });
+        }
+      }
+
+      // 1. Update Multiple Vintage Tractors
+      for (const tr of L.tractors) {
+        if (tr.turnTimer > 0) {
+          tr.turnTimer -= dt;
+        } else {
+          tr.x += tr.dir * tr.spd * dt;
+          tr.spin += (tr.dir * tr.spd / (32 * SCALE * tr.scaleW)) * dt;
+
+          if (tr.dir === -1 && tr.x <= tr.minX) {
+            tr.dir = 1;
+            tr.turnTimer = 0.7;
+          } else if (tr.dir === 1 && tr.x >= tr.maxX) {
+            tr.dir = -1;
+            tr.turnTimer = 0.7;
+          }
+        }
+
+        // Tractor proximity rumble
+        const distToTractor = Math.abs(p.x - tr.x);
+        if (distToTractor < 420 * SCALE && p.y > roadY - 55 * SCALE) {
+          G.shake = Math.max(G.shake, 2.5 * SCALE * (1 - distToTractor / (420 * SCALE)));
+        }
+
+        // Tractor collision:
+        // A. Jumping/stomping onto the tractor hood gives a huge launch boost!
+        const hoodW = 54 * SCALE * tr.scaleW;
+        const hoodH = 48 * SCALE * tr.scaleH;
+        if (p.vy >= 0 && Math.abs(p.x - tr.x) < hoodW && p.y <= roadY - 44 * SCALE * tr.scaleH && p.y >= roadY - 78 * SCALE * tr.scaleH) {
+          p.vy = -PHYS.jumpV * 1.35 * SCALE;
+          p.squash = -0.45;
+          playSfx('launch');
+          addScorePop(p.x, p.y - 14 * SCALE, `+50 🚜 ${tr.name}!`);
+          G.score += 50;
+          spawnParticles(p.x, p.y + p.r, 12, '#ffd738', { minSpd: 1.2, maxSpd: 3.2, life: 380 });
+        } else if (distToTractor < 58 * SCALE * tr.scaleW && p.y > roadY - 50 * SCALE * tr.scaleH && p.invuln <= 0) {
+          // B. Colliding on the road gets run over!
+          hurtPlayer(`🚜 Rumbled over by the ${tr.name}! Hop onto the fences or bales!`);
+        }
+      }
+
+      // Tractor exhaust smoke puffs
+      L.smokeTimer -= dt;
+      if (L.smokeTimer <= 0) {
+        L.smokeTimer = 0.14;
+        for (const tr of L.tractors) {
+          const pipeX = tr.x + (tr.dir === -1 ? -28 : 28) * SCALE * tr.scaleW;
+          const pipeY = roadY - 70 * SCALE * tr.scaleH;
+          L.tractorSmoke.push({
+            x: pipeX,
+            y: pipeY,
+            vx: randRange(-15, 15) * SCALE,
+            vy: randRange(-32, -54) * SCALE,
+            r: 5 * SCALE,
+            maxR: 20 * SCALE,
+            alpha: 0.7,
+            life: 0.9,
+            maxLife: 0.9,
+          });
+        }
+      }
+      for (const sm of L.tractorSmoke) {
+        sm.x += sm.vx * dt;
+        sm.y += sm.vy * dt;
+        sm.life -= dt;
+        const prog = 1 - sm.life / sm.maxLife;
+        sm.r = lerp(5 * SCALE, sm.maxR, prog);
+        sm.alpha = 0.7 * (1 - prog);
+      }
+      L.tractorSmoke = L.tractorSmoke.filter(sm => sm.life > 0);
+
+      // 2. Update Squirrels (now larger, jumping and less predictable)
+      for (const sq of L.squirrels) {
+        if (sq.startledT > 0) {
+          sq.startledT -= dt;
+          continue;
+        }
+
+        // Vertical hopping physics
+        if (sq.y < sq.baseY || sq.vy < 0) {
+          sq.vy += 850 * SCALE * dt;
+          sq.y += sq.vy * dt;
+          if (sq.y >= sq.baseY) {
+            sq.y = sq.baseY;
+            sq.vy = 0;
+          }
+        }
+
+        // Jump countdown timer
+        sq.jumpT -= dt;
+        if (sq.jumpT <= 0 && sq.y >= sq.baseY) {
+          sq.vy = -260 * SCALE;
+          sq.jumpT = randRange(1.8, 3.4);
+          // Sometimes dart the other way on jump landing!
+          if (Math.random() < 0.4) sq.dir = -sq.dir;
+        }
+
+        // Horizontal pacing with twitches
+        sq.twitchT -= dt;
+        if (sq.twitchT <= 0) {
+          sq.x += sq.dir * sq.spd * dt;
+          if (sq.x <= sq.minX) {
+            sq.x = sq.minX; sq.dir = 1; sq.twitchT = randRange(0.3, 0.7);
+          } else if (sq.x >= sq.maxX) {
+            sq.x = sq.maxX; sq.dir = -1; sq.twitchT = randRange(0.3, 0.7);
+          }
+        }
+
+        // Squirrel collision
+        const distSq = Math.hypot(p.x - sq.x, p.y - sq.y);
+        if (distSq < 28 * SCALE) {
+          if (p.vy > 0 && p.y < sq.y - 6 * SCALE) {
+            // Stomp squirrel from above!
+            p.vy = -PHYS.jumpV * 0.95 * SCALE;
+            p.squash = -0.35;
+            playSfx('jump');
+            sq.startledT = 4.0;
+            addScorePop(sq.x, sq.y - 12 * SCALE, '+50 🐿️');
+            G.score += 50;
+            spawnParticles(sq.x, sq.y, 8, '#f5d378', { minSpd: 1.0, maxSpd: 2.2, life: 350 });
+          } else if (p.invuln <= 0) {
+            hurtPlayer('🐿️ Snapped at by a hungry jumping squirrel! Jump over them!');
+          }
+        }
+      }
+
+      // 3. Update Swooping Crows (fly in from above, swoop, and soar away!)
+      for (const b of L.birds) {
+        b.flap += dt * 16;
+        if (b.cooldown > 0) b.cooldown -= dt;
+
+        if (b.state === 'PERCHED') {
+          b.x = b.perchX;
+          b.y = b.perchY;
+          const distToP = Math.abs(p.x - b.perchX);
+          if (b.cooldown <= 0 && distToP < 300 * SCALE && p.x > b.perchX - 220 * SCALE) {
+            b.state = 'FLYING_IN';
+            b.x = b.entryX;
+            b.y = b.entryY;
+            b.startX = b.entryX;
+            b.startY = b.entryY;
+            b.targetX = p.x + 40 * SCALE;
+            b.targetY = roadY - 26 * SCALE;
+            b.t = 0;
+            playSfx('whoosh');
+          }
+        } else if (b.state === 'FLYING_IN') {
+          // Swooping dive from sky down towards blueberry
+          b.t += dt * 1.35;
+          const u = clamp(b.t, 0, 1);
+          b.x = lerp(b.startX, b.targetX, u);
+          b.y = lerp(b.startY, b.targetY, Math.sin(u * Math.PI * 0.5));
+
+          if (Math.hypot(p.x - b.x, p.y - b.y) < 24 * SCALE && p.invuln <= 0) {
+            hurtPlayer('🦅 Snapped at by a giant swooping crow! Duck or jump out of the way!');
+          }
+
+          if (u >= 1) {
+            b.state = 'FLYING_OUT';
+            b.startX = b.x;
+            b.startY = b.y;
+            b.exitX = b.x + 380 * SCALE;
+            b.exitY = -80 * SCALE;
+            b.t = 0;
+          }
+        } else if (b.state === 'FLYING_OUT') {
+          // Soaring high up into the clouds and away
+          b.t += dt * 0.95;
+          const u = clamp(b.t, 0, 1);
+          b.x = lerp(b.startX, b.exitX, u);
+          b.y = lerp(b.startY, b.exitY, 1 - Math.cos(u * Math.PI * 0.5));
+
+          if (u >= 1) {
+            b.state = 'PERCHED';
+            b.x = b.perchX;
+            b.y = b.perchY;
+            b.cooldown = 4.2;
+          }
+        }
+      }
+
+      // 4. Update Grumpy Geese (patrols, detects blueberry, honks and charges!)
+      for (const g of L.geese) {
+        g.wingFlap += dt * (g.state === 'CHARGE' ? 22 : 8);
+        if (g.startledT > 0) {
+          g.startledT -= dt;
+          continue;
+        }
+
+        const distToP = Math.abs(p.x - g.x);
+        const yDist = Math.abs(p.y - (roadY - 14 * SCALE));
+
+        if (g.state === 'PATROL') {
+          g.x += g.dir * g.spd * dt;
+          if (g.x <= g.minX) { g.x = g.minX; g.dir = 1; }
+          else if (g.x >= g.maxX) { g.x = g.maxX; g.dir = -1; }
+
+          // If blueberry is on ground nearby, charge!
+          if (distToP < 190 * SCALE && yDist < 30 * SCALE) {
+            g.state = 'CHARGE';
+            g.dir = p.x > g.x ? 1 : -1;
+            playSfx('whoosh');
+          }
+        } else if (g.state === 'CHARGE') {
+          g.x += g.dir * g.chargeSpd * dt;
+          if (distToP > 280 * SCALE || yDist > 60 * SCALE) {
+            g.state = 'PATROL';
+          }
+          if (g.x <= g.minX - 50 * SCALE) { g.dir = 1; }
+          else if (g.x >= g.maxX + 50 * SCALE) { g.dir = -1; }
+        }
+
+        // Goose collision
+        const gooseDist = Math.hypot(p.x - g.x, p.y - (roadY - 14 * SCALE));
+        if (gooseDist < 26 * SCALE) {
+          if (p.vy > 0 && p.y < roadY - 26 * SCALE) {
+            // Jump on goose!
+            p.vy = -PHYS.jumpV * 1.05 * SCALE;
+            p.squash = -0.4;
+            playSfx('jump');
+            g.startledT = 3.5;
+            g.state = 'PATROL';
+            addScorePop(g.x, roadY - 32 * SCALE, '+60 🪿 HONK!');
+            G.score += 60;
+            spawnParticles(g.x, roadY - 16 * SCALE, 10, '#ffffff', { minSpd: 1.0, maxSpd: 2.5, life: 350 });
+          } else if (p.invuln <= 0) {
+            hurtPlayer('🪿 Pinched by a grumpy charging farm goose! Hop over it!');
+          }
+        }
+      }
+
+      // 5. Reach the Blueberry Patch Win Condition!
+      if (!L.escaped && p.x >= 7120 * SCALE) {
+        L.escaped = true;
+        p.vx = 0;
+        p.vy = 0;
+        startEscape(L, {
+          overX: 7260 * SCALE,
+          apexY: roadY - 42 * SCALE,
+          awayX: 60 * SCALE,
+          awayY: 0,
+          dur: 2.2,
+          trail: '#8fd6ff',
+        });
+        playSfx('clear');
+        playSfx('win');
+        showToast('🏡 Home Sweet Home! You made it back to the Blueberry Patch!');
+        return;
+      }
+    };
+
+    L.draw = function () {
+      // 1. Sky, Sun, Clouds & Multiple Rolling Hill Ranges
+      drawFarmSkyAndHills(L);
+
+      // 2. Red Barn, Silo, Windmill, and Farm Animals
+      drawFarmBackgroundProps(L);
+
+      // 3. Country Dirt Road & Split-Rail Wooden Fences
+      drawFarmTerrain(L);
+
+      // 4. Farm Obstacles: Hay Bales, Stone Walls, Crates & Troughs
+      drawFarmPlatforms(L);
+
+      // 5. Multiple Big Tractors & Exhaust Smoke
+      drawTractors(L);
+
+      // 6. Squirrels, Crows, & Grumpy Geese
+      drawSquirrels(L);
+      drawBirds(L);
+      drawGeese(L);
+
+      // 7. The Blueberry Patch Finish Line
+      drawBlueberryPatch(L);
+
+      // 8. Collectible Gold Coins & Blueberry Player
+      drawCoins();
+      drawPlayer();
+    };
+
+    return L;
+  }
+
+  // ============================================================
+  // LEVEL 5 DRAWING HELPERS
+  // ============================================================
+  function drawFarmSkyAndHills(L) {
+    ctx.save();
+    // Sky gradient across visible screen viewport
+    const skyG = ctx.createLinearGradient(0, 0, 0, CH);
+    skyG.addColorStop(0, '#5cb7f0');
+    skyG.addColorStop(0.55, '#a4daf9');
+    skyG.addColorStop(0.85, '#e4f3fd');
+    skyG.addColorStop(1, '#ffeed4');
+    ctx.fillStyle = skyG;
+    ctx.fillRect(G.camX, 0, CW, CH);
+
+    // Warm morning sun in sky
+    const sunScreenX = CW * 0.78;
+    const sunScreenY = CH * 0.22;
+    const sunWorldX = G.camX + sunScreenX;
+    const sunWorldY = sunScreenY;
+    const sunG = ctx.createRadialGradient(sunWorldX, sunWorldY, 6 * SCALE, sunWorldX, sunWorldY, 54 * SCALE);
+    sunG.addColorStop(0, '#ffffff');
+    sunG.addColorStop(0.25, '#fff7c2');
+    sunG.addColorStop(0.65, 'rgba(255, 230, 110, 0.45)');
+    sunG.addColorStop(1, 'rgba(255, 220, 90, 0)');
+    ctx.fillStyle = sunG;
+    ctx.beginPath();
+    ctx.arc(sunWorldX, sunWorldY, 54 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Parallax Drifting Clouds
+    const cloudSpeed = G.t * 0.006;
+    for (let i = 0; i < 7; i++) {
+      const cxRaw = (i * 320 * SCALE + cloudSpeed * 12) - G.camX * 0.15;
+      const cx = G.camX + ((cxRaw % (CW + 200 * SCALE) + (CW + 200 * SCALE)) % (CW + 200 * SCALE)) - 100 * SCALE;
+      const cy = (35 + (i % 3) * 28) * SCALE;
+      const cw = (70 + (i % 4) * 20) * SCALE;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, cw * 0.28, 0, Math.PI * 2);
+      ctx.arc(cx + cw * 0.25, cy - cw * 0.1, cw * 0.32, 0, Math.PI * 2);
+      ctx.arc(cx + cw * 0.55, cy, cw * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Layer 1: Majestic Distant Blue Mountains (Parallax 0.12)
+    ctx.fillStyle = '#4a7c88';
+    ctx.beginPath();
+    ctx.moveTo(G.camX, CH);
+    const hill0Offset = G.camX * 0.12;
+    for (let x = 0; x <= CW + 80 * SCALE; x += 80 * SCALE) {
+      const worldX = G.camX + x;
+      const hy = L.roadY - 180 * SCALE + Math.sin((worldX + hill0Offset) * 0.0012) * 45 * SCALE;
+      ctx.lineTo(worldX, hy);
+    }
+    ctx.lineTo(G.camX + CW, CH);
+    ctx.closePath();
+    ctx.fill();
+
+    // Layer 2: Distant soft blue-green hills (Parallax 0.22)
+    ctx.fillStyle = '#568f6e';
+    ctx.beginPath();
+    ctx.moveTo(G.camX, CH);
+    const hill1Offset = G.camX * 0.22;
+    for (let x = 0; x <= CW + 60 * SCALE; x += 60 * SCALE) {
+      const worldX = G.camX + x;
+      const hy = L.roadY - 135 * SCALE + Math.sin((worldX + hill1Offset) * 0.0019) * 35 * SCALE;
+      ctx.lineTo(worldX, hy);
+    }
+    ctx.lineTo(G.camX + CW, CH);
+    ctx.closePath();
+    ctx.fill();
+
+    // Layer 3: Mid-distance rolling pastures & golden wheat fields (Parallax 0.38)
+    ctx.fillStyle = '#78b556';
+    ctx.beginPath();
+    ctx.moveTo(G.camX, CH);
+    const hill2Offset = G.camX * 0.38;
+    for (let x = 0; x <= CW + 50 * SCALE; x += 50 * SCALE) {
+      const worldX = G.camX + x;
+      const hy = L.roadY - 88 * SCALE + Math.sin((worldX + hill2Offset) * 0.0032) * 28 * SCALE;
+      ctx.lineTo(worldX, hy);
+    }
+    ctx.lineTo(G.camX + CW, CH);
+    ctx.closePath();
+    ctx.fill();
+
+    // Layer 4: Close rolling grassy knolls with wildflowers (Parallax 0.55)
+    ctx.fillStyle = '#8bc34a';
+    ctx.beginPath();
+    ctx.moveTo(G.camX, CH);
+    const hill3Offset = G.camX * 0.55;
+    for (let x = 0; x <= CW + 40 * SCALE; x += 40 * SCALE) {
+      const worldX = G.camX + x;
+      const hy = L.roadY - 48 * SCALE + Math.sin((worldX + hill3Offset) * 0.0048) * 18 * SCALE;
+      ctx.lineTo(worldX, hy);
+    }
+    ctx.lineTo(G.camX + CW, CH);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawRedBarnAndSilo(L, bx, by) {
+    const bw = 240 * SCALE;
+    const bh = 180 * SCALE;
+
+    ctx.save();
+    // 1. Silo on left side of barn
+    const sx = bx - 62 * SCALE;
+    const sy = by + 20 * SCALE;
+    const sw = 52 * SCALE;
+    const sh = 160 * SCALE;
+
+    // Silo drop shadow
+    ctx.fillStyle = 'rgba(20, 35, 15, 0.2)';
+    ctx.fillRect(sx + 5 * SCALE, sy + 6 * SCALE, sw, sh);
+
+    // Silo metallic body with horizontal bands
+    const siloG = ctx.createLinearGradient(sx, 0, sx + sw, 0);
+    siloG.addColorStop(0, '#dbe2ea');
+    siloG.addColorStop(0.35, '#ffffff');
+    siloG.addColorStop(0.75, '#b4c1d2');
+    siloG.addColorStop(1, '#8192a6');
+    ctx.fillStyle = siloG;
+    ctx.fillRect(sx, sy, sw, sh);
+
+    // Corrugated metal horizontal ring lines
+    ctx.strokeStyle = 'rgba(90, 110, 135, 0.4)';
+    ctx.lineWidth = 1.2 * SCALE;
+    for (let i = 1; i <= 8; i++) {
+      const ly = sy + i * (sh / 9);
+      ctx.beginPath(); ctx.moveTo(sx, ly); ctx.lineTo(sx + sw, ly); ctx.stroke();
+    }
+
+    // Silo dome cap
+    ctx.fillStyle = '#9cb0c6';
+    ctx.beginPath();
+    ctx.arc(sx + sw / 2, sy, sw / 2, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5 * SCALE;
+    ctx.stroke();
+
+    // 2. The Big Red Barn Main Structure
+    // Red barn drop shadow
+    ctx.fillStyle = 'rgba(20, 35, 15, 0.22)';
+    ctx.fillRect(bx + 8 * SCALE, by + 8 * SCALE, bw, bh);
+
+    // Red painted wood wall with vertical plank lines
+    const barnG = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+    barnG.addColorStop(0, '#c72a2a');
+    barnG.addColorStop(0.5, '#b32222');
+    barnG.addColorStop(1, '#8f1616');
+    ctx.fillStyle = barnG;
+    ctx.fillRect(bx, by + 45 * SCALE, bw, bh - 45 * SCALE);
+
+    // Vertical plank lines
+    ctx.strokeStyle = 'rgba(90, 12, 12, 0.45)';
+    ctx.lineWidth = 1 * SCALE;
+    for (let px = bx + 12 * SCALE; px < bx + bw; px += 12 * SCALE) {
+      ctx.beginPath(); ctx.moveTo(px, by + 45 * SCALE); ctx.lineTo(px, by + bh); ctx.stroke();
+    }
+
+    // Crisp white corner trim boards
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bx, by + 45 * SCALE, 7 * SCALE, bh - 45 * SCALE);
+    ctx.fillRect(bx + bw - 7 * SCALE, by + 45 * SCALE, 7 * SCALE, bh - 45 * SCALE);
+    ctx.fillRect(bx, by + bh - 6 * SCALE, bw, 6 * SCALE);
+
+    // Gambrel Barn Roof (classic double-angle roof)
+    ctx.fillStyle = '#3a4454';
+    ctx.beginPath();
+    ctx.moveTo(bx - 12 * SCALE, by + 45 * SCALE);
+    ctx.lineTo(bx + bw * 0.18, by + 12 * SCALE);
+    ctx.lineTo(bx + bw * 0.5, by - 12 * SCALE);
+    ctx.lineTo(bx + bw * 0.82, by + 12 * SCALE);
+    ctx.lineTo(bx + bw + 12 * SCALE, by + 45 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+
+    // White fascia board along eaves
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4 * SCALE;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(bx - 12 * SCALE, by + 45 * SCALE);
+    ctx.lineTo(bx + bw * 0.18, by + 12 * SCALE);
+    ctx.lineTo(bx + bw * 0.5, by - 12 * SCALE);
+    ctx.lineTo(bx + bw * 0.82, by + 12 * SCALE);
+    ctx.lineTo(bx + bw + 12 * SCALE, by + 45 * SCALE);
+    ctx.stroke();
+
+    // Upper Hayloft Door & Hoist
+    const hdw = 38 * SCALE, hdh = 44 * SCALE;
+    const hdx = bx + bw / 2 - hdw / 2, hdy = by + 22 * SCALE;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(hdx - 2 * SCALE, hdy - 2 * SCALE, hdw + 4 * SCALE, hdh + 4 * SCALE);
+    ctx.fillStyle = '#1e2430';
+    ctx.fillRect(hdx, hdy, hdw, hdh);
+    // Golden straw spilling from loft
+    ctx.fillStyle = '#f2cc52';
+    ctx.beginPath();
+    ctx.moveTo(hdx + 6 * SCALE, hdy + hdh);
+    ctx.lineTo(hdx + hdw - 6 * SCALE, hdy + hdh);
+    ctx.lineTo(hdx + hdw / 2 + 4 * SCALE, hdy + hdh + 14 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+
+    // Double Barn Doors with White Crossbucks (X)
+    const dw = 72 * SCALE, dh = 78 * SCALE;
+    const dx = bx + bw / 2 - dw / 2, dy = by + bh - dh;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(dx - 3 * SCALE, dy - 3 * SCALE, dw + 6 * SCALE, dh + 3 * SCALE);
+    ctx.fillStyle = '#8f1616';
+    ctx.fillRect(dx, dy, dw, dh);
+    // Center door seam
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(dx + dw / 2 - 1.5 * SCALE, dy, 3 * SCALE, dh);
+    // Crossbucks on both door halves
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3.5 * SCALE;
+    // Left door X
+    ctx.beginPath(); ctx.moveTo(dx + 2 * SCALE, dy + 2 * SCALE); ctx.lineTo(dx + dw / 2 - 2 * SCALE, dy + dh - 2 * SCALE); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dx + 2 * SCALE, dy + dh - 2 * SCALE); ctx.lineTo(dx + dw / 2 - 2 * SCALE, dy + 2 * SCALE); ctx.stroke();
+    // Right door X
+    ctx.beginPath(); ctx.moveTo(dx + dw / 2 + 2 * SCALE, dy + 2 * SCALE); ctx.lineTo(dx + dw - 2 * SCALE, dy + dh - 2 * SCALE); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dx + dw / 2 + 2 * SCALE, dy + dh - 2 * SCALE); ctx.lineTo(dx + dw - 2 * SCALE, dy + 2 * SCALE); ctx.stroke();
+
+    // Roof Cupola with Weather Vane
+    const cpx = bx + bw / 2 - 14 * SCALE, cpy = by - 36 * SCALE;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cpx, cpy, 28 * SCALE, 24 * SCALE);
+    ctx.fillStyle = '#3a4454';
+    ctx.beginPath();
+    ctx.moveTo(cpx - 4 * SCALE, cpy); ctx.lineTo(cpx + 14 * SCALE, cpy - 12 * SCALE); ctx.lineTo(cpx + 32 * SCALE, cpy);
+    ctx.closePath();
+    ctx.fill();
+
+    // Golden Weather Vane Rooster
+    ctx.fillStyle = '#ffd738';
+    ctx.font = `${14 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🐓', bx + bw / 2, cpy - 16 * SCALE);
+
+    ctx.restore();
+  }
+
+  function drawWindmill(L, wx, wy) {
+    ctx.save();
+    // Wooden lattice tower
+    const tw = 36 * SCALE, th = 135 * SCALE;
+    ctx.strokeStyle = '#7c5332';
+    ctx.lineWidth = 2 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(wx - tw / 2, wy); ctx.lineTo(wx - 8 * SCALE, wy - th);
+    ctx.lineTo(wx + 8 * SCALE, wy - th); ctx.lineTo(wx + tw / 2, wy);
+    ctx.stroke();
+
+    // Cross bracing
+    for (let i = 1; i <= 4; i++) {
+      const y1 = wy - (i - 1) * (th / 4);
+      const y2 = wy - i * (th / 4);
+      const w1 = lerp(tw / 2, 8 * SCALE, (i - 1) / 4);
+      const w2 = lerp(tw / 2, 8 * SCALE, i / 4);
+      ctx.beginPath(); ctx.moveTo(wx - w1, y1); ctx.lineTo(wx + w2, y2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(wx + w1, y1); ctx.lineTo(wx - w2, y2); ctx.stroke();
+    }
+
+    // Rotating 4-blade fan
+    const hubX = wx, hubY = wy - th;
+    const fanRot = G.t * 0.0018;
+    ctx.save();
+    ctx.translate(hubX, hubY);
+    ctx.rotate(fanRot);
+    ctx.fillStyle = 'rgba(240, 245, 255, 0.9)';
+    ctx.strokeStyle = '#8a9bb0';
+    ctx.lineWidth = 1 * SCALE;
+    for (let b = 0; b < 4; b++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(-2 * SCALE, 0);
+      ctx.lineTo(6 * SCALE, -38 * SCALE);
+      ctx.lineTo(-6 * SCALE, -42 * SCALE);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Central hub cap
+    ctx.fillStyle = '#ffd738';
+    ctx.beginPath(); ctx.arc(hubX, hubY, 4 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawFarmAnimals(L) {
+    const roadY = L.roadY;
+
+    // 1. Dairy Cow (Chewing cud in pasture, tail swishing)
+    drawDairyCow(720 * SCALE, roadY - 12 * SCALE);
+    drawDairyCow(1860 * SCALE, roadY - 14 * SCALE);
+
+    // 2. Fluffy White Sheep grazing on grassy verge
+    drawSheep(1340 * SCALE, roadY - 10 * SCALE);
+    drawSheep(2160 * SCALE, roadY - 12 * SCALE);
+
+    // 3. Happy Pink Pig in Mud Pen
+    drawPigInMudPen(1620 * SCALE, roadY);
+
+    // 4. Chickens & Rooster pecking the ground
+    drawChicken(650 * SCALE, roadY - 8 * SCALE, false);
+    drawChicken(675 * SCALE, roadY - 6 * SCALE, true); // rooster
+    drawChicken(1110 * SCALE, roadY - 8 * SCALE, false);
+  }
+
+  function drawDairyCow(cx, cy) {
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Cow drop shadow
+    ctx.fillStyle = 'rgba(25, 40, 15, 0.2)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 36 * SCALE, 9 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Four Legs
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#4a5568';
+    ctx.lineWidth = 0.8 * SCALE;
+    for (let lx of [-22, -14, 14, 22]) {
+      roundRect(lx * SCALE, -22 * SCALE, 5 * SCALE, 22 * SCALE, 2 * SCALE);
+      ctx.fill(); ctx.stroke();
+      // Black hooves
+      ctx.fillStyle = '#2d3748';
+      roundRect(lx * SCALE, -4 * SCALE, 5 * SCALE, 4 * SCALE, 1 * SCALE);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+    }
+
+    // Swishing tail
+    const tailSwish = Math.sin(G.t * 0.004) * 0.35;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(-24 * SCALE, -34 * SCALE);
+    ctx.quadraticCurveTo(-34 * SCALE + tailSwish * 10 * SCALE, -24 * SCALE, -30 * SCALE + tailSwish * 14 * SCALE, -12 * SCALE);
+    ctx.stroke();
+    // Tail hair tuft
+    ctx.fillStyle = '#1a202c';
+    ctx.beginPath();
+    ctx.arc(-30 * SCALE + tailSwish * 14 * SCALE, -12 * SCALE, 3 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cow Body (White with black patches)
+    ctx.fillStyle = '#ffffff';
+    roundRect(-26 * SCALE, -42 * SCALE, 52 * SCALE, 26 * SCALE, 8 * SCALE);
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e0';
+    ctx.stroke();
+
+    // Black Holstein spots on body
+    ctx.fillStyle = '#1a202c';
+    ctx.beginPath(); ctx.ellipse(-14 * SCALE, -34 * SCALE, 8 * SCALE, 6 * SCALE, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6 * SCALE, -36 * SCALE, 10 * SCALE, 7 * SCALE, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(14 * SCALE, -26 * SCALE, 6 * SCALE, 5 * SCALE, 0.4, 0, Math.PI * 2); ctx.fill();
+
+    // Udder
+    ctx.fillStyle = '#fbb6ce';
+    ctx.beginPath();
+    ctx.ellipse(-6 * SCALE, -18 * SCALE, 6 * SCALE, 4 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cow Head (with gentle cud chewing)
+    const cud = Math.sin(G.t * 0.007) * 1.5 * SCALE;
+    const hx = 26 * SCALE, hy = -44 * SCALE;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(hx, hy, 12 * SCALE, 14 * SCALE, 0.1, 0, Math.PI * 2); ctx.fill();
+
+    // Black patch over eye
+    ctx.fillStyle = '#1a202c';
+    ctx.beginPath(); ctx.ellipse(hx + 2 * SCALE, hy - 4 * SCALE, 6 * SCALE, 5 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Gentle eye
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(hx + 4 * SCALE, hy - 4 * SCALE, 2.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2d3748';
+    ctx.beginPath(); ctx.arc(hx + 4.5 * SCALE, hy - 4 * SCALE, 1.4 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Pink Snout / Muzzle with chewing animation
+    ctx.fillStyle = '#fbb6ce';
+    ctx.beginPath();
+    ctx.ellipse(hx + 6 * SCALE + cud, hy + 8 * SCALE, 8 * SCALE, 5 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#9b2c2c';
+    ctx.beginPath(); ctx.arc(hx + 4 * SCALE + cud, hy + 8 * SCALE, 1.2 * SCALE, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + 8 * SCALE + cud, hy + 8 * SCALE, 1.2 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Horns & Ears
+    ctx.fillStyle = '#edf2f7';
+    ctx.beginPath(); ctx.ellipse(hx - 8 * SCALE, hy - 6 * SCALE, 6 * SCALE, 2.5 * SCALE, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath(); ctx.moveTo(hx - 2 * SCALE, hy - 12 * SCALE); ctx.lineTo(hx - 5 * SCALE, hy - 18 * SCALE); ctx.lineTo(hx + 2 * SCALE, hy - 13 * SCALE); ctx.fill();
+
+    // Golden cowbell around neck
+    ctx.fillStyle = '#ecc94b';
+    ctx.beginPath(); ctx.arc(hx - 4 * SCALE, hy + 14 * SCALE, 3 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawSheep(sx, sy) {
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    // Sheep drop shadow
+    ctx.fillStyle = 'rgba(25, 40, 15, 0.2)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 24 * SCALE, 7 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Little black legs
+    ctx.fillStyle = '#1a202c';
+    for (let lx of [-12, -6, 6, 12]) {
+      roundRect(lx * SCALE, -14 * SCALE, 3.2 * SCALE, 14 * SCALE, 1.5 * SCALE); ctx.fill();
+    }
+
+    // Puffy cloud wool body
+    ctx.fillStyle = '#f7fafc';
+    const r = 9 * SCALE;
+    const pts = [[-12, -20], [-4, -25], [6, -24], [13, -19], [11, -12], [2, -10], [-8, -11], [-14, -14], [0, -18]];
+    for (const [px, py] of pts) {
+      ctx.beginPath(); ctx.arc(px * SCALE, py * SCALE, r, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Black Sheep Face
+    ctx.fillStyle = '#1a202c';
+    ctx.beginPath(); ctx.ellipse(15 * SCALE, -20 * SCALE, 7 * SCALE, 9 * SCALE, 0.2, 0, Math.PI * 2); ctx.fill();
+    // Little floppy ears
+    ctx.beginPath(); ctx.ellipse(12 * SCALE, -26 * SCALE, 4 * SCALE, 2 * SCALE, -0.6, 0, Math.PI * 2); ctx.fill();
+    // White eye dot
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(17 * SCALE, -22 * SCALE, 1.4 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawPigInMudPen(px, py) {
+    ctx.save();
+    ctx.translate(px, py);
+
+    // Wooden Pen Fence Rails
+    const pw = 120 * SCALE, ph = 42 * SCALE;
+    ctx.fillStyle = '#6b4625';
+    for (let i = 0; i <= 3; i++) {
+      const postX = -pw / 2 + i * (pw / 3);
+      roundRect(postX - 2.5 * SCALE, -ph, 5 * SCALE, ph, 2 * SCALE); ctx.fill();
+    }
+    // Horizontal wooden rails
+    ctx.fillStyle = '#85582f';
+    roundRect(-pw / 2, -ph * 0.75, pw, 5 * SCALE, 2 * SCALE); ctx.fill();
+    roundRect(-pw / 2, -ph * 0.35, pw, 5 * SCALE, 2 * SCALE); ctx.fill();
+
+    // Dark brown mud puddle inside the pen
+    ctx.fillStyle = '#5c3818';
+    ctx.beginPath();
+    ctx.ellipse(0, -6 * SCALE, pw * 0.45, 12 * SCALE, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Plump Pink Pig Wallowing in Mud
+    ctx.fillStyle = '#f687b3';
+    ctx.beginPath(); ctx.ellipse(0, -14 * SCALE, 19 * SCALE, 13 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Pig Head
+    ctx.beginPath(); ctx.ellipse(14 * SCALE, -16 * SCALE, 10 * SCALE, 10 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Pointy ears
+    ctx.fillStyle = '#ed64a6';
+    ctx.beginPath(); ctx.moveTo(10 * SCALE, -24 * SCALE); ctx.lineTo(14 * SCALE, -30 * SCALE); ctx.lineTo(17 * SCALE, -23 * SCALE); ctx.fill();
+
+    // Pig Snout with two nostril dots
+    ctx.fillStyle = '#fbb6ce';
+    ctx.beginPath(); ctx.ellipse(22 * SCALE, -14 * SCALE, 5 * SCALE, 4 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#97266d';
+    ctx.beginPath(); ctx.arc(21 * SCALE, -14 * SCALE, 1 * SCALE, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(23.5 * SCALE, -14 * SCALE, 1 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Happy closed eyes (arcs)
+    ctx.strokeStyle = '#4a154b';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.beginPath(); ctx.arc(14 * SCALE, -18 * SCALE, 2 * SCALE, Math.PI * 0.8, Math.PI * 1.8); ctx.stroke();
+
+    // Curly corkscrew tail
+    const tailWag = Math.sin(G.t * 0.01) * 3 * SCALE;
+    ctx.strokeStyle = '#ed64a6';
+    ctx.lineWidth = 2 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(-18 * SCALE, -16 * SCALE);
+    ctx.bezierCurveTo(-26 * SCALE, -20 * SCALE + tailWag, -22 * SCALE, -28 * SCALE, -26 * SCALE, -24 * SCALE);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawChicken(cx, cy, isRooster) {
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Pecking head motion
+    const peck = Math.sin(G.t * 0.009 + cx) * 3 * SCALE;
+
+    // Body
+    ctx.fillStyle = isRooster ? '#9b2c2c' : '#ffffff';
+    ctx.beginPath(); ctx.ellipse(0, -9 * SCALE, 9 * SCALE, 7 * SCALE, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#cbd5e0'; ctx.lineWidth = 0.8 * SCALE; ctx.stroke();
+
+    // Tail feathers
+    ctx.fillStyle = isRooster ? '#234e52' : '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-7 * SCALE, -10 * SCALE);
+    ctx.lineTo(-15 * SCALE, -18 * SCALE);
+    ctx.lineTo(-6 * SCALE, -13 * SCALE);
+    ctx.fill();
+
+    // Head
+    const hx = 7 * SCALE, hy = -13 * SCALE + (peck > 0 ? peck : 0);
+    ctx.fillStyle = isRooster ? '#c53030' : '#ffffff';
+    ctx.beginPath(); ctx.arc(hx, hy, 4.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Golden Beak
+    ctx.fillStyle = '#ecc94b';
+    ctx.beginPath(); ctx.moveTo(hx + 3 * SCALE, hy - 1 * SCALE); ctx.lineTo(hx + 8 * SCALE, hy + 1 * SCALE); ctx.lineTo(hx + 3 * SCALE, hy + 3 * SCALE); ctx.fill();
+
+    // Red Comb on head
+    ctx.fillStyle = '#e53e3e';
+    ctx.beginPath();
+    ctx.arc(hx, hy - 5 * SCALE, 2.5 * SCALE, 0, Math.PI * 2);
+    ctx.arc(hx + 2 * SCALE, hy - 6 * SCALE, 2 * SCALE, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Yellow Legs
+    ctx.strokeStyle = '#ecc94b';
+    ctx.lineWidth = 1.2 * SCALE;
+    ctx.beginPath(); ctx.moveTo(-2 * SCALE, -3 * SCALE); ctx.lineTo(-2 * SCALE, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3 * SCALE, -3 * SCALE); ctx.lineTo(3 * SCALE, 0); ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawFarmTerrain(L) {
+    const roadY = L.roadY;
+
+    ctx.save();
+    // 1. Dirt Country Road Surface
+    const gRoad = ctx.createLinearGradient(0, roadY, 0, roadY + 54 * SCALE);
+    gRoad.addColorStop(0, '#789c46');      // green grassy verge
+    gRoad.addColorStop(0.18, '#bf935c');   // sandy dirt shoulder
+    gRoad.addColorStop(0.48, '#a27643');   // rich country earth
+    gRoad.addColorStop(0.85, '#875e32');   // packed dirt
+    gRoad.addColorStop(1, '#5a3d1d');
+    ctx.fillStyle = gRoad;
+    ctx.fillRect(G.camX - 20 * SCALE, roadY, CW + 40 * SCALE, CH - roadY + 20 * SCALE);
+
+    // Subtle tire ruts in the dirt road
+    ctx.fillStyle = 'rgba(70, 40, 15, 0.28)';
+    ctx.fillRect(G.camX - 20 * SCALE, roadY + 16 * SCALE, CW + 40 * SCALE, 6 * SCALE);
+    ctx.fillRect(G.camX - 20 * SCALE, roadY + 34 * SCALE, CW + 40 * SCALE, 6 * SCALE);
+
+    // Scattered pebbles and grass tufts along the road
+    for (let x = 0; x < L.worldW; x += 180 * SCALE) {
+      ctx.fillStyle = '#6b7280';
+      ctx.beginPath(); ctx.ellipse(x + 35 * SCALE, roadY + 24 * SCALE, 3 * SCALE, 2 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x + 110 * SCALE, roadY + 40 * SCALE, 2.5 * SCALE, 1.8 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Wildflowers (daisies & poppies) along the grass edge
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(x + 60 * SCALE, roadY + 4 * SCALE, 2.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f56565';
+      ctx.beginPath(); ctx.arc(x + 140 * SCALE, roadY + 6 * SCALE, 2.8 * SCALE, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 2. Split-Rail Wooden Fences
+    for (const f of L.fences) {
+      // Upright wooden fence posts
+      const numPosts = Math.max(3, Math.round(f.w / (55 * SCALE)));
+      const postDist = f.w / (numPosts - 1);
+      ctx.fillStyle = '#7a5230';
+      ctx.strokeStyle = '#52341b';
+      ctx.lineWidth = 1 * SCALE;
+      for (let i = 0; i < numPosts; i++) {
+        const px = f.x + i * postDist;
+        // Post shadow
+        ctx.fillStyle = 'rgba(20, 35, 15, 0.22)';
+        roundRect(px - 1 * SCALE, f.y, 6 * SCALE, roadY - f.y, 2 * SCALE); ctx.fill();
+
+        // Wooden post
+        ctx.fillStyle = '#8b6038';
+        roundRect(px - 3.5 * SCALE, f.y - 4 * SCALE, 7 * SCALE, roadY - f.y + 4 * SCALE, 2 * SCALE);
+        ctx.fill(); ctx.stroke();
+
+        // Pointed bevel post cap
+        ctx.beginPath();
+        ctx.moveTo(px - 3.5 * SCALE, f.y - 4 * SCALE);
+        ctx.lineTo(px, f.y - 9 * SCALE);
+        ctx.lineTo(px + 3.5 * SCALE, f.y - 4 * SCALE);
+        ctx.closePath();
+        ctx.fillStyle = '#a67547';
+        ctx.fill(); ctx.stroke();
+      }
+
+      // Horizontal wooden split rails (Top rail and Mid rail)
+      const railG = ctx.createLinearGradient(0, f.y, 0, f.y + f.h);
+      railG.addColorStop(0, '#b58352');
+      railG.addColorStop(0.5, '#9a6b3e');
+      railG.addColorStop(1, '#6b4725');
+      ctx.fillStyle = railG;
+
+      // Top rail (the platform surface)
+      roundRect(f.x - 4 * SCALE, f.y, f.w + 8 * SCALE, f.h, 3 * SCALE);
+      ctx.fill(); ctx.stroke();
+
+      // Lower rail
+      const lowY = f.y + (roadY - f.y) * 0.45;
+      roundRect(f.x - 4 * SCALE, lowY, f.w + 8 * SCALE, f.h, 3 * SCALE);
+      ctx.fill(); ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawFarmPlatforms(L) {
+    ctx.save();
+
+    // 1. Straw Hay Bales
+    for (const b of L.hayBales) {
+      if (b.kind === 'roundhay') {
+        // Giant round straw bale
+        ctx.fillStyle = 'rgba(25, 40, 15, 0.22)';
+        ctx.beginPath(); ctx.ellipse(b.x + b.w / 2 + 4 * SCALE, b.y + b.h / 2 + 4 * SCALE, b.w / 2, b.h / 2, 0, 0, Math.PI * 2); ctx.fill();
+
+        const roundG = ctx.createRadialGradient(b.x + b.w * 0.38, b.y + b.h * 0.38, 4 * SCALE, b.x + b.w / 2, b.y + b.h / 2, b.w / 2);
+        roundG.addColorStop(0, '#fae189');
+        roundG.addColorStop(0.65, '#e0b84c');
+        roundG.addColorStop(1, '#9e7b25');
+        ctx.fillStyle = roundG;
+        ctx.beginPath(); ctx.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, b.h / 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#856417'; ctx.lineWidth = 1.5 * SCALE; ctx.stroke();
+
+        // Spiral rolled straw texture
+        ctx.strokeStyle = 'rgba(125, 95, 20, 0.45)';
+        ctx.lineWidth = 1.4 * SCALE;
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 6; a += 0.25) {
+          const rad = (a / (Math.PI * 6)) * (b.w * 0.42);
+          const rx = b.x + b.w / 2 + Math.cos(a) * rad;
+          const ry = b.y + b.h / 2 + Math.sin(a) * (rad * 0.85);
+          if (a === 0) ctx.moveTo(rx, ry); else ctx.lineTo(rx, ry);
+        }
+        ctx.stroke();
+      } else {
+        // Rectangular golden straw bale
+        ctx.fillStyle = 'rgba(25, 40, 15, 0.22)';
+        roundRect(b.x + 4 * SCALE, b.y + 4 * SCALE, b.w, b.h, 4 * SCALE); ctx.fill();
+
+        const hayG = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
+        hayG.addColorStop(0, '#fce58d');
+        hayG.addColorStop(0.4, '#eec654');
+        hayG.addColorStop(1, '#b08a28');
+        ctx.fillStyle = hayG;
+        roundRect(b.x, b.y, b.w, b.h, 3 * SCALE); ctx.fill();
+        ctx.strokeStyle = '#997319'; ctx.lineWidth = 1.2 * SCALE; ctx.stroke();
+
+        // Twin binding twine strings
+        ctx.fillStyle = '#c53030';
+        ctx.fillRect(b.x + b.w * 0.28, b.y, 2 * SCALE, b.h);
+        ctx.fillRect(b.x + b.w * 0.72, b.y, 2 * SCALE, b.h);
+
+        // Straw texture flecks
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        for (let s = 6; s < b.w - 6; s += 14 * SCALE) {
+          ctx.fillRect(b.x + s, b.y + 3 * SCALE, 6 * SCALE, 1.5 * SCALE);
+        }
+      }
+    }
+
+    // 2. Fieldstone Walls
+    for (const sw of L.stoneWalls) {
+      ctx.fillStyle = 'rgba(25, 40, 15, 0.24)';
+      roundRect(sw.x + 4 * SCALE, sw.y + 4 * SCALE, sw.w, sw.h, 5 * SCALE); ctx.fill();
+
+      // Stone blocks
+      const wallG = ctx.createLinearGradient(sw.x, sw.y, sw.x, sw.y + sw.h);
+      wallG.addColorStop(0, '#a0aec0');
+      wallG.addColorStop(0.5, '#718096');
+      wallG.addColorStop(1, '#4a5568');
+      ctx.fillStyle = wallG;
+      roundRect(sw.x, sw.y, sw.w, sw.h, 4 * SCALE); ctx.fill();
+      ctx.strokeStyle = '#2d3748'; ctx.lineWidth = 1.4 * SCALE; ctx.stroke();
+
+      // Top mortar & moss cap
+      ctx.fillStyle = '#689f38';
+      ctx.fillRect(sw.x + 3 * SCALE, sw.y, sw.w - 6 * SCALE, 3 * SCALE);
+    }
+
+    // 3. Apple Crates, Bushels & Water Troughs
+    for (const p of L.farmProps) {
+      if (p.kind === 'crate') {
+        // Slatted wooden crate
+        ctx.fillStyle = 'rgba(25, 40, 15, 0.22)';
+        roundRect(p.x + 3 * SCALE, p.y + 4 * SCALE, p.w, p.h, 3 * SCALE); ctx.fill();
+
+        ctx.fillStyle = '#c68a4c';
+        roundRect(p.x, p.y, p.w, p.h, 3 * SCALE); ctx.fill();
+        ctx.strokeStyle = '#7c5328'; ctx.lineWidth = 1.2 * SCALE; ctx.stroke();
+
+        // Wooden slats
+        ctx.fillStyle = '#9e6730';
+        for (let sl = 10 * SCALE; sl < p.h - 6 * SCALE; sl += 11 * SCALE) {
+          ctx.fillRect(p.x, p.y + sl, p.w, 1.8 * SCALE);
+        }
+
+        // Red shiny apples in crate
+        ctx.fillStyle = '#e53e3e';
+        for (let a = 8 * SCALE; a < p.w - 6 * SCALE; a += 12 * SCALE) {
+          ctx.beginPath(); ctx.arc(p.x + a, p.y - 2 * SCALE, 5 * SCALE, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (p.kind === 'bushel') {
+        // Woven bushel basket with corn
+        ctx.fillStyle = '#d69e2e';
+        ctx.beginPath();
+        ctx.moveTo(p.x + 4 * SCALE, p.y + p.h);
+        ctx.lineTo(p.x, p.y);
+        ctx.lineTo(p.x + p.w, p.y);
+        ctx.lineTo(p.x + p.w - 4 * SCALE, p.y + p.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#975a16'; ctx.stroke();
+        // Golden ears of corn
+        ctx.fillStyle = '#ecc94b';
+        ctx.beginPath(); ctx.ellipse(p.x + p.w / 2, p.y - 3 * SCALE, p.w * 0.42, 6 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (p.kind === 'trough') {
+        // Galvanized metal water trough
+        ctx.fillStyle = '#a0aec0';
+        roundRect(p.x, p.y, p.w, p.h, 6 * SCALE); ctx.fill();
+        ctx.strokeStyle = '#4a5568'; ctx.lineWidth = 1.5 * SCALE; ctx.stroke();
+        // Clear cool water with shine
+        ctx.fillStyle = '#63b3ed';
+        roundRect(p.x + 3 * SCALE, p.y + 2 * SCALE, p.w - 6 * SCALE, 7 * SCALE, 3 * SCALE); ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.fillRect(p.x + 8 * SCALE, p.y + 3 * SCALE, p.w * 0.45, 2 * SCALE);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawFarmBackgroundProps(L) {
+    // Red Barn and Silo in the barnyard
+    drawRedBarnAndSilo(L, 880 * SCALE, L.roadY - 215 * SCALE);
+
+    // Windmill on the ridge
+    drawWindmill(L, 3340 * SCALE, L.roadY - 45 * SCALE);
+
+    // Farm Animals grazing & relaxing
+    drawFarmAnimals(L);
+  }
+
+  function drawTractors(L) {
+    for (const tr of L.tractors) {
+      drawSingleTractor(L, tr);
+    }
+  }
+
+  function drawSingleTractor(L, tr) {
+    const roadY = L.roadY;
+    const sw = tr.scaleW || 1.25;
+    const sh = tr.scaleH || 1.25;
+
+    ctx.save();
+    // 1. Exhaust smoke rings
+    for (const sm of L.tractorSmoke) {
+      ctx.fillStyle = `rgba(220, 228, 238, ${sm.alpha})`;
+      ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = `rgba(160, 175, 195, ${sm.alpha * 0.8})`;
+      ctx.lineWidth = 1.2 * SCALE;
+      ctx.stroke();
+    }
+
+    // 2. Tractor Body
+    ctx.translate(tr.x, roadY);
+    ctx.scale(tr.dir * sw, sh); // Flip horizontally according to driving direction and scale up
+
+    // Cast ground shadow
+    ctx.fillStyle = 'rgba(25, 40, 15, 0.35)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 52 * SCALE, 9 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Engine Bonnet / Hood with custom tractor color gradient
+    const hoodG = ctx.createLinearGradient(-15 * SCALE, -44 * SCALE, -15 * SCALE, -15 * SCALE);
+    hoodG.addColorStop(0, tr.light);
+    hoodG.addColorStop(0.4, tr.color);
+    hoodG.addColorStop(1, tr.dark);
+    ctx.fillStyle = hoodG;
+    roundRect(-40 * SCALE, -40 * SCALE, 48 * SCALE, 28 * SCALE, 5 * SCALE);
+    ctx.fill();
+    ctx.strokeStyle = tr.dark;
+    ctx.lineWidth = 1.6 * SCALE;
+    ctx.stroke();
+
+    // Chrome front radiator grill slits
+    ctx.fillStyle = '#edf2f7';
+    ctx.fillRect(-39 * SCALE, -37 * SCALE, 4.5 * SCALE, 22 * SCALE);
+    ctx.fillStyle = '#4a5568';
+    for (let g = -34 * SCALE; g <= -18 * SCALE; g += 3.8 * SCALE) {
+      ctx.fillRect(-38 * SCALE, g, 3.5 * SCALE, 1.6 * SCALE);
+    }
+
+    // Bright Headlight on the front
+    ctx.fillStyle = '#ffd738';
+    ctx.beginPath(); ctx.arc(-40 * SCALE, -32 * SCALE, 5 * SCALE, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3 * SCALE; ctx.stroke();
+    // Headlight yellow beam glow on road
+    const beamG = ctx.createRadialGradient(-40 * SCALE, -32 * SCALE, 2 * SCALE, -85 * SCALE, -20 * SCALE, 50 * SCALE);
+    beamG.addColorStop(0, 'rgba(255, 240, 120, 0.5)');
+    beamG.addColorStop(1, 'rgba(255, 230, 90, 0)');
+    ctx.fillStyle = beamG;
+    ctx.beginPath();
+    ctx.moveTo(-40 * SCALE, -32 * SCALE);
+    ctx.lineTo(-95 * SCALE, -46 * SCALE);
+    ctx.lineTo(-95 * SCALE, -2 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+
+    // Heavy vertical exhaust smokestack
+    ctx.fillStyle = '#2d3748';
+    roundRect(-24 * SCALE, -64 * SCALE, 5 * SCALE, 26 * SCALE, 2.5 * SCALE);
+    ctx.fill();
+    // Exhaust pipe angled rain cap
+    ctx.fillStyle = '#4a5568';
+    ctx.beginPath(); ctx.moveTo(-26 * SCALE, -64 * SCALE); ctx.lineTo(-17 * SCALE, -67 * SCALE); ctx.lineTo(-17 * SCALE, -63 * SCALE); ctx.fill();
+
+    // Vintage steering wheel & column
+    ctx.strokeStyle = '#2d3748';
+    ctx.lineWidth = 2.2 * SCALE;
+    ctx.beginPath(); ctx.moveTo(-2 * SCALE, -32 * SCALE); ctx.lineTo(6 * SCALE, -47 * SCALE); ctx.stroke();
+    ctx.strokeStyle = '#1a202c';
+    ctx.lineWidth = 2.8 * SCALE;
+    ctx.beginPath(); ctx.ellipse(8 * SCALE, -49 * SCALE, 6.5 * SCALE, 2.8 * SCALE, -0.4, 0, Math.PI * 2); ctx.stroke();
+
+    // Curved tractor driver seat
+    ctx.fillStyle = tr.color;
+    ctx.beginPath();
+    ctx.arc(20 * SCALE, -40 * SCALE, 7.5 * SCALE, Math.PI * 0.6, Math.PI * 1.8, true);
+    ctx.stroke();
+
+    // Curved rear wheel fender matching tractor color
+    ctx.fillStyle = tr.color;
+    ctx.beginPath();
+    ctx.arc(18 * SCALE, -20 * SCALE, 30 * SCALE, Math.PI * 0.9, Math.PI * 2.05);
+    ctx.lineTo(18 * SCALE + Math.cos(Math.PI * 2.05) * 24 * SCALE, -20 * SCALE + Math.sin(Math.PI * 2.05) * 24 * SCALE);
+    ctx.arc(18 * SCALE, -20 * SCALE, 24 * SCALE, Math.PI * 2.05, Math.PI * 0.9, true);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = tr.dark;
+    ctx.stroke();
+
+    // Front smaller wheel (r: 13.5 * SCALE)
+    drawTractorWheel(-27 * SCALE, -13.5 * SCALE, 13.5 * SCALE, tr.spin * 1.8);
+
+    // Enormous rear wheel with heavy chevron mud treads (r: 25 * SCALE)
+    drawTractorWheel(18 * SCALE, -22 * SCALE, 25 * SCALE, tr.spin);
+
+    ctx.restore();
+
+    // Warning alert indicator floating when tractor is near
+    const distToPlayer = Math.abs(G.player.x - tr.x);
+    if (distToPlayer < 400 * SCALE && distToPlayer > 90 * SCALE) {
+      ctx.save();
+      const bob = Math.sin(G.t * 0.01 + tr.x) * 3 * SCALE;
+      const warnX = tr.x;
+      const warnY = roadY - 82 * SCALE * sh + bob;
+      ctx.font = `bold ${12 * SCALE}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const warnText = `⚠️ ${tr.name.toUpperCase()}! ⚠️`;
+      const tw = ctx.measureText(warnText).width + 18 * SCALE;
+      ctx.fillStyle = 'rgba(20, 10, 5, 0.85)';
+      roundRect(warnX - tw / 2, warnY - 11 * SCALE, tw, 22 * SCALE, 11 * SCALE);
+      ctx.fill();
+      ctx.strokeStyle = '#ffd738'; ctx.lineWidth = 1.6 * SCALE; ctx.stroke();
+      ctx.fillStyle = '#ffe98a';
+      ctx.fillText(warnText, warnX, warnY);
+      ctx.restore();
+    }
+  }
+
+  function drawTractorWheel(wx, wy, wr, rot) {
+    ctx.save();
+    ctx.translate(wx, wy);
+
+    // Dark rubber tire
+    ctx.fillStyle = '#1a202c';
+    ctx.beginPath(); ctx.arc(0, 0, wr, 0, Math.PI * 2); ctx.fill();
+
+    // Chunky angled chevron treads on the outer circumference
+    ctx.save();
+    ctx.rotate(rot);
+    ctx.fillStyle = '#2d3748';
+    const numTreads = 10;
+    for (let i = 0; i < numTreads; i++) {
+      ctx.rotate((Math.PI * 2) / numTreads);
+      ctx.beginPath();
+      ctx.moveTo(-2 * SCALE, -wr);
+      ctx.lineTo(0, -wr + 4.5 * SCALE);
+      ctx.lineTo(2 * SCALE, -wr);
+      ctx.lineTo(3 * SCALE, -wr - 2.5 * SCALE);
+      ctx.lineTo(-3 * SCALE, -wr - 2.5 * SCALE);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Classic Yellow Rim Hub
+    const hubR = wr * 0.58;
+    const rimG = ctx.createRadialGradient(-hubR * 0.3, -hubR * 0.3, 1, 0, 0, hubR);
+    rimG.addColorStop(0, '#fff385');
+    rimG.addColorStop(0.5, '#ecc94b');
+    rimG.addColorStop(1, '#b7791f');
+    ctx.fillStyle = rimG;
+    ctx.beginPath(); ctx.arc(0, 0, hubR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#744210'; ctx.lineWidth = 1.2 * SCALE; ctx.stroke();
+
+    // Center axle bolt & lug nuts
+    ctx.fillStyle = '#2d3748';
+    ctx.beginPath(); ctx.arc(0, 0, hubR * 0.32, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ecc94b';
+    for (let n = 0; n < 4; n++) {
+      const a = (n / 4) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * hubR * 0.55, Math.sin(a) * hubR * 0.55, 1.4 * SCALE, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawSquirrels(L) {
+    for (const sq of L.squirrels) {
+      drawSquirrel(sq);
+    }
+  }
+
+  function drawSquirrel(sq) {
+    ctx.save();
+    ctx.translate(sq.x, sq.y);
+    ctx.scale(sq.dir * 1.35, 1.35); // Scaled up noticeably
+
+    if (sq.startledT > 0) {
+      // Startled / flattened ducking animation
+      ctx.scale(1.2, 0.45);
+      ctx.fillStyle = '#9c5521';
+      ctx.beginPath(); ctx.ellipse(0, -6 * SCALE, 14 * SCALE, 7 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+      // Stars spinning above
+      ctx.font = `${10 * SCALE}px sans-serif`;
+      ctx.fillText('💫', 0, -20 * SCALE);
+      ctx.restore();
+      return;
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(25, 40, 15, 0.22)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 14 * SCALE, 4.5 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Fluffy curved bushy tail
+    const tailWiggle = Math.sin(G.t * 0.012 + sq.x) * 4 * SCALE;
+    ctx.fillStyle = '#8a4216';
+    ctx.beginPath();
+    ctx.moveTo(-4 * SCALE, -8 * SCALE);
+    ctx.bezierCurveTo(-18 * SCALE, -12 * SCALE + tailWiggle, -24 * SCALE, -26 * SCALE + tailWiggle, -14 * SCALE, -28 * SCALE);
+    ctx.bezierCurveTo(-6 * SCALE, -30 * SCALE, -8 * SCALE, -16 * SCALE, -2 * SCALE, -12 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#b86628'; ctx.lineWidth = 1.2 * SCALE; ctx.stroke();
+
+    // Body
+    ctx.fillStyle = '#a0522d';
+    ctx.beginPath(); ctx.ellipse(0, -10 * SCALE, 8 * SCALE, 9 * SCALE, 0.2, 0, Math.PI * 2); ctx.fill();
+
+    // Cream Belly
+    ctx.fillStyle = '#fefcbf';
+    ctx.beginPath(); ctx.ellipse(3 * SCALE, -9 * SCALE, 4 * SCALE, 6 * SCALE, 0.1, 0, Math.PI * 2); ctx.fill();
+
+    // Head
+    ctx.fillStyle = '#a0522d';
+    ctx.beginPath(); ctx.arc(6 * SCALE, -18 * SCALE, 6 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Pointy ears
+    ctx.beginPath(); ctx.moveTo(4 * SCALE, -22 * SCALE); ctx.lineTo(6 * SCALE, -28 * SCALE); ctx.lineTo(9 * SCALE, -22 * SCALE); ctx.fill();
+
+    // Shiny black eye
+    ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.arc(8 * SCALE, -19 * SCALE, 1.8 * SCALE, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(8.5 * SCALE, -19.5 * SCALE, 0.7 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Little paws holding an acorn
+    ctx.fillStyle = '#8a4216';
+    ctx.beginPath(); ctx.ellipse(5 * SCALE, -11 * SCALE, 2.5 * SCALE, 2 * SCALE, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#744210';
+    ctx.beginPath(); ctx.arc(7 * SCALE, -10 * SCALE, 2.2 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawBirds(L) {
+    for (const b of L.birds) {
+      drawBird(b);
+    }
+  }
+
+  function drawBird(b) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.scale(1.4, 1.4); // Larger crow size
+
+    if (b.state === 'FLYING_IN' || b.state === 'FLYING_OUT' || b.state === 'DIVING') {
+      // Diving or soaring with sweeping jet-black crow wings
+      const wingFlap = Math.sin(b.flap) * 14 * SCALE;
+      const isUp = b.state === 'FLYING_OUT';
+      ctx.fillStyle = '#1a202c'; // Crow jet black
+
+      // Streamlined crow body
+      ctx.beginPath(); ctx.ellipse(0, 0, 13 * SCALE, 6.5 * SCALE, isUp ? -0.4 : 0.3, 0, Math.PI * 2); ctx.fill();
+
+      // Sharp formidable crow beak
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.moveTo(10 * SCALE, -2 * SCALE);
+      ctx.lineTo(20 * SCALE, isUp ? -6 * SCALE : 3 * SCALE);
+      ctx.lineTo(10 * SCALE, 4 * SCALE);
+      ctx.closePath();
+      ctx.fill();
+
+      // Large feathered flapping wings
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.moveTo(-3 * SCALE, -3 * SCALE);
+      ctx.lineTo(-11 * SCALE, -24 * SCALE + wingFlap);
+      ctx.lineTo(6 * SCALE, -8 * SCALE);
+      ctx.closePath();
+      ctx.fill();
+
+      // Wing feathers detail
+      ctx.strokeStyle = '#374151';
+      ctx.lineWidth = 1 * SCALE;
+      ctx.stroke();
+
+      // Piercing glinting crow eye
+      ctx.fillStyle = '#ecc94b';
+      ctx.beginPath(); ctx.arc(8 * SCALE, -2 * SCALE, 2 * SCALE, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath(); ctx.arc(8.6 * SCALE, -2 * SCALE, 1.1 * SCALE, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // Perched black crow scanning from atop post/fence
+      ctx.fillStyle = '#1a202c';
+      ctx.beginPath(); ctx.ellipse(0, -8 * SCALE, 9 * SCALE, 12 * SCALE, 0.2, 0, Math.PI * 2); ctx.fill();
+
+      // Head
+      ctx.beginPath(); ctx.arc(5 * SCALE, -18 * SCALE, 6.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+      // Formidable dark beak
+      ctx.fillStyle = '#2d3748';
+      ctx.beginPath();
+      ctx.moveTo(9 * SCALE, -20 * SCALE);
+      ctx.lineTo(17 * SCALE, -17 * SCALE);
+      ctx.lineTo(9 * SCALE, -15 * SCALE);
+      ctx.closePath();
+      ctx.fill();
+
+      // Tail feathers
+      ctx.fillStyle = '#111827';
+      ctx.beginPath(); ctx.moveTo(-5 * SCALE, -5 * SCALE); ctx.lineTo(-15 * SCALE, 4 * SCALE); ctx.lineTo(-2 * SCALE, -2 * SCALE); ctx.fill();
+
+      // Eye
+      ctx.fillStyle = '#ecc94b';
+      ctx.beginPath(); ctx.arc(6.5 * SCALE, -19 * SCALE, 1.8 * SCALE, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath(); ctx.arc(7 * SCALE, -19 * SCALE, 0.9 * SCALE, 0, Math.PI * 2); ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawGeese(L) {
+    for (const g of L.geese) {
+      drawGoose(L, g);
+    }
+  }
+
+  function drawGoose(L, g) {
+    const roadY = L.roadY;
+    ctx.save();
+    ctx.translate(g.x, roadY - 14 * SCALE);
+    ctx.scale(g.dir * 1.3, 1.3);
+
+    if (g.startledT > 0) {
+      // Dazed / flattened ducking pose
+      ctx.scale(1.2, 0.5);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath(); ctx.ellipse(0, -6 * SCALE, 16 * SCALE, 8 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.font = `${10 * SCALE}px sans-serif`;
+      ctx.fillText('💫', 0, -22 * SCALE);
+      ctx.restore();
+      return;
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(25, 40, 15, 0.25)';
+    ctx.beginPath(); ctx.ellipse(0, 12 * SCALE, 15 * SCALE, 4.5 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Orange webbed feet walking / charging
+    ctx.fillStyle = '#ed8936';
+    const step = Math.sin(G.t * 0.015) * 4 * SCALE;
+    ctx.fillRect(-6 * SCALE, 6 * SCALE, 3 * SCALE, 6 * SCALE + (g.state === 'CHARGE' ? step : 0));
+    ctx.fillRect(4 * SCALE, 6 * SCALE, 3 * SCALE, 6 * SCALE - (g.state === 'CHARGE' ? step : 0));
+
+    // Plump White Body
+    ctx.fillStyle = '#f7fafc';
+    ctx.beginPath(); ctx.ellipse(0, -4 * SCALE, 15 * SCALE, 11 * SCALE, -0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#cbd5e0'; ctx.lineWidth = 1 * SCALE; ctx.stroke();
+
+    // Flapping / outstretched wings when charging
+    const flap = Math.sin(g.wingFlap) * (g.state === 'CHARGE' ? 12 : 3) * SCALE;
+    ctx.fillStyle = '#edf2f7';
+    ctx.beginPath();
+    ctx.moveTo(-5 * SCALE, -8 * SCALE);
+    ctx.lineTo(-14 * SCALE, -20 * SCALE + flap);
+    ctx.lineTo(8 * SCALE, -10 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e0'; ctx.stroke();
+
+    // Long outstretched neck and angry head
+    const neckExt = g.state === 'CHARGE' ? 10 * SCALE : 0;
+    ctx.strokeStyle = '#f7fafc';
+    ctx.lineWidth = 6 * SCALE;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(8 * SCALE, -6 * SCALE);
+    ctx.lineTo(16 * SCALE + neckExt, -16 * SCALE);
+    ctx.stroke();
+
+    // Head
+    const hx = 18 * SCALE + neckExt;
+    const hy = -18 * SCALE;
+    ctx.fillStyle = '#f7fafc';
+    ctx.beginPath(); ctx.arc(hx, hy, 5.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Fierce Orange Beak
+    ctx.fillStyle = '#ed8936';
+    ctx.beginPath();
+    ctx.moveTo(hx + 3 * SCALE, hy - 2 * SCALE);
+    ctx.lineTo(hx + 12 * SCALE, hy);
+    ctx.lineTo(hx + 3 * SCALE, hy + 3 * SCALE);
+    ctx.closePath();
+    ctx.fill();
+
+    // Angry eye
+    ctx.fillStyle = '#e53e3e';
+    ctx.beginPath(); ctx.arc(hx + 1.5 * SCALE, hy - 1.5 * SCALE, 1.6 * SCALE, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.arc(hx + 2 * SCALE, hy - 1.5 * SCALE, 0.9 * SCALE, 0, Math.PI * 2); ctx.fill();
+
+    // Honk sound effect bubble when charging
+    if (g.state === 'CHARGE') {
+      ctx.font = `bold ${8.5 * SCALE}px sans-serif`;
+      ctx.fillStyle = '#e53e3e';
+      ctx.fillText('HONK!', hx + 4 * SCALE, hy - 10 * SCALE);
+    }
+
+    ctx.restore();
+  }
+
+  function drawBlueberryPatch(L) {
+    const roadY = L.roadY;
+    const patchX = 7100 * SCALE;
+
+    ctx.save();
+    // 1. Lush Green Patch Lawn & Wildflowers
+    const patchG = ctx.createLinearGradient(patchX, roadY - 10 * SCALE, patchX, roadY + 50 * SCALE);
+    patchG.addColorStop(0, '#529e38');
+    patchG.addColorStop(0.4, '#387824');
+    patchG.addColorStop(1, '#234e15');
+    ctx.fillStyle = patchG;
+    roundRect(patchX, roadY - 16 * SCALE, 760 * SCALE, 70 * SCALE, 12 * SCALE);
+    ctx.fill();
+
+    // 2. Beautiful Wooden Arbor / Archway
+    const archX = patchX + 25 * SCALE;
+    const archW = 140 * SCALE, archH = 150 * SCALE;
+    ctx.fillStyle = '#6b4625';
+    // Left & Right arbor log posts
+    roundRect(archX, roadY - archH, 10 * SCALE, archH, 4 * SCALE); ctx.fill();
+    roundRect(archX + archW - 10 * SCALE, roadY - archH, 10 * SCALE, archH, 4 * SCALE); ctx.fill();
+    // Top arbor curved trellis beam
+    roundRect(archX - 12 * SCALE, roadY - archH - 8 * SCALE, archW + 24 * SCALE, 14 * SCALE, 6 * SCALE); ctx.fill();
+
+    // Leafy vines wrapping the arbor posts
+    ctx.fillStyle = '#48bb78';
+    for (let vy = roadY - archH + 12 * SCALE; vy < roadY - 10 * SCALE; vy += 20 * SCALE) {
+      ctx.beginPath(); ctx.ellipse(archX + 5 * SCALE, vy, 6 * SCALE, 3 * SCALE, 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(archX + archW - 5 * SCALE, vy, 6 * SCALE, 3 * SCALE, -0.4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Carved Wooden Welcome Sign hanging from chains
+    const signX = archX + archW / 2;
+    const signY = roadY - archH + 28 * SCALE;
+    // Chains
+    ctx.strokeStyle = '#a0aec0'; ctx.lineWidth = 1.5 * SCALE;
+    ctx.beginPath(); ctx.moveTo(archX + 25 * SCALE, roadY - archH + 6 * SCALE); ctx.lineTo(archX + 25 * SCALE, signY - 14 * SCALE); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(archX + archW - 25 * SCALE, roadY - archH + 6 * SCALE); ctx.lineTo(archX + archW - 25 * SCALE, signY - 14 * SCALE); ctx.stroke();
+
+    // Wooden Plank Sign
+    ctx.font = `bold ${11.5 * SCALE}px sans-serif`;
+    const signText = '🫐 WELCOME HOME TO THE BLUEBERRY PATCH! 🫐';
+    const signW = ctx.measureText(signText).width + 24 * SCALE;
+    ctx.fillStyle = '#f6e05e';
+    roundRect(signX - signW / 2, signY - 13 * SCALE, signW, 26 * SCALE, 6 * SCALE);
+    ctx.fill();
+    ctx.strokeStyle = '#744210'; ctx.lineWidth = 2 * SCALE; ctx.stroke();
+    ctx.fillStyle = '#5c3818';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(signText, signX, signY);
+
+    // 3. Dense Ripe Blueberry Bushes in the background & sides
+    for (let i = 0; i < 9; i++) {
+      const bx = patchX + 110 * SCALE + i * 55 * SCALE;
+      const by = roadY - 30 * SCALE - (i % 3) * 14 * SCALE;
+      const bushR = (32 + (i % 2) * 8) * SCALE;
+
+      // Dark lush green bush foliage
+      const bushG = ctx.createRadialGradient(bx - bushR * 0.2, by - bushR * 0.2, 4 * SCALE, bx, by, bushR);
+      bushG.addColorStop(0, '#48bb78');
+      bushG.addColorStop(0.65, '#2f855a');
+      bushG.addColorStop(1, '#1c4532');
+      ctx.fillStyle = bushG;
+      ctx.beginPath(); ctx.arc(bx, by, bushR, 0, Math.PI * 2); ctx.fill();
+
+      // Clusters of Plump Glowing Wild Blueberries on the bush!
+      const berryTones = ['#3182ce', '#2b6cb0', '#4299e1', '#2c5282'];
+      for (let b = 0; b < 6; b++) {
+        const ba = (b / 6) * Math.PI * 2 + i * 0.8;
+        const bd = bushR * 0.62;
+        const berryX = bx + Math.cos(ba) * bd;
+        const berryY = by + Math.sin(ba) * bd;
+        ctx.fillStyle = berryTones[b % berryTones.length];
+        ctx.beginPath(); ctx.arc(berryX, berryY, 4.5 * SCALE, 0, Math.PI * 2); ctx.fill();
+        // Calyx star dot & bloom glint
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.beginPath(); ctx.arc(berryX - 1.2 * SCALE, berryY - 1.2 * SCALE, 1.2 * SCALE, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    // 4. Cheering Blueberry Family at Home!
+    // Mama Berry (Purple)
+    const mamaX = patchX + 180 * SCALE;
+    const mamaY = roadY - 26 * SCALE + Math.sin(G.t * 0.008) * 4 * SCALE;
+    drawBerry(mamaX, mamaY, 15 * SCALE, BERRIES.purple, { squash: 0.1 });
+
+    // Papa Berry (Dark Blue)
+    const papaX = patchX + 225 * SCALE;
+    const papaY = roadY - 28 * SCALE + Math.sin(G.t * 0.008 + 1.2) * 4 * SCALE;
+    drawBerry(papaX, papaY, 16 * SCALE, BERRIES.dark, { squash: -0.1 });
+
+    // Little Baby Berry (Sky Light Blue)
+    const babyX = patchX + 265 * SCALE;
+    const babyY = roadY - 20 * SCALE + Math.sin(G.t * 0.012 + 2.5) * 6 * SCALE;
+    drawBerry(babyX, babyY, 10 * SCALE, BERRIES.light, { squash: 0.2 });
+
+    // Cheerful speech bubbles
+    ctx.font = `bold ${10 * SCALE}px sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🫐 You made it!', mamaX, mamaY - 22 * SCALE);
+    ctx.fillText('❤️ Welcome Home!', papaX + 20 * SCALE, papaY - 24 * SCALE);
+
+    ctx.restore();
+  }
+
   // 12. GAME FLOW
   // ============================================================
   function buildLevel(n) {
@@ -4868,7 +6782,7 @@
     G.scorePops = [];
     G.particles = [];
     const L = n === 1 ? buildLevel1() : n === 2 ? buildLevel2()
-      : n === 3 ? buildLevel3() : buildLevel4();
+      : n === 3 ? buildLevel3() : n === 4 ? buildLevel4() : buildLevel5();
     G.L = L;
     G.player = makePlayer(0, 0);
     L.respawn();
@@ -4917,14 +6831,20 @@
         ? 'The hand gives up... and dumps the whole bowl into the blender. Uh oh.'
         : G.level === 2
         ? 'Out of the blender — straight into a pot of bubbling jam. Keep going!'
-        : 'Out the window, off the ledge and — plop — right onto a big breakfast plate. Dodge!')
+        : G.level === 3
+        ? 'Out the window, off the ledge and — plop — right onto a big breakfast plate. Dodge!'
+        : G.level === 4
+        ? 'Vaulted off the silver spoon, out the back door and heading home towards the farm!'
+        : 'Reunited with your family at the blueberry patch! You are finally free!')
       + `<br><br><b class="scoreBig">${lv.icon} ${lv.name}: ${earned} points</b>`
       + `<br><span class="scoreDetail">including <b>${survivalBonus}</b> for escaping with `
       + `${G.hearts} heart${G.hearts === 1 ? '' : 's'} left</span>`
       + `<br><span class="scoreTotal">Total so far: <b>${G.score}</b></span>`;
     const cont = document.getElementById('btnContinue');
-    cont.textContent = `➡️ ${next.icon} ${next.name}`;
-    cont.disabled = true;   // it is a countdown readout, not a button to press
+    if (next) {
+      cont.textContent = `➡️ ${next.icon} ${next.name}`;
+      cont.disabled = true;   // it is a countdown readout, not a button to press
+    }
     document.getElementById('levelClearOverlay').classList.remove('hidden');
   }
 
@@ -4953,14 +6873,14 @@
     const best = loadBest();
     if (G.score > best) saveBest(G.score);
     if (won) {
-      title.textContent = '🌳 You Escaped! 🌳';
-      sub.textContent = `${BERRIES[G.berry].name} vaulted off the silver spoon and rolled into sweet freedom! `
+      title.textContent = '🌳 Home at the Blueberry Patch! 🌳';
+      sub.textContent = `${BERRIES[G.berry].name} outran the tractor, outsmarted the farm critters, and returned safely home to the blueberry patch! Sweet freedom! `
         + `Score: ${G.score}${G.score > best ? ' — new best!' : ` (best ${Math.max(best, G.score)})`}`;
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 70; i++) {
         G.particles.push({
           x: Math.random() * CW, y: -20 - Math.random() * 200,
           vx: randRange(-1, 1) * SCALE, vy: randRange(1.5, 3.5) * SCALE,
-          life: 3200, max: 3200, color: pick(['#ff8fc0', '#ffd93d', '#8fd6ff', '#9dffb0', '#c9a6f0']),
+          life: 3200, max: 3200, color: pick(['#4d7cff', '#ff8fc0', '#ffd93d', '#8fd6ff', '#9dffb0', '#c9a6f0']),
           size: randRange(3, 6) * SCALE, grav: 0.01 * SCALE,
         });
       }
