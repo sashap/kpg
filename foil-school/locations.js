@@ -22,7 +22,7 @@ function inside(x,z,p){let odd=false;for(let i=0,j=p.length-1;i<p.length;j=i++){
 function distance(x,z,p){let d=Infinity;for(let i=1;i<p.length;i++){const a=p[i-1],b=p[i],dx=b[0]-a[0],dz=b[1]-a[1],t=clamp(((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz||1),0,1);d=Math.min(d,(x-a[0]-dx*t)**2+(z-a[1]-dz*t)**2);}return Math.sqrt(d);}
 function create(id){
  const site=sites.find(s=>s.id===id)||sites[0];if(site.id==='academy')return null;
- const baseRaw=site.id==='kahului'?harborModel.prepare(kahuluiData):data[site.id],extra=landmarkData[site.id],raw=extra?{...baseRaw,buildings:[...(baseRaw.buildings||[]),...extra.buildings],piers:[...(baseRaw.piers||[]),...extra.piers]}:baseRaw,project=([lat,lon])=>[-(lon-site.origin[1])*111320*Math.cos(site.origin[0]*Math.PI/180),(lat-site.origin[0])*111320],line=p=>p.map(project),coast=raw.coast?line(raw.coast):null,water=raw.water?line(raw.water):null,polygons=(raw.islands||[]).map(line);
+ const baseRaw=site.id==='kahului'?harborModel.prepare(kahuluiData):waterfront.prepare(site.id,data[site.id]),extra=landmarkData[site.id],raw=extra?{...baseRaw,buildings:[...(baseRaw.buildings||[]),...extra.buildings],piers:[...(baseRaw.piers||[]),...extra.piers]}:baseRaw,project=([lat,lon])=>[-(lon-site.origin[1])*111320*Math.cos(site.origin[0]*Math.PI/180),(lat-site.origin[0])*111320],line=p=>p.map(project),coast=raw.coast?line(raw.coast):null,water=raw.water?line(raw.water):null,polygons=(raw.islands||[]).map(line);
  if(coast){const xs=coast.map(p=>p[0]),zs=coast.map(p=>p[1]);polygons.unshift([...coast,[Math.max(...xs)+8000,Math.min(...zs)-10000],[Math.min(...xs)-5000,Math.min(...zs)-10000],coast[0]]);}
  if(raw.marin){const p=line(raw.marin),maxZ=Math.max(...p.map(p=>p[1]));polygons.push([...p,[p.at(-1)[0],maxZ+8000],[p[0][0],maxZ+8000],p[0]]);}
  if(raw.eastCoast){const p=line(raw.eastCoast),minX=Math.min(...p.map(p=>p[0]));polygons.push([...p,[minX-10000,p.at(-1)[1]],[minX-10000,p[0][1]],p[0]]);}
@@ -54,7 +54,7 @@ function create(id){
   const engineered=harbor?.height(x,z,d,y);if(engineered!==null&&engineered!==undefined)return engineered;
   // Blend the survey grid to the mapped waterline over one shoreline cell.
   y*=clamp(d/5,0,1);
-  const bank=bankHeight(x,z,d);if(bank!==null){const blend=clamp((24-d)/10,0,1);y=y*(1-blend)+bank*blend;}
+  const bank=bankHeight(x,z,d);if(bank!==null){const beachDistance=Math.min(...beaches.map(p=>distance(x,z,p))),blend=Math.min(clamp((24-d)/10,0,1),clamp((beachDistance-2)/6,0,1));y=y*(1-blend)+bank*blend;}
   for(const r of ramps)if(Math.hypot(x-r[0],z-r[1])<7)y=Math.min(y,.08+d*.20);
   // Cut a smooth corridor below the engineered deck so neither terrain nor
   // its grass overlays can poke through the paving between DEM vertices.
