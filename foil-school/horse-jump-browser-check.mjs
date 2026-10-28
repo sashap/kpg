@@ -11,7 +11,7 @@ export async function check({evaluate,cdp,frames,click,screenshot,tablet,phone})
   else{await key(direction<0?'ArrowUp':'ArrowDown',true);await key('Space',true);}
   assert.ok(await evaluate('!!foilTest.session.horse.jump'));
   // Stop at the first landing so grounded acceleration cannot mask a short jump.
-  const result=await evaluate(`(()=>{let peak=0;for(let i=0;i<180;i++){foilTest.inputStep(1/60);const h=foilTest.session.horse;peak=Math.max(peak,h.y);if(!h.jump)break;}const h=foilTest.session.horse;return {x:h.x,z:h.z,y:h.y,peak,air:!!h.jump};})()`);
+  const result=await evaluate(`(()=>{let peak=0;for(let i=0;i<180;i++){foilTest.inputStep(1/60);const h=foilTest.session.horse;peak=Math.max(peak,h.y);if(i%3===0){const rig=foilTest.polish.horses.find(r=>r.id===h.id);for(const foot of rig.feet)for(let k=1;k<foot.joints.length;k++)for(let n=0;n<=4;n++){const a=foot.joints[k-1],b=foot.joints[k],t=n/4,x=a[0]+(b[0]-a[0])*t,y=h.y+a[1]+(b[1]-a[1])*t,z=a[2]+(b[2]-a[2])*t,wx=h.x+x*Math.cos(h.heading)+z*Math.sin(h.heading),wz=h.z-x*Math.sin(h.heading)+z*Math.cos(h.heading);if(FoilWorld.geography.horseBlocked(wx,wz,.02,y+.025))throw new Error('Horse leg intersects a car: '+JSON.stringify({i,k,wx,wz,y}));}}if(!h.jump){if(!FoilHorses.support(FoilWorld,h.x,h.z,h.heading))throw new Error('Landing lacks full horse clearance');break;}}const h=foilTest.session.horse;return {x:h.x,z:h.z,y:h.y,peak,air:!!h.jump};})()`);
   if(tablet||phone)await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});else{await key('Space',false);await key(direction<0?'ArrowUp':'ArrowDown',false);}
   assert.equal(result.air,false);return result;
  }

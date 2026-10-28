@@ -4,15 +4,15 @@
 const TAU=Math.PI*2,clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
 function ground(world,x,z){return world.horseSurface?.(x,z)??world.geography?.horseSurface(x,z)??world.walkHeight(x,z);}
 function blocked(world,x,z,r,y){return world.geography?.horseBlocked(x,z,r,y)??world.blocked(x,z,r,y);}
-function support(world,x,z,heading){const c=Math.cos(heading),s=Math.sin(heading),samples=[];
+function support(world,x,z,heading){const c=Math.cos(heading),s=Math.sin(heading),samples=[],stairs=!!world.stepsAt?.(x,z),back=stairs?-.95:-1.65,front=stairs?1.2:1.55,center=ground(world,x,z);
  // Include the longest walking/galloping stride, not just the torso. A hoof
  // must not reach through a hood before the body collision notices the car.
- for(const front of [-1.65,0,1.55])for(const side of [-.43,.43]){const px=x+side*c+front*s,pz=z-side*s+front*c,y=ground(world,px,pz);if(y<.05||Math.hypot(px,pz)>world.limit-3||blocked(world,px,pz,.25,y+.025))return null;samples.push(y);}
+ for(const fore of [back,0,front])for(const side of [-.43,.43]){const px=x+side*c+fore*s,pz=z-side*s+fore*c,y=ground(world,px,pz);if(y<.05||Math.hypot(px,pz)>world.limit-3||blocked(world,px,pz,.25,y+.025)||!stairs&&blocked(world,px,pz,.25,center+.45))return null;samples.push(y);}
  const lo=Math.min(...samples),hi=Math.max(...samples);if(hi-lo>(world.stepsAt?.(x,z)?2.8:1.65))return null;
  // Sample the whole length densely: a staircase has small risers,
  // whereas a wall / cliff has an abrupt jump even if both ends are dry.
- let previous=null;for(let f=-1.65;f<=1.56;f+=.16){const height=ground(world,x+f*s,z+f*c);if(previous!==null&&Math.abs(height-previous)>.44)return null;previous=height;}
- const y=ground(world,x,z);return {y,pitch:Math.atan2((samples[4]+samples[5]-samples[0]-samples[1])/2,3.2),roll:Math.atan2((samples[1]+samples[3]+samples[5]-samples[0]-samples[2]-samples[4])/3,.86)};
+ let previous=null;for(let f=back;f<=front+.01;f+=stairs?.18:.16){const height=ground(world,x+f*s,z+f*c);if(previous!==null&&Math.abs(height-previous)>.44)return null;previous=height;}
+ return {y:center,pitch:Math.atan2((samples[4]+samples[5]-samples[0]-samples[1])/2,front-back),roll:Math.atan2((samples[1]+samples[3]+samples[5]-samples[0]-samples[2]-samples[4])/3,.86)};
 }
 function spawn(world){const site=world.location.id,positions={kahului:[20.89226,-156.46898],shoreline:[37.43237,-122.08845],third:[37.57357,-122.27958],coyote:[37.58891,-122.32817],crissy:[37.80595,-122.45042]},origin=site==='coyote'?Object.values(world.geography.promenade.rigging.horse):world.geography?world.geography.project(positions[site]):[-199,-76];
  for(let r=0;r<=32;r+=2)for(let j=0;j<(r?24:1);j++){const angle=j*TAU/24,x=origin[0]+Math.cos(angle)*r,z=origin[1]+Math.sin(angle)*r,p=support(world,x,z,0);if(!p)continue;if(world.geography?.features.paths.some(q=>root.FoilLocations.distance(x,z,q.points)<3))continue;if(!world.geography&&world.castle?.path.some(q=>Math.hypot(q.x-x,q.z-z)<2.3))continue;
@@ -56,10 +56,11 @@ function stepAir(session,world,dt){const h=session.horse,j=h.jump,previous=h.y;
  // An obstacle may stop translation until the hooves clear it; retain the
  // requested air movement so holding Up/Down resumes travel once clear.
  const forward=-clamp(session.controls.balance,-1,1),wanted=forward>0?Math.max(4.2*forward,j.takeoffSpeed):forward<0?-Math.max(-2.8*forward,-j.takeoffSpeed):0;
+ if(forward&&!j.directed&&j.age<.15){j.travelSpeed=wanted;j.directed=true;}
  j.travelSpeed+=clamp(wanted-j.travelSpeed,-(forward?14:2)*dt,(forward?14:2)*dt);h.speed=j.travelSpeed;h.blocked=false;const distance=h.speed*dt,n=Math.max(1,Math.ceil(Math.abs(distance)/.08));let moved=0;
  for(let i=0;i<n;i++){const dx=Math.sin(h.heading)*distance/n,dz=Math.cos(h.heading)*distance/n;if(!airClear(world,h.x+dx,h.z+dz,h.heading,Math.max(previous,h.y))){h.speed=0;h.blocked=true;break;}h.x+=dx;h.z+=dz;moved+=Math.hypot(dx,dz);}
  remember();const floor=ground(world,h.x,h.z);
- if(j.vy<=0&&(h.y<=floor||!airClear(world,h.x,h.z,h.heading,h.y))){
+ if(j.vy<=0&&(h.y<=floor||!airClear(world,h.x,h.z,h.heading,h.y+.55))){
   let p=support(world,h.x,h.z,h.heading);
   if(!p){
    // A landing across a sharp car edge cannot support the whole animal.

@@ -42,12 +42,19 @@ test('horse jump rises and lands once, cannot repeat in air, and blocks an airbo
 test('a standing jump responds to forward or reverse even when pressed just after Space',()=>{
  const distances=[];
  for(const input of [-1,1,0]){const s=rider();H.jump(s);step(s,flat,.04);s.controls.balance=input;while(s.horse.jump)H.step(s,flat,1/60);distances.push(s.z);assert.equal(s.horse.y,1);}
- assert.ok(distances[0]>2.5&&distances[0]<3.5,JSON.stringify(distances));assert.ok(distances[1]<-1.7&&distances[1]>-2.5,JSON.stringify(distances));assert.equal(distances[2],0);
- const s=rider();s.horse.speed=8;s.controls.balance=-1;H.jump(s);while(s.horse.jump)H.step(s,flat,1/60);assert.ok(s.z>distances[0]*2,'A galloping jump travels farther than a standing hop');
+ assert.ok(distances[0]>4&&distances[0]<5.4,JSON.stringify(distances));assert.ok(distances[1]<-2.7&&distances[1]>-3.8,JSON.stringify(distances));assert.equal(distances[2],0);
+ const s=rider();s.horse.speed=8;s.controls.balance=-1;H.jump(s);while(s.horse.jump)H.step(s,flat,1/60);assert.ok(s.z>distances[0]*1.7,'A galloping jump travels farther than a standing hop');
 });
 test('jump travel resumes after rising clear of an obstacle, including from a partially mounted hood',()=>{
  const w={...flat,horseSurface:(x,z)=>z>=1&&z<=5?2.03:1,blocked:(x,z,r,y)=>z+r>=1&&z-r<=5&&y<2.03};
- for(const [z,y,input,passes] of [[0,1,-1,z=>z>1.4],[1.15,2.03,-1,z=>z>3.5],[1.15,2.03,1,z=>z<-.6]]){const s=rider(w);Object.assign(s.horse,{z,y});s.controls.balance=input;H.jump(s);while(s.horse.jump)H.step(s,w,1/60);assert.ok(passes(s.z),JSON.stringify(s.horse));assert.ok(Math.abs(s.horse.y-w.horseSurface(s.x,s.z))<1e-6);}
+ for(const [z,y,input,passes] of [[0,1,-1,z=>z>1.4],[1.15,2.03,-1,z=>z>3],[1.15,2.03,1,z=>z<-.6]]){const s=rider(w);Object.assign(s.horse,{z,y});s.controls.balance=input;H.jump(s);while(s.horse.jump)H.step(s,w,1/60);assert.ok(passes(s.z),JSON.stringify(s.horse));assert.ok(Math.abs(s.horse.y-w.horseSurface(s.x,s.z))<1e-6);}
+});
+test('full-stride collision keeps front and rear hooves outside a car on approach',()=>{
+ const car=(x,z,r=0)=>Math.abs(x)<.9+r&&Math.abs(z)<2.06+r,w={...flat,horseSurface:(x,z)=>car(x,z)?2.03:1,blocked:(x,z,r,y)=>car(x,z,r)&&y<2.03};
+ for(const heading of [0,Math.PI/2,Math.PI,Math.PI*1.5,.55])for(const reverse of [false,true])for(const speed of [1.7,4,8.5]){const s=rider(w),sign=reverse?-1:1,h=s.horse;Object.assign(h,{x:-Math.sin(heading)*6*sign,z:-Math.cos(heading)*6*sign,heading,speed:speed*sign});s.controls.balance=-sign;
+  for(let i=0;i<360;i++){H.step(s,w,1/60);for(let k=0;k<4;k++){const f=H.foot(h.phase,k,h.speed),side=k%2?-.26:.26,fore=(k<2?.68:-.79)+f.z,x=h.x+Math.cos(heading)*side+Math.sin(heading)*fore,z=h.z-Math.sin(heading)*side+Math.cos(heading)*fore;assert.equal(car(x,z,.09),false,'A hoof enters the hood before the horse stops');}}
+  assert.ok(h.blocked);assert.ok(H.support(w,h.x,h.z,h.heading));
+ }
 });
 test('jump clears a low fence, while a tall wall and water still stop the horse',()=>{
  for(const [height,passes] of [[.7,true],[4,false]]){const w={...flat,blocked:(x,z,r,y)=>Math.abs(z-3)<.16+r&&y<1+height},s=rider(w);s.horse.speed=4;s.controls.balance=-.55;H.jump(s);step(s,w,1.8);assert.equal(s.z>3.5,passes,JSON.stringify(s.horse));}
@@ -59,6 +66,6 @@ test('Coyote horse waits by the central gravel triangle; new ramp armor reaches 
 test('horse can land on a real Coyote car roof, stand there and jump back to ground',()=>{
  W.activate('coyote');try{const g=W.geography,s=new Session(),h=s.horses[0];s.mode='riding';s.horse=h;let landed=null;
   search:for(const b of g.solids.filter(b=>b.kind==='car'))for(const reverse of [0,Math.PI]){const heading=b.car.angle+reverse,x=b.car.x-Math.sin(heading)*4.4,z=b.car.z-Math.cos(heading)*4.4,p=H.support(W,x,z,heading);if(!p)continue;Object.assign(h,{x,z,y:p.y,heading,speed:4.5,phase:0,mountTime:0,jump:null,jumpCooldown:0});s.controls={steer:0,balance:-.68,trim:0};H.jump(s);for(let i=0;i<100;i++){const air=!!h.jump;H.step(s,W,1/60);if(air&&!h.jump)break;}if(Math.abs(h.y-b.y-1.45)<1e-6&&Math.hypot(h.x-b.car.x,h.z-b.car.z)<1){landed=b;break search;}}
-  assert.ok(landed,'A clear approach reaches a car roof');h.speed=0;s.controls.balance=0;step(s,W,.4);assert.ok(Math.abs(h.y-landed.y-1.45)<1e-6);assert.ok(H.jump(s));s.controls.balance=-.68;h.speed=4.5;step(s,W,2);assert.equal(h.jump,null);assert.ok(h.y<landed.y+.5,'Jumping down returns to the parking surface');
+  assert.ok(landed,'A clear approach reaches a car roof');h.speed=0;s.controls.balance=0;step(s,W,.4);assert.ok(Math.abs(h.y-landed.y-1.45)<1e-6);s.controls.balance=-1;h.speed=0;assert.ok(H.jump(s));step(s,W,2);assert.equal(h.jump,null);assert.ok(h.y<landed.y+.5,'Jumping down returns to the parking surface');
  }finally{W.activate('academy');}
 });
