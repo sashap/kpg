@@ -85,9 +85,11 @@ function solidAt(x,z,radius,bottom,top){
  return false;
 }
 function blocked(x,z,radius=.30,feet=walkHeight(x,z)){if(geography)return geography.blocked(x,z,radius,feet);return solidAt(x,z,radius,feet+.20,feet+1.75);}
+// Only surfaces already below the feet can catch a landing; walls remain solid.
+function walkSupport(x,z,ceiling){if(geography)return geography.walkSupport(x,z,ceiling);let y=walkHeight(x,z);for(const b of solidCells.get(key(x,z))||[])if(b.y+b.h<=ceiling+.025&&overlapsBox(b,x,z,.22))y=Math.max(y,b.y+b.h);return y;}
 function stepsAt(x,z){return !geography&&(pathCells.get(key(x,z))||[]).some(p=>!p.pier&&onPath(p,x,z,.65));}
 function cameraBlocked(x,y,z,radius=.18){if(geography)return geography.cameraBlocked(x,y,z,radius);return walkHeight(x,z)>y-radius||solidAt(x,z,radius,y-radius,y+radius);}
-const api={ISLANDS,surfaces,rocks,islandHeight,coastRadius,terrainHeight,bedHeight,boardRotationX,equipmentPoint:probe,clearance,sweep,castle,walkHeight,blocked,stepsAt,cameraBlocked};const locations=typeof module!=='undefined'&&module.exports?require('./locations.js'):root.FoilLocations;
+const api={ISLANDS,surfaces,rocks,islandHeight,coastRadius,terrainHeight,bedHeight,boardRotationX,equipmentPoint:probe,clearance,sweep,castle,walkHeight,walkSupport,blocked,stepsAt,cameraBlocked};const locations=typeof module!=='undefined'&&module.exports?require('./locations.js'):root.FoilLocations;
 api.activate=id=>{geography=locations.create(id);api.geography=geography;api.location=geography?.site||locations.sites[0];api.limit=api.location.limit;api.ISLANDS=geography?[]:ISLANDS;api.surfaces=geography?geography.surfaces:surfaces;api.castle=geography?geography.castle:castle;api.rocks=geography?[]:rocks;return api;};
 api.activate(typeof location!=='undefined'?new URLSearchParams(location.search).get('location'):'academy');
 if(typeof module!=='undefined'&&module.exports)module.exports=api;root.FoilWorld=api;

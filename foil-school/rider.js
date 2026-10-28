@@ -104,6 +104,7 @@ line(head,[[-.026,.091,.081],[0,.088,.09],[.026,.091,.081]],.0028,new THREE.Mesh
  function updateOnFoot(s,dt=1/60){
   if(person.parent!==onFootRoot){onFootRoot.add(person);swimBlend=0;}onFootRoot.visible=true;boardLeash.object.visible=wingLeash.object.visible=false;
   const swimming=s.mode==='swimming',phase=swimming?s.swimPhase:s.walkCycle,effort=swimming?clamp(s.swimEffort,0,1):Math.min(1,s.speed/1.8),forward=swimming&&s.swimVelocity>=-.03,hop=s.jumpTime>0?Math.sin((1-s.jumpTime/.85)*Math.PI)*.65:0;
+  const jumping=!!s.walkJump,tuck=jumping?Math.sin(Math.min(1,s.walkJump.age/.88)*Math.PI):0;
   const run=swimming?0:clamp((s.speed-2.2)/3.2,0,1);
   swimBlend=mix(swimBlend,forward?Math.min(1,effort*1.3):0,dt>0?1-Math.exp(-dt*6):1);
   const pitch=swimBlend*(Math.PI/2-.055),roll=swimming?Math.sin(phase-.8)*.34*swimBlend:0;
@@ -120,14 +121,14 @@ line(head,[[-.026,.091,.081],[0,.088,.09],[.026,.091,.081]],.0028,new THREE.Mesh
     // Treading uses a slower bent-leg action rather than freezing the limbs.
     const kick=phase*3+i*Math.PI,thighAngle=mix(.26+Math.sin(s.time*2.5+i*Math.PI)*.18,Math.sin(kick)*.13,swimBlend),kneeFlex=mix(.60+.12*Math.cos(s.time*2.5+i*Math.PI),.07+.16*Math.max(0,Math.sin(kick-.7)),swimBlend);
     knee=hip.clone().add(V(0,-Math.cos(thighAngle)*.43,Math.sin(thighAngle)*.43));ankle=knee.clone().add(V(0,-Math.cos(thighAngle+kneeFlex)*.43,Math.sin(thighAngle+kneeFlex)*.43));feet[i].rotation.set(mix(.35,1.32,swimBlend)+Math.sin(kick-.3)*.07*swimBlend,side*.05,0);feet[i].position.copy(ankle).sub(V(0,.045,-.035).applyEuler(feet[i].rotation));
-   }else{const foot=V(side*.13,.257+Math.max(0,Math.cos(p))*(.11+run*.18)*effort,swing*(.26+run*.14));feet[i].position.copy(foot);feet[i].rotation.set(0,side*.10,0);ankle=foot.clone().add(V(0,.045,-.035));knee=joint(hip,ankle,.43,.43,V(0,.1,1));}
+   }else{const foot=jumping?V(side*.14,.28+tuck*(i?.20:.32),i?-.12:.20):V(side*.13,.257+Math.max(0,Math.cos(p))*(.11+run*.18)*effort,swing*(.26+run*.14));feet[i].position.copy(foot);feet[i].rotation.set(0,side*.10,0);ankle=foot.clone().add(V(0,.045,-.035));knee=joint(hip,ankle,.43,.43,V(0,.1,1));}
    hipJoints[i].position.copy(hip);placeSegment(limbs[i].thigh,hip,knee);placeSegment(limbs[i].calf,knee,ankle);limbs[i].knee.position.copy(knee);pose.legs.push([hip.distanceTo(knee),knee.distanceTo(ankle)]);
    const shoulder=person.worldToLocal(upper.localToWorld(V(side*.218,.425,0)));let hand,elbowPole,elbow,pulling=false,strokePhase=0;
    if(swimming){const t=(cycle+i*.5)%1;strokePhase=t;const crawl=strokePoint(t,1,side),scull=V(side*(.23+.09*Math.sin(s.time*3+i*Math.PI)),-.28,.21+.05*Math.cos(s.time*3+i*Math.PI)),offset=scull.lerp(crawl,swimBlend);if(offset.length()>.575)offset.setLength(.575);hand=shoulder.clone().add(offset);pulling=t<.62;elbowPole=V(side*.3,-.12,-.12).lerp(strokePoint(t,2,side),swimBlend);}
    else{
     // Shoulder-driven counter-swing with a forward-bending elbow. Keeping the
     // hinge explicit avoids the IK solver picking a backward forearm pose.
-    const angle=-swing*(.32+run*.32)-run*.10,flex=.22+run*1.28;
+    const angle=jumping?.45+tuck*.22:-swing*(.32+run*.32)-run*.10,flex=jumping?.7:.22+run*1.28;
     elbow=shoulder.clone().add(V(side*.09,-Math.cos(angle),Math.sin(angle)).normalize().multiplyScalar(.31).applyQuaternion(upper.quaternion));
     hand=elbow.clone().add(V(side*.02,-Math.cos(angle+flex),Math.sin(angle+flex)).normalize().multiplyScalar(.29).applyQuaternion(upper.quaternion));
    }
