@@ -90,7 +90,7 @@ function walkSupport(x,z,ceiling){if(geography)return geography.walkSupport(x,z,
 function stepsAt(x,z){return !geography&&(pathCells.get(key(x,z))||[]).some(p=>!p.pier&&onPath(p,x,z,.65));}
 function cameraBlocked(x,y,z,radius=.18){if(geography)return geography.cameraBlocked(x,y,z,radius);return walkHeight(x,z)>y-radius||solidAt(x,z,radius,y-radius,y+radius);}
 const api={ISLANDS,surfaces,rocks,islandHeight,coastRadius,terrainHeight,bedHeight,boardRotationX,equipmentPoint:probe,clearance,sweep,castle,walkHeight,walkSupport,blocked,stepsAt,cameraBlocked};const locations=typeof module!=='undefined'&&module.exports?require('./locations.js'):root.FoilLocations;
-api.activate=id=>{geography=locations.create(id);api.geography=geography;api.location=geography?.site||locations.sites[0];api.limit=api.location.limit;api.ISLANDS=geography?[]:ISLANDS;api.surfaces=geography?geography.surfaces:surfaces;api.castle=geography?geography.castle:castle;api.rocks=geography?[]:rocks;return api;};
+api.activate=id=>{api.waterContacts=null;geography=locations.create(id);api.geography=geography;api.location=geography?.site||locations.sites[0];api.limit=api.location.limit;api.ISLANDS=geography?[]:ISLANDS;api.surfaces=geography?geography.surfaces:surfaces;api.castle=geography?geography.castle:castle;api.rocks=geography?[]:rocks;return api;};
 api.activate(typeof location!=='undefined'?new URLSearchParams(location.search).get('location'):'academy');
 if(typeof module!=='undefined'&&module.exports)module.exports=api;root.FoilWorld=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

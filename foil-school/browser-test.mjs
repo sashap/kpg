@@ -8,9 +8,10 @@ const ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);await
 ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}else if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails);else if(m.method==='Log.entryAdded'&&m.params.entry.level==='error')errors.push(m.params.entry.text);});
 const cdp=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}));});
 const evaluate=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
+if(process.argv[3]==='probe'){await cdp('Page.bringToFront');console.log(await evaluate("({viewport:[innerWidth,innerHeight],bounds:['.wind-panel','.height-panel','#height-value','.controls'].map(sel=>{const r=document.querySelector(sel)?.getBoundingClientRect();return {sel,x:r?.x,y:r?.y,right:r?.right,bottom:r?.bottom}}),ready:document.readyState,visibility:document.visibilityState,location:typeof FoilWorld!=='undefined'?FoilWorld.location.id:'none',test:!!window.foilTest,recovery:window.foilTest?{mode:foilTest.session.mode,fall:foilTest.session.fallMotion,board:foilTest.session.board,position:[foilTest.session.x,foilTest.session.z],standDisabled:document.getElementById('stand')?.disabled,toast:document.getElementById('toast')?.textContent}:null,modal:document.getElementById('modal-title')?.textContent,loading:document.getElementById('loading')?.className,error:document.getElementById('load-detail')?.textContent})"));ws.close();process.exit(0);}
 const frames=()=>evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
 const mode=process.argv[2]||'desktop',tablet=mode==='tablet',phone=mode==='phone';
-await cdp('Runtime.enable');await cdp('Log.enable');await cdp('Page.enable');await cdp('Emulation.setTouchEmulationEnabled',{enabled:tablet||phone,maxTouchPoints:5});await cdp('Emulation.setDeviceMetricsOverride',{width:tablet?1180:phone?390:1440,height:tablet?820:phone?844:960,deviceScaleFactor:1,mobile:tablet||phone});
+await cdp('Page.bringToFront');await cdp('Runtime.enable');await cdp('Log.enable');await cdp('Page.enable');await cdp('Emulation.setTouchEmulationEnabled',{enabled:tablet||phone,maxTouchPoints:5});await cdp('Emulation.setDeviceMetricsOverride',{width:tablet?1180:phone?390:1440,height:tablet?820:phone?844:960,deviceScaleFactor:1,mobile:tablet||phone});
 await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"try{localStorage.removeItem('foil-school-progress-v1')}catch{}"});
 await evaluate('window.foilTest=null');
 await cdp('Page.navigate',{url:new URL('../foil-academy.html?test&run='+Date.now(),import.meta.url).href});
@@ -29,6 +30,12 @@ if(process.argv[3]==='intro-layout'){
  }
  assert.deepEqual(errors,[]);console.log('Short welcome, all start/location controls visible without scrolling, and initial start-button focus passed at eight sizes');ws.close();process.exit(0);
 }
+if(process.argv[3]==='flight-smoothness'){await (await import('./flight-smoothness-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='downwind'){await (await import('./downwind-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='water-recovery'){await (await import('./water-recovery-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='wipeouts'){await (await import('./wipeouts-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='wing-dive'){await (await import('./wing-dive-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='foot-jump'){await (await import('./foot-jump-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='usability'){await (await import('./usability-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='travel'){await (await import('./travel-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='catalog'){

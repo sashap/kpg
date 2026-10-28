@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+export async function check({evaluate,frames,click,screenshot}){
+ await click('begin');
+ const setup=async(kind,speed=8)=>evaluate(`(()=>{foilTest.start(1,{free:true,conditions:{wind:8,swell:0,gust:0,windFrom:-Math.PI/2}});const s=foilTest.session;Object.assign(s,{x:12,z:0,heading:0,speed:${speed},height:${kind==='breach'?.95:.7},standing:true,standAmount:1,foiling:true,pitch:.08,roll:${kind==='tip-breach'?.35:0},balance:${kind==='breach'?.7:0},trim:.68,wingAngle:0});foilTest.previewPose({});s.crash('Fall preview',null,{kind:'${kind}',side:1});foilTest.resume();foilTest.step(1/60);foilTest.previewPose({});foilTest.inspectScenery([21,3.2,0],[12,1,1]);})()`);
+ const advance=async n=>evaluate(`(()=>{for(let i=0;i<${Math.round(n*60)};i++){foilTest.resume();foilTest.step(1/60);foilTest.inputStep(0);}foilTest.previewPose({});return {mode:foilTest.session.mode,fall:foilTest.session.fallMotion,board:foilTest.session.board,equipment:foilTest.equipment,polish:foilTest.polish};})()`);
+ const connected=r=>{for(const [a,b] of r.polish.rider.arms)assert.ok(Math.abs(a-.31)<.002&&Math.abs(b-.29)<.002);for(const [a,b] of r.polish.rider.legs)assert.ok(Math.abs(a-.43)<.002&&Math.abs(b-.43)<.002);};
+ await setup('breach',4);let r=await advance(.30);assert.equal(r.fall.kind,'tail-breach');assert.ok(r.board.z>1);assert.ok(r.equipment.foilForward[2]>r.board.z+.4);connected(r);await screenshot('tail-breach-flight');
+ r=await advance(.28);assert.ok(r.board.motion.impact);await screenshot('tail-breach-board-slap');r=await advance(.4);assert.equal(r.mode,'swimming');assert.ok(r.equipment.sprayActive>60);await screenshot('tail-breach-splash');
+ await setup('tip-breach');r=await advance(.35);connected(r);assert.ok(r.board.x>12);assert.ok(r.polish.rider.worldHips[0]<12);assert.ok(r.equipment.boardRotation[2]<0);await screenshot('tip-breach-skid');
+ await setup('nose-dive');r=await advance(.8);assert.ok(r.fall.damageWingUntil>0);assert.ok(r.polish.damage.wingSplit);assert.equal(r.mode,'swimming');await screenshot('torn-wing');
+ r=await advance(6);assert.equal(r.polish.damage.wingSplit,false);assert.ok(r.fall.wingInverted);assert.ok(r.equipment.wingUp[1]<-.9);await screenshot('wing-upside-down');
+ await evaluate('(()=>{const s=foilTest.session;s.x=s.board.x;s.z=s.board.z;foilTest.resume();s.boardAgain();foilTest.step(1/60);foilTest.previewPose({});})()');assert.equal(await evaluate('foilTest.session.mode'),'sailing');assert.ok(await evaluate('foilTest.equipment.wingUp[1]')>0);
+ await setup('strike',9);r=await advance(.8);assert.ok(r.polish.damage.boardSplit);assert.equal(r.polish.damage.debris,12);await screenshot('cracked-board');r=await advance(5);assert.equal(r.polish.damage.boardSplit,false);assert.equal(r.polish.damage.debris,0);
+ // Use an actual beach collision, rather than forcing a recovery pose.
+ await evaluate(`(()=>{foilTest.start(1,{free:true,conditions:{wind:10,windFrom:Math.PI/2,swell:0,gust:0}});const s=foilTest.session;Object.assign(s,{x:-207,z:20,heading:Math.PI,speed:10,height:.4,standing:true,standAmount:1,foiling:true,pitch:-.03,trim:.68});s.lastSafe={x:s.x,z:s.z};s.controls.trim=.68;for(let i=0;i<1000&&s.mode==='sailing';i++){s.controls.balance=FoilCore.clamp((.4-s.height)*2-s.vertical*1.7,-.8,.8);foilTest.resume();foilTest.step(1/60);foilTest.inputStep(0);}foilTest.previewPose({});const {x,z}=s;foilTest.inspectScenery([x+7,3,z-3],[x,.8,z-3]);})()`);
+ r=await advance(1.2);assert.equal(r.mode,'walking');assert.ok(await evaluate('!!foilTest.session.landRecovery'));connected(r);await evaluate('(()=>{const s=foilTest.session;foilTest.inspectScenery([s.x+3,s.walkY+1.8,s.z-3],[s.x,s.walkY+.7,s.z]);})()');await screenshot('shore-recovery');r=await advance(4.8);assert.equal(await evaluate('foilTest.session.landRecovery'),null);
+ assert.ok(await evaluate('foilTest.polish.waterObstacles.length')>5);
+ console.log('Backward flip, mirrored-side skid, independent board landing, splash, torn/inverted wing, temporary board fragments and beach recovery passed.');
+ await frames();
+}

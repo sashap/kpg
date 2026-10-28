@@ -18,7 +18,7 @@ test('nose-up pitch raises the front and lowers the tail of board and foil colli
   assert.ok((deckBack.y-world.equipmentPoint([0,.194,-1],level,0).y)*pitch<0);
  }
 });
-test('shore fall preserves points, releases power and recovers into usable water once',()=>{const s=new Session(1,{free:true});s.score=120;s.x=-200;s.z=180;s.controls.trim=.7;s.step(dt);assert.equal(s.score,120);assert.equal(s.controls.trim,0);assert.equal(s.stats.crashes,1);tick(s,5);assert.equal(s.stats.crashes,1);assert.equal(s.fallTime,0);assert.ok(s.safety.depth>2);s.stand();s.controls.trim=.68;tick(s,5);assert.ok(s.speed>2);});
+test('shore fall preserves points, releases power and recovers into usable water once',()=>{const s=new Session(1,{free:true});s.score=120;s.x=-200;s.z=180;s.controls.trim=.7;s.step(dt);assert.equal(s.score,120);assert.equal(s.controls.trim,0);assert.equal(s.stats.crashes,1);tick(s,6);assert.equal(s.stats.crashes,1);assert.equal(s.fallTime,0);assert.ok(s.safety.depth>2);s.x=s.board.x;s.z=s.board.z;assert.ok(s.stand());s.stand();s.controls.trim=.68;tick(s,5);assert.ok(s.speed>2);});
 test('coached takeoff and sustained flight work with quarter-second, coarse player corrections',()=>{const s=new Session(1,{free:true});s.stand();s.controls.trim=.68;tick(s,30,(s,i)=>{if(i%15===0)s.controls.balance=s.speed<4.4?0:s.height<.28?.25:s.height>.6?-.18:0;});assert.equal(s.stats.crashes,0);assert.ok(s.stats.bestFlight>18);assert.ok(s.height>.2&&s.height<.65);});
 test('power feedback distinguishes trim, heading, hand transfer and a real lull',()=>{const s=new Session(1);s.controls.trim=s.trim=.68;s.heading=Math.PI/2;s.angle=Math.PI/2;s.wingAngle=-.8;assert.equal(s.powerInfo().code,'powered');s.angle=.3;assert.equal(s.powerInfo().code,'into-wind');s.angle=Math.PI/2;s.wingSide=-1;s.wingAngle=.8;assert.equal(s.powerInfo().code,'wrong-side');s.wingSide=1;s.wingAngle=-.8;s.trim=.96;assert.equal(s.powerInfo().code,'oversheeted');s.trim=.68;s.wind=s.config.wind*.8;assert.equal(s.powerInfo().code,'lull');s.controls.trim=0;assert.equal(s.powerInfo().code,'sheeted-out');});
 test('continuous half-second pumps start immediately without a discarded recovery press',()=>{const s=new Session(6,{free:true});s.stand();s.controls.trim=.65;tick(s,2);for(let i=0;i<5;i++){assert.equal(s.pumpDown(),true);assert.equal(s.pumpHeld,true);tick(s,.48);assert.ok(s.pumpUp()>.8);}assert.equal(s.stats.pumps,5);assert.equal(s.pumpDown(),true);tick(s,.04);assert.equal(s.pumpUp(),0);assert.equal(s.stats.pumps,5);});
@@ -48,12 +48,27 @@ test('faster swimming covers useful distance, keeps towing slower, and stops pro
 test('treading continues at rest and reverse swimming stays controllable',()=>{const s=new Session(0,{free:true});s.dismount();s.toggleTow();const start={x:s.x,z:s.z},phase=s.swimPhase;tick(s,2);assert.equal(s.x,start.x);assert.equal(s.z,start.z);assert.ok(s.swimPhase>phase);assert.equal(s.swimEffort,0);s.controls.balance=1;tick(s,3);assert.ok(s.swimVelocity<0&&s.speed<1.3);assert.ok(s.x<start.x-3);assert.equal(s.stats.flightTime,0);});
 
 test('walking pressure gives a walk, jog and run, with prompt braking and slow reverse',()=>{
- const saved={walkHeight:world.walkHeight,blocked:world.blocked};world.walkHeight=()=>2;world.blocked=()=>false;
+ const saved={walkHeight:world.walkHeight,walkSupport:world.walkSupport,blocked:world.blocked};world.walkHeight=world.walkSupport=()=>2;world.blocked=()=>false;
  try{const speeds=[];for(const input of [.34,.56,.78,1]){const s=new Session(0,{free:true});Object.assign(s,{mode:'walking',x:0,z:0,walkY:2,heading:0,jumpTime:0});s.controls.balance=-input;tick(s,1);speeds.push(s.speed);assert.equal(s.mode,'walking');const z=s.z;s.controls.balance=0;tick(s,.5);assert.equal(s.speed,0);assert.ok(s.z-z<.5,'Release stops in under half a metre');const stop=s.z;tick(s,1);assert.equal(s.z,stop);s.controls.balance=1;tick(s,1);assert.ok(s.speed<=1.81);}
   assert.ok(speeds[0]>1.7&&speeds[0]<2);assert.ok(speeds[1]>2.8&&speeds[2]>4&&speeds[3]>5.3);for(let i=1;i<4;i++)assert.ok(speeds[i]>speeds[i-1]+.9);
  }finally{Object.assign(world,saved);}
 });
 test('running uses swept collision and cannot tunnel through a thin wall',()=>{
- const saved={walkHeight:world.walkHeight,blocked:world.blocked};world.walkHeight=()=>2;world.blocked=(x,z)=>z>=3&&z<3.12;
+ const saved={walkHeight:world.walkHeight,walkSupport:world.walkSupport,blocked:world.blocked};world.walkHeight=world.walkSupport=()=>2;world.blocked=(x,z)=>z>=3&&z<3.12;
  try{const s=new Session(0,{free:true});Object.assign(s,{mode:'walking',x:0,z:0,walkY:2,heading:0});s.controls.balance=-1;tick(s,3);assert.ok(s.z<3&&s.z>2.8);assert.equal(s.speed,0);}finally{Object.assign(world,saved);}
+});
+test('on-foot jumps preserve walking/running momentum, land, and cannot jump again in midair',()=>{
+ const saved={walkHeight:world.walkHeight,walkSupport:world.walkSupport,blocked:world.blocked};world.walkHeight=world.walkSupport=()=>2;world.blocked=()=>false;
+ try{const distances=[];for(const input of [0,.34,1]){const s=new Session(0,{free:true});Object.assign(s,{mode:'walking',x:0,z:0,walkY:2,heading:0});s.controls.balance=-input;tick(s,1);const start=s.z;assert.equal(s.pumpDown(),true);assert.equal(s.pumpDown(),false);let peak=2;for(let i=0;i<120&&s.walkJump;i++){s.step(dt);peak=Math.max(peak,s.walkY);assert.equal(s.mode,'walking');}assert.ok(peak>2.9&&peak<3.2);assert.equal(s.walkJump,null);assert.equal(s.walkY,2);distances.push(s.z-start);assert.equal(s.pumpDown(),false);tick(s,.2);assert.equal(s.pumpDown(),true);}assert.equal(distances[0],0);assert.ok(distances[1]>1.5&&distances[2]>4.5);}
+ finally{Object.assign(world,saved);}
+});
+test('jumping clears a low obstacle, lands on its top, and still stops at a tall wall',()=>{
+ const saved={walkHeight:world.walkHeight,walkSupport:world.walkSupport,blocked:world.blocked};world.walkHeight=()=>2;world.walkSupport=(x,z,ceiling)=>z>=1&&z<=4&&ceiling>=2.6?2.6:2;world.blocked=(x,z,r,feet)=>z>=1&&z<=4&&feet<2.6||z>=6&&z<6.2&&feet<6;
+ try{const s=new Session(0,{free:true});Object.assign(s,{mode:'walking',x:0,z:0,walkY:2,heading:0,walkVelocity:3});s.controls.balance=-.56;s.pumpDown();tick(s,1.1);assert.equal(s.walkJump,null);assert.equal(s.walkY,2.6);assert.ok(s.z>1&&s.z<4);s.controls.balance=0;tick(s,.3);assert.equal(s.walkY,2.6);s.controls.balance=-1;s.pumpDown();tick(s,1.5);assert.ok(s.z<6);assert.equal(s.walkY,2);}
+ finally{Object.assign(world,saved);}
+});
+test('jumping from shore into water ends in swimming with a splash and keeps the board',()=>{
+ const saved={walkHeight:world.walkHeight,walkSupport:world.walkSupport,blocked:world.blocked};world.walkHeight=world.walkSupport=(x,z)=>z<1?1:-2;world.blocked=()=>false;
+ try{const s=new Session(0,{free:true,conditions:{swell:0}});s.dismount();Object.assign(s,{mode:'walking',x:0,z:0,walkY:1,heading:0,walkVelocity:3});const board=s.board;s.controls.balance=-1;s.pumpDown();tick(s,1.5);assert.equal(s.mode,'swimming');assert.equal(s.walkJump,null);assert.equal(s.board,board);assert.ok(s.drain().some(e=>e.type==='splashdown'));}
+ finally{Object.assign(world,saved);}
 });

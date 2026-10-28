@@ -34,21 +34,22 @@ function create({THREE,scene,world,sea}){
   for(const p of Object.values(parts))p.index=0;state=[];
   for(let i=0;i<Math.min(count,pilots.length);i++){const pilot=pilots[i],expert=i<Math.round(count*expertRatio);for(let t=0;t<elapsed;t+=1/60)pilot.update(Math.min(1/60,elapsed-t),s,expert);const r=pilot.s,p={x:r.x,z:r.z,heading:r.heading,phase:pilot.phase+s.time*.3},distance=Math.hypot(p.x-s.x,p.z-s.z),off=r.mode!=='sailing';
    state.push({...p,depth:-world.bedHeight(p.x,p.z),expert,mode:r.mode,speed:r.speed,height:r.height,foiling:r.foiling,pumps:r.stats.pumps,falls:r.stats.crashes,wingSide:r.wingSide,wingAngle:r.wingAngle,windFrom:r.windFrom,trim:r.trim});
-   const flight=off?0:r.height,bx=off?r.board?.x??p.x:p.x,bz=off?r.board?.z??p.z:p.z,bh=off?r.board?.heading??p.heading:p.heading,y=sea(bx,bz,s.time,s.config.swell,s.config)+flight,fade=1;base.position.set(bx,y,bz);base.rotation.set(off?0:-r.pitch,bh,off?0:r.roll,'YXZ');base.scale.setScalar(fade);base.updateMatrixWorld();
+   const flight=off?0:r.height,bx=off?r.board?.x??p.x:p.x,bz=off?r.board?.z??p.z:p.z,bh=off?r.board?.heading??p.heading:p.heading,motion=off?r.board?.motion:null,y=motion?motion.y:sea(bx,bz,s.time,s.config.swell,s.config)+flight,fade=1;base.position.set(bx,y,bz);base.rotation.set(off?-(motion?.pitch||0):-r.pitch,bh,off?motion?.roll||0:r.roll,'YXZ');base.scale.setScalar(fade);base.updateMatrixWorld();
    human.position.copy(base.position);human.quaternion.copy(base.quaternion);human.scale.copy(base.scale);
    if(off){human.position.set(r.x,r.mode==='falling'?r.walkY-.9:sea(r.x,r.z,s.time,s.config.swell,s.config)-.03,r.z);human.rotation.set(r.mode==='falling'?r.fallMotion?.pitch||0:Math.PI/2,r.heading,r.mode==='falling'?r.fallMotion?.roll||0:0,'YXZ');}human.updateMatrixWorld();
    put('board',base,0,.08,0,.34,.11,.91);put('deck',base,0,.178,-.15,.47,.025,1.1);put('mast',base,0,-.37,-.05,.055,.80,.12);put('foil',base,0,-.77,.12,.65,.035,.18);put('foil',base,0,-.73,-.52,.25,.025,.11);
    const crouch=-r.pumpCharge*.13+Math.sin(p.phase)*.015,hip=.94+crouch;put('hips',human,0,hip,0,.16,.15,.12);put('body',human,0,hip+.26,0);put('head',human,0,hip+.66,.015,.105,.14,.10);put('helmet',human,0,hip+.74,.0,.112,.08,.11,null,palette[i%5]);
    for(const side of [-1,1]){const foot=[side*.08,.22,side*.31],knee=[side*.11,.57+crouch,.12+side*.22];put('feet',human,...foot,.10,.07,.24);limb('legs',[side*.105,hip,0],knee,.072);limb('legs',knee,foot,.048);}
    pilot.renderAngle+=(r.wingAngle-pilot.renderAngle)*(1-Math.exp(-Math.max(dt,elapsed)*5));const wingAngle=pilot.renderAngle;
-   wing.position.set(-wingAngle*.40,off?.22:1.95+crouch,.25);wing.rotation.set(off?.04:.05+r.trim*.30,-wingAngle*.15,off?.03:wingAngle*(.82+r.trim*.10));wing.scale.set(1,1,1);wing.updateMatrix();wing.matrixWorld.multiplyMatrices(base.matrixWorld,wing.matrix);
+   wing.position.set(-wingAngle*.40,off?.22:1.95+crouch,.25);wing.rotation.set(off?.04:.05+r.trim*.30,-wingAngle*.15,off?.03:wingAngle*(.82+r.trim*.10));wing.scale.set(1,1,1);wing.updateMatrix();wing.matrixWorld.multiplyMatrices(base.matrixWorld,wing.matrix);if(off&&r.fallMotion){const at=FoilWipeouts.wingLanding(r);wing.position.set(at.x,sea(at.x,at.z,s.time,s.config.swell,s.config)+(r.fallMotion.wingInverted?.52:.18),at.z);wing.rotation.set(.035,r.fallMotion.heading,r.fallMotion.wingInverted?Math.PI:.03,'YXZ');wing.updateMatrix();wing.matrixWorld.copy(wing.matrix);}
    put('canopy',wing,0,0,0,1,1,1,null,palette[i%5]);put('tube',wing,0,0,0);put('trailing',wing,0,0,0);put('strut',wing,0,0,0);for(const x of [-2.125,2.125])for(const t of [0,1])put('tips',wing,...point(x,t).toArray(),t?.045:.069);
    for(const a of [-1,1]){const hand=off?V(a*.28,1.25,.28+Math.sin(s.time*3+a)*.12):V(0,-.11,a*.27).applyMatrix4(wing.matrix),elbow=[a*.27-wingAngle*.12,off?1.0:1.48+crouch,.14+a*.12];limb('arms',[a*.19,hip+.43,0],elbow,.048);limb('arms',elbow,hand.toArray(),.035);}
    if(!off&&r.speed>1.5)for(const side of [-1,1]){const q=new THREE.Quaternion().setFromUnitVectors(Y,V(side*.10,0,-1).normalize());put('wake',base,side*.22,-flight+.025,-2,.28,.85,.12,q);}
   }
   for(const p of Object.values(parts)){p.mesh.count=p.index;p.mesh.instanceMatrix.needsUpdate=true;if(p.mesh.instanceColor)p.mesh.instanceColor.needsUpdate=true;}
  }
- return {setCount,setExpertRatio,update,diagnostics:()=>({count,expertRatio,visitSeed,active:state.length,rendered:count?parts.board.mesh.count:0,riders:state})};
+ function contacts(){return pilots.slice(0,count).map((p,i)=>{const r=p.s,b=r.mode==='sailing'?r:r.board||r;return {id:'foiler-'+i,kind:'foiler',x:b.x,z:b.z,heading:b.heading,w:1.0,d:2.0,low:-.9,high:2.4+(r.height||0),vx:Math.sin(r.heading)*r.speed,vz:Math.cos(r.heading)*r.speed,time:lastTime,onHit:()=>{if(r.mode==='sailing')r.crash('Collision with another foiler.',null,{kind:'strike'});}};});}
+ return {contacts,setCount,setExpertRatio,update,diagnostics:()=>({count,expertRatio,visitSeed,active:state.length,rendered:count?parts.board.mesh.count:0,riders:state})};
 }
 const api={routes,position,create};root.FoilTraffic=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);

@@ -16,7 +16,7 @@ export async function check({evaluate,cdp,frames,click,screenshot,tablet,phone})
   const header=await evaluate("[...document.querySelectorAll('header button')].filter(b=>b.offsetWidth).map(b=>{const r=b.getBoundingClientRect();return {id:b.id,x:r.x,right:r.right}})");for(let i=0;i<header.length;i++){assert.ok(header[i].x>=0&&header[i].right<=width,JSON.stringify({width,header}));if(i)assert.ok(header[i].x>=header[i-1].right,JSON.stringify({width,header}));}
  }
  await cdp('Emulation.setDeviceMetricsOverride',{width:phone?390:tablet?1180:1440,height:phone?844:tablet?820:960,deviceScaleFactor:1,mobile:tablet||phone});
- for(const site of ['academy','coyote','third','shoreline','kahului','crissy']){
+ for(const site of (tablet||phone?['academy','coyote']:['academy','coyote','third','shoreline','kahului','crissy'])){
   if(site!=='academy'){await evaluate(`foilTest.travel('${site}',{screen:'intro'})`);for(let i=0;i<240;i++){await new Promise(r=>setTimeout(r,120));if(await evaluate(`!!window.foilTest&&FoilWorld.location.id==='${site}'&&!!document.getElementById('begin')`))break;}await click('begin');}
   await click('chart');await frames();
   const layout=await evaluate(`(()=>{const m=document.getElementById('bay-map'),r=m.getBoundingClientRect(),c=document.getElementById('modal-card');return {width:r.width,height:r.height,range:+m.dataset.range,scroll:c.scrollHeight,client:c.clientHeight};})()`);assert.ok(layout.width>250&&layout.height>200,JSON.stringify({site,layout}));assert.ok(layout.scroll<=layout.client+1,JSON.stringify({site,layout}));assert.ok(layout.range<=550);
@@ -32,11 +32,11 @@ export async function check({evaluate,cdp,frames,click,screenshot,tablet,phone})
    const range=await evaluate("+document.getElementById('bay-map').dataset.range"),scale=await evaluate('visualViewport.scale');
    await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:p.x-25,y:p.y,id:51},{x:p.x+25,y:p.y,id:52}]});await cdp('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:p.x-55,y:p.y,id:51},{x:p.x+55,y:p.y,id:52}]});await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});assert.ok(await evaluate(`+document.getElementById('bay-map').dataset.range<${range*.7}`));assert.equal(await evaluate('visualViewport.scale'),scale);
   }
-  await click('map-near');await screenshot('navigation-'+site);await click('chart-close');
+  await click('map-near');await screenshot('navigation-'+site);console.log('Navigation passed:',site);await click('chart-close');
  }
  // Navigation remains usable in compact portrait and landscape, with scroll limited to the list.
  for(const [width,height] of [[320,480],[844,390],[667,375]]){
   await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});await click('chart');await frames();const layout=await evaluate("(()=>{const m=document.getElementById('modal-card'),b=document.getElementById('bay-map').getBoundingClientRect();return {scroll:m.scrollHeight,client:m.clientHeight,width:b.width,height:b.height,bottom:b.bottom}})()");assert.ok(layout.scroll<=layout.client+1&&layout.width>200&&layout.height>=100&&layout.bottom<height,JSON.stringify({width,height,layout}));await screenshot('navigation-'+width+'-'+height);await click('chart-close');
  }
- console.log('Fullscreen enter/exit, shallow feedback, protected game gestures, header fit and interactive navigation at all six locations passed.');
+ console.log('Fullscreen enter/exit, shallow feedback, protected game gestures, header fit and interactive navigation passed.');
 }

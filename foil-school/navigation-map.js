@@ -30,7 +30,7 @@ const FoilNavigationMap=(()=>{
    const order=landmarks.map((l,i)=>i).sort((a,b)=>Number(b===selected)-Number(a===selected));
    for(const i of order){const l=landmarks[i],p=point(l.x,l.z),x=p[0],y=p[1];if(x<12||x>width-12||y<12||y>height-12)continue;
     markers.push({x,y,index:i});ctx.beginPath();ctx.arc(x,y,i===selected?12:10,0,Math.PI*2);ctx.fillStyle=i===selected?'#164e5d':l.color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.font='bold 11px sans-serif';ctx.fillStyle='#fff';ctx.fillText(i+1,x,y+.5);
-    const text=l.name.replace(' · horse',''),w=ctx.measureText(text).width+12;
+    ctx.font='600 12px sans-serif';let text=l.name.replace(' · horse','');if(ctx.measureText(text).width>width*.7)text=l.short;while(text.length>10&&ctx.measureText(text).width>width-30)text=text.slice(0,-2)+'…';const w=ctx.measureText(text).width+12;
     for(const dy of [-26,26,-43,43]){const box={x:clamp(x-w/2,8,width-w-8),y:y+dy-8,w,h:17};if(box.y<10||box.y+box.h>height-32||occupied.some(b=>box.x<b.x+b.w&&box.x+box.w>b.x&&box.y<b.y+b.h&&box.y+box.h>b.y))continue;label(text,box.x+w/2,box.y+8);occupied.push(box);break;}
    }
    const gate=point(session.gate.x,session.gate.z);ctx.fillStyle='#dba657';ctx.fillRect(gate[0]-5,gate[1]-5,10,10);

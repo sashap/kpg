@@ -254,11 +254,11 @@ function build(c){
  }
  FoilLandmarkScenery.build({...c,frame});
  if(g.playground)(site.id==='coyote'?FoilPlayground.buildCoyote:FoilPlayground.build)({...c,sign,groundPatch});
- if(site.id==='shoreline')FoilLakeBoat.build(c);
+ const pedalBoat=site.id==='shoreline'?FoilLakeBoat.build(c):null;
  const harborDetail=site.id==='kahului'?FoilHarborScenery.build({...c,frame,hipRoof,sign,groundPatch,shrub,plant,windsock}):null;
  // A few benches at mapped viewpoints, kept out of the launch path.
  for(const [lat,lon] of site.id==='kahului'?[]:site.id==='shoreline'?[[37.43435,-122.0885]]:site.id==='coyote'?[[37.5895,-122.3268],[37.5903,-122.325]]:site.id==='crissy'?[[37.8057,-122.456],[37.8078,-122.4701]]:[[37.5744,-122.2843]]){const p=group(lat,lon);bench(p,0,0);}
- return {harbor:harborDetail,trees,parkingLots:parking.lots.length,parkingStalls:parking.stalls.length,groundPatches:ground.length,windMarkers:windMarkers.diagnostics};
+ return {pedalBoat,harbor:harborDetail,trees,parkingLots:parking.lots.length,parkingStalls:parking.stalls.length,groundPatches:ground.length,windMarkers:windMarkers.diagnostics};
 }
 root.FoilSiteDetails={build};
 })(globalThis);

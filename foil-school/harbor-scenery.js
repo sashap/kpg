@@ -96,6 +96,7 @@ function build(c){
  // Harbor navigation marks; red on the west/right side when entering.
  const buoys=[];for(const [lat,lon,color] of [[20.90068,-156.47450,0xb74e3b],[20.90080,-156.47200,0x39785e],[20.89850,-156.47380,0xb74e3b],[20.89730,-156.47035,0x39785e]]){const [x,z]=g.project([lat,lon]),p=new THREE.Group();p.position.set(x,0,z);scene.add(p);mesh(p,new THREE.CylinderGeometry(.65,.95,.75,12),color,0,.25,0);rod(p,color,[0,.5,0],[0,2.8,0],.07);mesh(p,new THREE.ConeGeometry(.5,.6,8),color,0,2.8,0);buoys.push(p);}actors.push(s=>{for(let i=0;i<buoys.length;i++){buoys[i].position.y=Math.sin(s.time*1.2+i)*.07;buoys[i].rotation.z=Math.sin(s.time*.8+i)*.035;}});
  // A crew follows a smooth sheltered oval, never teleporting between ends.
+ FoilWorld.waterContacts.add({kind:'canoe',w:3.4,d:12.4,low:-.3,high:1.5,sample:t=>FoilHarbor.canoeFrame(t,g.project)});
  const crew=canoe(scene,0,0,0,0,0),rowers=[],limbGeo=new THREE.CylinderGeometry(1,1,1,8),skinMat=[0xb77e58,0x855b42,0xc39470].map(color=>new THREE.MeshStandardMaterial({color,roughness:.85}));
  const Y=V(0,1,0),segment=(m,a,b,r)=>{m.position.copy(a).add(b).multiplyScalar(.5);const d=b.clone().sub(a);m.scale.set(r,d.length(),r);m.quaternion.setFromUnitVectors(Y,d.normalize());};
  function elbow(a,b,side){const d=b.clone().sub(a),len=Math.min(.575,d.length()),axis=d.normalize(),middle=len/2,bend=V(side,-.3,-.5).addScaledVector(axis,-V(side,-.3,-.5).dot(axis)).normalize();return a.clone().addScaledVector(axis,middle).addScaledVector(bend,Math.sqrt(Math.max(0,.29*.29-middle*middle)));}

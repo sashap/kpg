@@ -3,7 +3,7 @@
 const core=typeof module!=='undefined'&&module.exports?require('./core.js'):root.FoilCore,{Session,clamp,wrap,sea}=core;
 function create(world,course,index,seed=1){
  let state=seed>>>0;const random=()=>{state=(1664525*state+1013904223)>>>0;return state/4294967296;};
- const s=new Session(1,{free:true,assist:true}),dir=random()<.5?1:-1,along=(random()-.5)*course.long*1.3,offset=(random()-.5)*course.short*.5;
+ const s=new Session(1,{free:true,assist:true,traffic:true}),dir=random()<.5?1:-1,along=(random()-.5)*course.long*1.3,offset=(random()-.5)*course.short*.5;
  Object.assign(s,{x:course.cx+along*Math.sin(course.axis)+offset*Math.cos(course.axis),z:course.cz+along*Math.cos(course.axis)-offset*Math.sin(course.axis),heading:wrap(course.axis+(dir<0?Math.PI:0)),wingSide:-dir,wingAngle:-dir*.75,wingTarget:-dir*.75,standing:true,standAmount:1});s.lastSafe={x:s.x,z:s.z};s.lastSea=sea(s.x,s.z,0,s.config.swell,s.config);s.updateSafety();
  const rider={s,course,dir,turn:null,age:random()*15,attemptAt:8+random()*13,fallAt:25+random()*25,fallAge:0,pumpAt:random()*4,expert:false,skill:.45+random()*.4,renderAngle:s.wingAngle,seed,phase:random()*6.28};
  function balance(target=.4){return clamp((target-s.height)*2-s.vertical*1.7+(s.assist&&s.height>.10?0:(90*9.81/(.5*1025*.18*Math.max(3,s.speed)**2)-.3152)/.576),-.8,.8);}
