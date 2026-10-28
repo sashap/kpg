@@ -8,6 +8,11 @@ test('Coyote rock armor leaves both mapped beaches and promenade ramps open',()=
  for(const rock of g.shoreRocks){for(const beach of beaches){assert.ok(!L.inside(rock.x,rock.z,beach.points));assert.ok(L.distance(rock.x,rock.z,beach.points)>Math.max(rock.rx,rock.rz));}assert.ok(!g.promenade.rampAt(rock.x,rock.z));}
  assert.ok(g.shoreRocks.length>1500);assert.ok(g.features.buildings.some(b=>b.style==='pump'&&b.id==='1267736760'));
 });
+test('raised Coyote armor follows the promenade between both beaches, with clear paving and ramp openings',()=>{
+ const g=L.create('coyote'),p=g.promenade,rocks=g.shoreRocks.filter(r=>r.promenadeArmor),beaches=g.features.ground.filter(p=>p.kind==='beach');assert.ok(rocks.length>1200);assert.ok(Math.max(...rocks.map(r=>r.x))-Math.min(...rocks.map(r=>r.x))>350);
+ for(const r of rocks){const q=p.nearest(r.x,r.z),radius=Math.max(r.rx,r.rz);assert.ok(q.across>3.7+radius+.28);assert.equal(p.rampAt(r.x,r.z,radius+.25),null);for(const beach of beaches)assert.ok(!L.inside(r.x,r.z,beach.points)&&L.distance(r.x,r.z,beach.points)>radius+.3);assert.ok(g.bedHeight(r.x,r.z)>=r.y+r.ry-.001);}
+ let checked=0;for(const s of p.segments){const x=(s.a[0]+s.b[0])/2+s.nx*4.85,z=(s.a[1]+s.b[1])/2+s.nz*4.85;if(x< -85||x>255||p.rampAt(x,z,2.5)||beaches.some(b=>L.inside(x,z,b.points)||L.distance(x,z,b.points)<3))continue;const close=rocks.filter(r=>Math.hypot(r.x-x,r.z-z)<1.8&&r.y+r.ry>2.95);assert.ok(close.length,'Crest coverage should continue between ramps');assert.ok(Math.abs(g.walkHeight(x-s.nx*4.85,z-s.nz*4.85)-p.height)<.025,'Pavement stays flat');checked++;}assert.ok(checked>80);
+});
 test('Third Avenue lower concrete ramp has a clear, continuous walkable slope into water',()=>{
  world.activate('third');try{const g=world.geography,a=g.shoreAccess,r=a.ramp;assert.match(g.site.name,/Lower Launch/);assert.ok(Math.hypot(...g.project(g.site.launch))<180);assert.ok(world.clearance(new Session(),0).foilClearance>1.5);
   for(let t=.02;t<.99;t+=.02)for(const cross of [-1.7,0,1.7]){const x=r.a[0]+(r.b[0]-r.a[0])*t+r.nx*cross,z=r.a[1]+(r.b[1]-r.a[1])*t+r.nz*cross,h=a.at(x,z).height;assert.ok(g.terrainHeight(x,z)<h+.025,JSON.stringify({t,cross,h,terrain:g.terrainHeight(x,z)}));assert.ok(Math.abs(g.walkHeight(x,z)-h)<.025);assert.ok(!g.blocked(x,z));}

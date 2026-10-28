@@ -92,6 +92,22 @@ function create(id){
   if(promenade.rampAt(x,z,Math.max(rx,rz)+.25)||promenade.nearest(x,z)?.distance<3.8)continue;
   const top=promenade.rampHeight(r,along)+.55+(rand()-.5)*.14,rock={x,z,y:top-ry,rx,ry,rz,angle:rand()*Math.PI,index:shoreRocks.length,rampArmor:true};shoreRocks.push(rock);const key=Math.floor(x/8)+','+Math.floor(z/8);if(!rockBins.has(key))rockBins.set(key,[]);rockBins.get(key).push(rock);
  }}
+ // The raised riprap continues along the entire paved waterfront between
+ // Aardvark Beach and Coyote Point Beach, not just the central ramp shoulders.
+ // Follow the flat promenade crest down to the mapped waterline; exclude
+ // complete rock volumes from beaches, concrete ramps and the walking apron.
+ if(promenade){
+  const beachX=id=>line(raw.ground.find(p=>p.id===id).points).map(p=>p[0]),westEnd=Math.min(...beachX('1092264607')),eastEnd=Math.max(...beachX('1023523442'));
+  for(const s of promenade.segments){const n=Math.ceil(s.length/1.06);for(let j=0;j<n;j++){
+   const t=(j+.5)/n,cx=s.a[0]+s.dx*t,cz=s.a[1]+s.dz*t;if(cx<eastEnd||cx>westEnd)continue;
+   let toe=8;while(toe<24&&signedShore(cx+s.nx*toe,cz+s.nz*toe)>-3)toe+=.5;
+   for(let row=0,d=4.85;d<=toe+.35;row++,d+=1.04){const rx=row?.88+rand()*.16:.79+rand()*.03,rz=row?.86+rand()*.16:.79+rand()*.03,ry=.48+rand()*.14,along=(rand()-.5)*.16,across=d+(rand()-.5)*.08,x=cx+s.nx*across+s.dx/s.length*along,z=cz+s.nz*across+s.dz/s.length*along,radius=Math.max(rx,rz);
+    if(promenade.rampAt(x,z,radius+.3)||beaches.some(p=>inside(x,z,p)||distance(x,z,p)<radius+.4))continue;
+    const q=promenade.nearest(x,z);if(!q||q.across<3.72+radius+.28)continue;
+    const crest=promenade.height+.31,top=crest-(crest-.2)*clamp((across-4.85)/(toe-4.85),0,1)+(rand()-.5)*.12,rock={x,z,y:top-ry,rx,ry,rz,angle:rand()*Math.PI,index:shoreRocks.length,promenadeArmor:true};shoreRocks.push(rock);const key=Math.floor(x/8)+','+Math.floor(z/8);if(!rockBins.has(key))rockBins.set(key,[]);rockBins.get(key).push(rock);
+   }
+  }}
+ }
  if(harbor){
   const addRock=r=>{r.index=shoreRocks.length;shoreRocks.push(r);const key=Math.floor(r.x/8)+','+Math.floor(r.z/8);if(!rockBins.has(key))rockBins.set(key,[]);rockBins.get(key).push(r);};
   // A dense armor mantle covers the breakwaters, including their shoulders.

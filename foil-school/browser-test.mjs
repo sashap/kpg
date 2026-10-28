@@ -20,6 +20,16 @@ const screenshot=async name=>{const r=await cdp('Page.captureScreenshot',{format
 const click=async id=>{await evaluate(`document.getElementById('${id}').scrollIntoView({block:'center'})`);await frames();const p=await evaluate(`(()=>{const r=document.getElementById('${id}').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);if(tablet||phone){await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:1}]});await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}else{await cdp('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',clickCount:1});await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',...p,button:'left',clickCount:1});}};
 await screenshot('intro');console.log('loaded',await evaluate('foilTest.renderStats'));assert.ok(await evaluate('foilTest.renderStats.programs.every(p=>p.runnable)'),'Shaders must compile');
 if(process.argv[3]==='smoke'){console.log('errors',errors);assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='intro-layout'){
+ for(const [width,height] of [[390,844],[375,667],[320,568],[320,480],[844,390],[667,375],[1180,820],[900,600]]){
+  await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<761||height<500});await frames();
+  const layout=await evaluate(`(()=>{const m=document.getElementById('modal-card');return {scroll:m.scrollHeight,client:m.clientHeight,focus:document.activeElement.id,title:document.getElementById('modal-title').textContent,buttons:['intro-location','begin','open-lessons','free-intro'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return {id,x:r.x,right:r.right,top:r.top,bottom:r.bottom};})};})()`);
+  assert.equal(layout.title,'Find your flight.');assert.equal(layout.focus,'begin');assert.ok(layout.scroll<=layout.client+1,JSON.stringify({width,height,layout}));for(const b of layout.buttons)assert.ok(b.x>=0&&b.right<=width&&b.top>=0&&b.bottom<=height,JSON.stringify({width,height,b}));
+  if(width===320||height<400)await screenshot('intro-compact-'+width+'-'+height);
+ }
+ assert.deepEqual(errors,[]);console.log('Short welcome, all start/location controls visible without scrolling, and initial start-button focus passed at eight sizes');ws.close();process.exit(0);
+}
+if(process.argv[3]==='usability'){await (await import('./usability-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='travel'){await (await import('./travel-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='catalog'){
  await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:650,deviceScaleFactor:1,mobile:false});
