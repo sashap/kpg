@@ -81,7 +81,7 @@ function build({THREE,scene,scenery,mesh,box,ell,rod,tree,landGeometry,terrainMa
   // The promenade is rendered once, from its mapped path in site-details.
   marker('Golden Gate Bridge','GOLDEN GATE',37.8198,-122.4785,230);marker('Fort Point','FORT POINT',37.8106,-122.4770,23);marker('Alcatraz Island','ALCATRAZ',37.8267,-122.4230,28);marker('Palace of Fine Arts','PALACE',37.80292,-122.4484,42);marker('Warming Hut','WARMING HUT',37.80832,-122.47073,8);
  }
- marker(site.id==='kahului'?'Ho‘aloha beach launch':site.id==='shoreline'?'Boathouse launch':site.id==='third'?'Lower launch · concrete ramp':'Beach launch','LAUNCH',...site.launch,4,'launch');
+ marker(site.id==='lemorne'?'Kite Lagoon launch':site.id==='kahului'?'Ho‘aloha beach launch':site.id==='shoreline'?'Boathouse launch':site.id==='third'?'Lower launch · concrete ramp':'Beach launch','LAUNCH',...site.launch,4,'launch');
  const buoy=new THREE.Group();buoy.position.set(-5,0,-4);scenery.add(buoy);buoy.userData.collisionKind='buoy';mesh(buoy,new THREE.CylinderGeometry(.5,.65,.9,12),0xf1d7a8,0,.3,0);rod(buoy,0x59787c,[0,.7,0],[0,2.5,0],.04);box(buoy,0x4e8390,.45,2.2,0,.9,.45,.03);
  // Shore discoveries remain optional, and use the same on-foot collision path.
  g.castle.sites=landmarks.filter(l=>l.kind!=='launch'&&Math.hypot(l.x,l.z)<1800).slice(0,4).map((l,i)=>({id:site.id+'-'+i,name:l.name,x:l.x+12,z:l.z,text:l.name+' · '+site.subtitle+'. Head back to the water whenever you are ready.'}));

@@ -84,12 +84,13 @@ const LESSONS=definitions.map(([id,name,stage,wind,swell,gust,goals,brief,tip,le
 // Keep personal records and archive old course stars. The new goals are not
 // equivalent to the old index-based course, so none are silently relabelled.
 function readProgress(raw){
- const out={lessons:{},legacyLessons:{},bestFlight:0,bestScore:0,sound:true,assist:true,otherFoilers:5,expertRatio:.6};
+ const equipment=typeof module!=='undefined'&&module.exports?require('./equipment.js'):root.FoilEquipment;
+ const out={equipment:equipment.clean(null),lessons:{},legacyLessons:{},bestFlight:0,bestScore:0,sound:true,assist:true,otherFoilers:5,expertRatio:.6};
  if(!raw||![1,2].includes(raw.version))return out;
  for(const key of ['bestFlight','bestScore'])if(Number.isFinite(raw[key]))out[key]=Math.max(0,raw[key]);if(Number.isFinite(raw.otherFoilers))out.otherFoilers=Math.max(0,Math.min(25,Math.round(raw.otherFoilers)));if(Number.isFinite(raw.expertRatio))out.expertRatio=Math.max(0,Math.min(1,raw.expertRatio));out.sound=raw.sound!==false;out.assist=raw.assist!==false;
  function clean(items,allowed){const result={};if(items&&typeof items==='object')for(const [id,item] of Object.entries(items))if(allowed(id)&&Number.isFinite(item?.stars))result[id]={stars:Math.max(1,Math.min(3,Math.floor(item.stars))),score:Number.isFinite(item.score)?Math.max(0,item.score):0};return result;}
  out.lessons=raw.version===2?clean(raw.lessons,id=>LESSONS.some(l=>l.id===id)):{};
- out.legacyLessons=clean(raw.version===1?raw.lessons:raw.legacyLessons,id=>/^([0-9]|1[01])$/.test(id));return out;
+ out.legacyLessons=clean(raw.version===1?raw.lessons:raw.legacyLessons,id=>/^([0-9]|1[01])$/.test(id));out.equipment=equipment.clean(raw.equipment,out.lessons,out.bestFlight);return out;
 }
 const api={LESSONS,readProgress};if(typeof module!=='undefined'&&module.exports)module.exports=api;root.FoilLessons=api;
 })(globalThis);

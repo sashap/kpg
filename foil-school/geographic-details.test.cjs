@@ -10,7 +10,7 @@ test('Third Avenue keeps an open grass bank rising inland from the smooth golf t
 });
 
 test('Kahului has northeast trades, a clear deep-water start and low beach access',()=>{
- const g=locations.create('kahului');assert.equal(locations.sites.length,6);assert.ok(Math.abs(-g.site.windFrom*180/Math.PI-45)<.001);
+ const g=locations.create('kahului');assert.equal(locations.sites.length,7);assert.ok(Math.abs(-g.site.windFrom*180/Math.PI-45)<.001);
  assert.ok(g.bedHeight(0,0)<-3);assert.ok(g.harbor.breaks.length>=2);
  const a=g.project([20.89275,-156.4691]),b=g.project([20.89228,-156.46894]);let previous=g.terrainHeight(...a);assert.ok(previous<-1);
  for(let i=1;i<=80;i++){const t=i/80,x=a[0]+(b[0]-a[0])*t,z=a[1]+(b[1]-a[1])*t,y=g.terrainHeight(x,z);assert.ok(Math.abs(y-previous)<.35,'No vertical beach step');assert.ok(!g.blocked(x,z,.3,y),'Public launch stays clear');previous=y;}

@@ -3,6 +3,7 @@
 'use strict';
 const PI=Math.PI,TAU=PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wrap=a=>Math.atan2(Math.sin(a),Math.cos(a)),mix=(a,b,t)=>a+(b-a)*t;
 const world=typeof module!=='undefined'&&module.exports?require('./world.js'):root.FoilWorld;const {ISLANDS}=world;
+const equipment=typeof module!=='undefined'&&module.exports?require('./equipment.js'):root.FoilEquipment;
 const horses=typeof module!=='undefined'&&module.exports?require('./horses.js'):root.FoilHorses;
 const lakeBoat=typeof module!=='undefined'&&module.exports?require('./lake-boat.js'):root.FoilLakeBoat;
 const wipeouts=typeof module!=='undefined'&&module.exports?require('./wipeouts.js'):root.FoilWipeouts;
@@ -25,8 +26,8 @@ function normalizeConditions(values={},base={}){
 }
 function freshStats(){return {taxi:0,touchGoes:0,footSwitches:0,sTurns:0,carves:0,waveTime:0,bestGlide:0,pops:0,frontsideAirs:0,backsideAirs:0,airTacks:0,spins:0,backflips:0,frontflips:0,airTime:0,powered:0,flightTime:0,bestFlight:0,stable:0,landings:0,upwind:0,pumps:0,jibes:0,tacks:0,links:0,gates:0,crashes:0,maxSpeed:0};}
 class Session{
- constructor(lesson=0,options={}){this.lesson=clamp(Math.floor(lesson),0,LESSONS.length-1);this.free=!!options.free;this.isTraffic=!!options.traffic;this.assist=options.assist!==false;this.config=normalizeConditions(options.conditions,{...LESSONS[this.lesson],windFrom:world.location?.windFrom??0});this.time=0;this.score=0;this.stats=freshStats();this.complete=false;this.events=[];this.discoveries=new Set();this.controls={steer:0,balance:0,trim:0};this.gateIndex=0;this.horses=horses.spawn(world);this.horse=null;this.resetRider();if(!Number.isFinite(options.conditions?.waveDirection)){if(this.config.id==='wave-riding')this.config.waveDirection=this.heading;if(this.config.id==='downwind-gliding')this.config.waveDirection=wrap(this.config.windFrom+PI);this.lastSea=sea(this.x,this.z,this.time,this.config.swell,this.config);this.updateSafety();}this.makeGate();}
- resetRider(){if(this.horse){this.horse.speed=0;this.horse.jump=null;this.horse.y=horses.ground(world,this.horse.x,this.horse.z);this.horse=null;}this.resetSkills();this.mode='sailing';this.landRecovery=null;this.fallMotion=null;this.entryTime=0;this.board=null;this.towing=false;this.jumpTime=0;this.walkJump=null;this.walkJumpCooldown=0;this.walkCycle=0;this.walkVelocity=0;this.swimPhase=0;this.swimVelocity=0;this.swimEffort=0;this.walkY=0;[this.x,this.z]=world.location.start&&world.geography?world.geography.project(world.location.start):[0,0];this.heading=wrap(this.config.windFrom+PI/2);this.speed=0;this.height=0;this.vertical=0;this.pitch=0;this.roll=0;this.standing=false;this.standAmount=0;this.wingSide=-1;if(world.geography){let best=-Infinity;for(const side of [-1,1])for(const offset of [0,-.2,.2,-.4,.4]){const h=this.config.windFrom+side*(PI/2+offset);let reach=0;for(let r=10;r<440;r+=10){if(world.bedHeight(this.x+Math.sin(h)*r,this.z+Math.cos(h)*r)>-1.2)break;reach=r;}const score=reach-Math.abs(offset)*24;if(score>best){best=score;this.wingSide=-side;this.heading=wrap(h);}}}this.swapTime=0;this.flight=0;this.foiling=false;this.landingPending=false;this.breachTime=0;this.fallTime=0;this.pumpHeld=false;this.pumpCharge=0;this.pumpCooldown=0;this.pumpPulse=0;this.stamina=1;this.turn=null;this.trim=0;this.balance=0;this.steer=0;this.wind=this.config.wind;this.windFrom=this.config.windFrom;this.apparent=this.wind;this.angle=Math.abs(wrap(this.heading-this.windFrom));this.lift=0;this.drive=0;this.status='Kneeling';this.fallReason='';this.recoveryPoint=null;this.lastCollision=null;this.lastSafe={x:this.x,z:this.z};this.safety=world.clearance(this,sea(this.x,this.z,this.time,this.config.swell,this.config));this.shoreAhead=false;this.windTrend=0;this.lastSea=sea(this.x,this.z,this.time,this.config.swell,this.config);this.controls={steer:0,balance:0,trim:0};}
+ constructor(lesson=0,options={}){this.gear=equipment.tune(options.equipment);this.lesson=clamp(Math.floor(lesson),0,LESSONS.length-1);this.free=!!options.free;this.isTraffic=!!options.traffic;this.assist=options.assist!==false;this.config=normalizeConditions(options.conditions,{...LESSONS[this.lesson],windFrom:world.location?.windFrom??0});this.time=0;this.score=0;this.stats=freshStats();this.complete=false;this.events=[];this.discoveries=new Set();this.controls={steer:0,balance:0,trim:0};this.gateIndex=0;this.horses=horses.spawn(world);this.horse=null;this.resetRider();if(!Number.isFinite(options.conditions?.waveDirection)){if(this.config.id==='wave-riding')this.config.waveDirection=this.heading;if(this.config.id==='downwind-gliding')this.config.waveDirection=wrap(this.config.windFrom+PI);this.lastSea=sea(this.x,this.z,this.time,this.config.swell,this.config);this.updateSafety();}this.makeGate();}
+ resetRider(){if(this.horse){this.horse.speed=0;this.horse.jump=null;this.horse.y=Math.max(horses.ground(world,this.horse.x,this.horse.z),sea(this.horse.x,this.horse.z,this.time,this.config.swell,this.config)-1.18);this.horse=null;}this.resetSkills();this.mode='sailing';this.landRecovery=null;this.fallMotion=null;this.entryTime=0;this.board=null;this.towing=false;this.jumpTime=0;this.walkJump=null;this.walkJumpCooldown=0;this.walkCycle=0;this.walkVelocity=0;this.swimPhase=0;this.swimVelocity=0;this.swimEffort=0;this.walkY=0;[this.x,this.z]=world.location.start&&world.geography?world.geography.project(world.location.start):[0,0];this.heading=wrap(this.config.windFrom+PI/2);this.speed=0;this.height=0;this.vertical=0;this.pitch=0;this.roll=0;this.standing=false;this.standAmount=0;this.wingSide=-1;if(world.geography){let best=-Infinity;for(const side of [-1,1])for(const offset of [0,-.2,.2,-.4,.4]){const h=this.config.windFrom+side*(PI/2+offset);let reach=0;for(let r=10;r<440;r+=10){if(world.bedHeight(this.x+Math.sin(h)*r,this.z+Math.cos(h)*r)>-1.2)break;reach=r;}const score=reach-Math.abs(offset)*24+(world.location.startTack===side?.01:0);if(score>best){best=score;this.wingSide=-side;this.heading=wrap(h);}}}this.swapTime=0;this.flight=0;this.foiling=false;this.landingPending=false;this.breachTime=0;this.fallTime=0;this.pumpHeld=false;this.pumpCharge=0;this.pumpCooldown=0;this.pumpPulse=0;this.stamina=1;this.turn=null;this.trim=0;this.balance=0;this.steer=0;this.wind=this.config.wind;this.windFrom=this.config.windFrom;this.apparent=this.wind;this.angle=Math.abs(wrap(this.heading-this.windFrom));this.lift=0;this.drive=0;this.status='Kneeling';this.fallReason='';this.recoveryPoint=null;this.lastCollision=null;this.lastSafe={x:this.x,z:this.z};this.safety=world.clearance(this,sea(this.x,this.z,this.time,this.config.swell,this.config));this.shoreAhead=false;this.windTrend=0;this.lastSea=sea(this.x,this.z,this.time,this.config.swell,this.config);this.controls={steer:0,balance:0,trim:0};}
  resetSkills(){
   this.tipBreachTime=0;this.wingDive={time:0,fold:0,shake:0,entrySpeed:0,warned:false};this.wingTarget=0;this.wingAngle=0;this.wingBlocked=false;this.lateralSpeed=0;this.wingForce=null;this.stance=1;this.footSwitch=null;this.flagged=false;this.popHeld=false;this.popCharge=0;this.popCooldown=0;this.air=null;this.landingCheck=null;this.touchGo=null;this.sTurn=null;this.carve=null;this.glide=0;this.waveDrive=0;this.lastTrick='';
  }
@@ -74,7 +75,7 @@ class Session{
  stepAir(dt){
   const a=this.air,previous={x:this.x,z:this.z,heading:this.heading,height:this.height,pitch:0,roll:0,air:{...a}};
   a.age+=dt;this.trim=mix(this.trim,clamp(this.controls.trim,0,1),1-Math.exp(-dt*5));
-  a.yawRate=mix(a.yawRate,-clamp(this.controls.steer,-1,1)*5.2,1-Math.exp(-dt*12));a.pitchRate=mix(a.pitchRate,-clamp(this.controls.balance,-1,1)*5.5,1-Math.exp(-dt*12));
+  a.yawRate=mix(a.yawRate,-clamp(this.controls.steer,-1,1)*5.2*this.gear.board.turn,1-Math.exp(-dt*12));a.pitchRate=mix(a.pitchRate,-clamp(this.controls.balance,-1,1)*5.5*this.gear.board.turn,1-Math.exp(-dt*12));
   a.yaw+=a.yawRate*dt;a.pitch+=a.pitchRate*dt;
   // Coached mode brakes and gently levels only within 20 degrees of a valid
   // landing orientation. There is no automatic completion of a trick.
@@ -97,7 +98,7 @@ class Session{
     else if(Math.abs(a.yaw)>PI-.45){const front=Math.sign(a.yaw)*a.startStance<0;awards.push(front?['frontsideAirs','Frontside air · landed',350]:['backsideAirs','Backside air · landed',400]);if(a.crossedUpwind&&a.swapped&&this.wingSide!==a.startWing)awards.push(['airTacks','Air tack · landed',450]);}
     else if(Math.abs(a.yaw)<.45&&Math.abs(a.pitch)<.42)awards.push(['pops','Straight pop · landed',180]);
    }
-   this.air=null;this.height=.62;this.vertical=-.25;this.pitch=.024;this.roll=0;this.speed*=.84;this.foiling=this.speed>3.25;this.flight=0;this.breachTime=0;this.lastSea=surface;this.controls.steer=0;this.controls.balance=0;this.steer=this.balance=0;this.landingCheck={time:0,awards};this.emit('airlanding',{height:a.peak});
+   this.air=null;this.height=.62;this.vertical=-.25;this.pitch=.024;this.roll=0;this.speed*=.84;this.foiling=this.speed>this.gear.stallSpeed;this.flight=0;this.breachTime=0;this.lastSea=surface;this.controls.steer=0;this.controls.balance=0;this.steer=this.balance=0;this.landingCheck={time:0,awards};this.emit('airlanding',{height:a.peak});
   }
  }
  setConditions(values){
@@ -120,6 +121,7 @@ class Session{
  emit(type,data={}){this.events.push({type,...data});}
  drain(){return this.events.splice(0);}
  stand(){if(this.mode!=='sailing')return this.boardAgain();if(this.fallTime>0)return false;this.standing=true;this.emit('stand');return true;}
+ setEquipment(ids){this.gear=equipment.tune(ids);this.recover();return this.gear;}
  recover(){this.resetRider();this.makeGate();this.emit('recover');}
  wingForces(){
   // Board-relative apparent air velocity includes BOTH forward motion and
@@ -135,7 +137,7 @@ class Session{
   // right (local -X). Power therefore belongs to the DOWNWIND side.
   const backwind=clamp(this.wingAngle*across/Math.max(.5,apparent*.32),0,1);
   const oversheet=1-clamp((sheet-.90)/.10,0,1)*.62,polar=clamp((Math.abs(relative)-.55)/.6,0,1)*(.3+.7*Math.sin(Math.abs(relative)*.92));
-  const q=.037*apparent*apparent,flowAcross=Math.abs(across)/Math.max(.01,apparent),flowAhead=ahead/Math.max(.01,apparent),handover=this.swapTime>0?.25:1;
+  const q=.037*apparent*apparent*this.gear.wingPower*90/this.gear.mass,flowAcross=Math.abs(across)/Math.max(.01,apparent),flowAhead=ahead/Math.max(.01,apparent),handover=this.swapTime>0?.25:1;
   // A wing also catches wind arriving from astern. Lift-only propulsion
   // vanished at exactly 180 degrees, even at rest. This pressure term uses
   // apparent flow, so the push fades at wind speed and becomes drag beyond it.
@@ -148,14 +150,14 @@ class Session{
   const drive=q*sheet*handover*((1-backwind)*oversheet*polar*flowAcross*heightDrive-backwind*exposure*.48*(.24+.76*Math.max(0,flowAhead))+pressure*(1-.65*backwind)+headPressure)-q*sheet*(this.wingDive?.fold||0)*.24*Math.max(0,flowAhead);
   const side=-q*sheet*exposure*(across/Math.max(.01,apparent))*(.055*(1-backwind)*outboard+.52*backwind);
   const lift=q*sheet*exposure*(1-outboard)*.075*(1-backwind);
-  const newtons=.5*1.225*5*apparent*apparent*(.025+.90*sheet*sheet*(exposure+headOn*.20*sheet));
+  const newtons=.5*1.225*this.gear.wing.area*apparent*apparent*(.025+.90*sheet*sheet*(exposure+headOn*.20*sheet));
   return {forward:drive,lateral:side,upward:lift,backwind,apparent,incidence,newtons,heightDrive};
  }
  // A loaded wing held into the red sector first flutters, then pitches down.
  // The grace period lets a correctly eased tack pass through safely. Preserve
  // entry momentum so the warning's braking cannot erase an impending trip.
  stepWingDive(dt,force){
-  const d=this.wingDive,headLoad=.5*1.225*5*force.apparent**2*this.trim**2*Math.max(0,Math.cos(force.incidence));
+  const d=this.wingDive,headLoad=.5*1.225*this.gear.wing.area*force.apparent**2*this.trim**2*Math.max(0,Math.cos(force.incidence));
   const easing=this.controls.trim<this.trim-.035;
   const loaded=!easing&&this.standing&&this.standAmount>.65&&!this.flagged&&!this.air&&this.angle<.65&&this.trim>.28&&this.wind>1.5&&headLoad>18;
   if(loaded){d.entrySpeed=Math.max(d.entrySpeed,this.speed);d.time+=dt*clamp(headLoad/120,.75,1.25);d.shake=clamp(d.time/.45,0,1);if(d.time>.12&&!d.warned){d.warned=true;this.emit('wing-warning');}}
@@ -172,17 +174,17 @@ class Session{
   if(this.mode!=='sailing')return;let target=this.wingTarget;const changing=Math.abs(target)>.10&&Math.sign(target)!==this.wingSide;
   this.wingBlocked=changing&&!this.wingLoadInfo().light;
   if(changing){if(this.wingBlocked||!this.standing||this.swapTime>0)target=this.wingSide*.04;else if(Math.abs(this.wingAngle)<.16){const requested=this.wingTarget;this.swapWing();this.wingTarget=requested;}else target=0;}
-  this.wingAngle=mix(this.wingAngle,target,1-Math.exp(-dt*9));
+  this.wingAngle=mix(this.wingAngle,target,1-Math.exp(-dt*9*this.gear.wingResponse));
  }
- swapWing(){if(this.mode!=='sailing'||!this.standing||this.fallTime>0||this.swapTime>0)return false;if(!this.wingLoadInfo().light){this.emit('hint',{text:'The wing is still loaded. Ease up toward the green arc before moving it across.'});return false;}this.wingSide*=-1;this.wingTarget=this.wingSide*.72;this.swapTime=this.air?.30:.65;if(this.air)this.air.swapped=true;this.emit('swap');return true;}
+ swapWing(){if(this.mode!=='sailing'||!this.standing||this.fallTime>0||this.swapTime>0)return false;if(!this.wingLoadInfo().light){this.emit('hint',{text:'The wing is still loaded. Ease up toward the green arc before moving it across.'});return false;}this.wingSide*=-1;this.wingTarget=this.wingSide*.72;this.swapTime=(this.air?.30:.65)/this.gear.wingResponse;if(this.air)this.air.swapped=true;this.emit('swap');return true;}
 
  pumpDown(){if(this.mode==='walking')return this.jumpOnFoot();if(this.mode==='riding')return horses.jump(this);if(this.mode!=='sailing')return this.toggleTow();if(!this.standing||this.fallTime>0||this.pumpHeld||this.air||this.popHeld)return false;this.pumpHeld=true;this.pumpCharge=0;return true;}
- pumpUp(){if(!this.pumpHeld)return 0;this.pumpHeld=false;const duration=this.pumpCharge;const quality=clamp(1-Math.abs(duration-.48)/.42,0,1)*clamp(1-this.pumpCooldown/.55,0,1);this.pumpCharge=0;this.pumpCooldown=.55;if(this.fallTime>0||this.stamina<.18)return 0;this.stamina=Math.max(0,this.stamina-.16);const efficiency=quality*(this.flagged?.65:this.trim>.2?1:.5)*(this.angle>.7?1:.15);this.speed+=efficiency*.85;this.vertical+=efficiency*.10;this.pumpPulse=quality;this.emit('pump',{quality});if(quality>.65&&(this.trim>.2||this.flagged)&&this.angle>.7){this.stats.pumps++;this.score+=25;}return quality;}
+ pumpUp(){if(!this.pumpHeld)return 0;this.pumpHeld=false;const duration=this.pumpCharge;const quality=clamp(1-Math.abs(duration-.48)/.42,0,1)*clamp(1-this.pumpCooldown/.55,0,1);this.pumpCharge=0;this.pumpCooldown=.55;if(this.fallTime>0||this.stamina<.18)return 0;this.stamina=Math.max(0,this.stamina-.16/this.gear.wingResponse);const efficiency=quality*(this.flagged?.65:this.trim>.2?1:.5)*(this.angle>.7?1:.15);this.speed+=efficiency*.85*this.gear.pump;this.vertical+=efficiency*.10;this.pumpPulse=quality;this.emit('pump',{quality});if(quality>.65&&(this.trim>.2||this.flagged)&&this.angle>.7){this.stats.pumps++;this.score+=25;}return quality;}
  waterContact(from,dt){
   if(!world.waterContacts)return false;
   const extra=[...(this.waterTraffic||[])];
   if(!this.isTraffic)for(const side of [-1,1])extra.push({id:'gate-'+side,kind:'buoy',x:this.gate.x+Math.cos(this.gate.heading)*side*7,z:this.gate.z-Math.sin(this.gate.heading)*side*7,w:1.15,d:1.15,low:-.6,high:2.5});
-  const hit=world.waterContacts.sweep(from,this,this.time,dt,(x,z)=>sea(x,z,this.time,this.config.swell,this.config),extra);
+  const hit=world.waterContacts.sweep(from,{...this,radius:.55*this.gear.boardX,length:.85*this.gear.boardZ},this.time,dt,(x,z)=>sea(x,z,this.time,this.config.swell,this.config),extra);
   if(!hit)return false;this.lastCollision=hit;this.x=hit.x;this.z=hit.z;hit.onHit?.();
   this.crash(hit.kind==='foiler'?'Collision with another foiler. Leave room to pass.':'You hit '+(hit.kind==='structure'?'a waterfront structure':'a '+hit.kind)+'. Give obstacles more room.',null,{kind:'strike',impactSpeed:hit.impactSpeed});return true;
  }
@@ -217,10 +219,10 @@ class Session{
   if((f.vy<0&&this.walkY<=surface+.16)||this.fallTime===0){this.mode='swimming';this.fallTime=0;this.walkY=surface;this.entryTime=.45;this.jumpTime=0;this.swimVelocity=this.swimEffort=0;this.balance=this.steer=0;this.swimPhase=0;this.status='Swimming';this.emit('splashdown',{speed:Math.hypot(f.vx,f.vz,f.vy),vx:f.vx,vz:f.vz,x:this.x,z:this.z,kind:f.kind});}
  }
  makeGate(){const a=this.heading+(this.gateIndex%2?.23:-.23);this.gate={x:this.x+Math.sin(a)*65,z:this.z+Math.cos(a)*65,heading:a};if(Math.hypot(this.gate.x,this.gate.z)>world.limit*.70833){const h=Math.atan2(-this.x,-this.z);this.gate={x:this.x+Math.sin(h)*70,z:this.z+Math.cos(h)*70,heading:h};}for(let i=0;i<12&&(world.bedHeight(this.gate.x,this.gate.z)>-2||Math.hypot(this.gate.x,this.gate.z)>world.limit*.89583);i++){const h=a+(i+1)*PI/6;this.gate={x:this.x+Math.sin(h)*55,z:this.z+Math.cos(h)*55,heading:h};}if(world.bedHeight(this.gate.x,this.gate.z)>-2)this.gate={x:0,z:0,heading:Math.atan2(-this.x,-this.z)};}
- horseAction(){if(this.landRecovery)return false;if(this.walkJump)return false;return this.mode==='riding'?horses.dismount(this,world):horses.mount(this);}
+ horseAction(){if(this.landRecovery)return false;if(this.walkJump)return false;return this.mode==='riding'?horses.dismount(this,world,sea):horses.mount(this);}
  nearbyHorse(){return horses.nearby(this);}
  dismount(){
-  if(this.mode==='riding')return horses.dismount(this,world);
+  if(this.mode==='riding')return horses.dismount(this,world,sea);
   if(this.air){this.crash('Released the board in the air. Swim back and climb aboard.');return true;}
   if(this.mode!=='sailing'||this.fallTime>0)return false;
   this.resetSkills();this.board={x:this.x,z:this.z,heading:this.heading};this.mode='swimming';this.towing=true;this.jumpTime=.85;this.walkCycle=0;this.walkVelocity=0;this.swimPhase=0;this.swimVelocity=0;this.swimEffort=0;this.foiling=false;this.flight=0;this.turn=null;this.landingPending=false;this.standing=false;this.speed=0;this.height=0;this.trim=0;this.pumpHeld=false;this.controls={steer:0,balance:0,trim:0};
@@ -252,7 +254,7 @@ class Session{
   if(this.mode==='swimming'&&ground>-.5&&ground<=(world.geography?.rockStep(this.x,this.z)?1.35:1.1)){this.mode='walking';this.swimVelocity=this.swimEffort=0;this.towing=false;this.emit('ashore');}
   else if(this.mode==='walking'&&!jumping&&ground<-.72){this.mode='swimming';this.swimVelocity=this.swimEffort=0;this.jumpTime=.65;this.emit('swim');}
   if(jumping){const landing=ground<-.72?water:ground;if(jumping.vy<=0&&this.walkY<=landing){this.walkY=landing;this.walkJump=null;this.walkJumpCooldown=.16;if(ground<-.72){this.mode='swimming';this.walkVelocity=this.swimVelocity=this.swimEffort=0;this.towing=false;this.jumpTime=0;this.emit('splashdown',{speed:Math.abs(jumping.vy),x:this.x,z:this.z});}else this.emit('walk-land');}}else this.walkY=this.mode==='walking'?ground:water;this.status=this.walkJump?'Jumping':this.mode==='walking'?(this.speed>3.6?'Running':this.speed>2.2?'Jogging':this.speed>.1?'Walking':'Exploring'):'Swimming';
-  if(this.mode==='swimming'&&this.towing&&this.board&&!this.board.recovery&&Math.abs(this.speed)>.05&&(!this.board.motion||this.board.motion.phase==='settling'&&this.board.motion.settleAge>1.2)){const x=this.x-Math.sin(this.heading)*2.2,z=this.z-Math.cos(this.heading)*2.2,t=1-Math.exp(-dt*2.5),bx=mix(this.board.x,x,t),bz=mix(this.board.z,z,t);const candidate={x:bx,z:bz,heading:this.heading,height:0,pitch:0,roll:0};const next=world.clearance(candidate,sea(bx,bz,this.time,this.config.swell,this.config)),old=world.clearance({...candidate,x:this.board.x,z:this.board.z},sea(this.board.x,this.board.z,this.time,this.config.swell,this.config));if(wipeouts.clearEquipment(bx,bz,this,world,sea,{heading:this.heading})||!this.fallMotion&&old.hit&&next.foilClearance>old.foilClearance+.0001){this.board.x=bx;this.board.z=bz;this.board.heading=this.heading;}else if(old.hit&&this.fallMotion)wipeouts.requestRecovery(this);else if(Math.hypot(this.x-this.board.x,this.z-this.board.z)>4)wipeouts.disconnect(this);}
+  if(this.mode==='swimming'&&this.towing&&this.board&&!this.board.recovery&&Math.abs(this.speed)>.05&&(!this.board.motion||this.board.motion.phase==='settling'&&this.board.motion.settleAge>1.2)){const x=this.x-Math.sin(this.heading)*2.2,z=this.z-Math.cos(this.heading)*2.2,t=1-Math.exp(-dt*2.5),bx=mix(this.board.x,x,t),bz=mix(this.board.z,z,t);const candidate={x:bx,z:bz,heading:this.heading,height:0,pitch:0,roll:0,gear:this.gear};const next=world.clearance(candidate,sea(bx,bz,this.time,this.config.swell,this.config)),old=world.clearance({...candidate,x:this.board.x,z:this.board.z},sea(this.board.x,this.board.z,this.time,this.config.swell,this.config));if(wipeouts.clearEquipment(bx,bz,this,world,sea,{heading:this.heading})||!this.fallMotion&&old.hit&&next.foilClearance>old.foilClearance+.0001){this.board.x=bx;this.board.z=bz;this.board.heading=this.heading;}else if(old.hit&&this.fallMotion)wipeouts.requestRecovery(this);else if(Math.hypot(this.x-this.board.x,this.z-this.board.z)>4)wipeouts.disconnect(this);}
   if(this.mode==='walking')for(const site of world.castle.sites)if(!this.discoveries.has(site.id)&&Math.hypot(this.x-site.x,this.z-site.z)<2.5&&(world.geography||Math.abs(this.walkY-world.castle.floor)<1)){this.discoveries.add(site.id);this.score+=75;this.emit('discovery',{name:site.name,text:site.text});}
  }
  progress(){const goals=this.goals(),g=goals[0];return {value:g.value,goal:g.goal,unit:g.unit,ratio:Math.min(...goals.map(g=>g.value/g.goal)),goals};}
@@ -261,25 +263,26 @@ class Session{
   this.windTrend=mix(this.windTrend,(this.wind-previousWind)/dt,1-Math.exp(-dt*2));this.angle=Math.abs(wrap(this.heading-this.windFrom));this.stamina=clamp(this.stamina+dt*.10,0,1);this.pumpCooldown=Math.max(0,this.pumpCooldown-dt);this.pumpPulse=Math.max(0,this.pumpPulse-dt*1.8);this.swapTime=Math.max(0,this.swapTime-dt);
   this.updateWingPosition(dt);this.popCooldown=Math.max(0,this.popCooldown-dt);if(this.air){this.stepAir(dt);return;}
   if(this.board){wipeouts.recoverEquipment(this,dt,world,sea);if(this.board.motion)wipeouts.stepBoard(this,dt,world,sea);}
+  horses.idle(this,world,dt,sea);
   if(this.mode==='falling'){this.advanceFall(dt);return;}
-  if(this.mode==='riding'){horses.step(this,world,dt);return;}
+  if(this.mode==='riding'){horses.step(this,world,dt,sea);return;}
   if(this.mode!=='sailing'){this.moveOnFoot(dt);return;}
   const smoothing=1-Math.exp(-dt*(this.assist?4.5:7));this.trim=mix(this.trim,clamp(this.controls.trim,0,1),smoothing);this.balance=mix(this.balance,clamp(this.controls.balance,-1,1),smoothing);this.steer=mix(this.steer,clamp(this.controls.steer,-1,1),smoothing);this.standAmount=mix(this.standAmount,this.standing?1:0,1-Math.exp(-dt*3));
   if(this.pumpHeld)this.pumpCharge+=dt;if(this.popHeld)this.popCharge+=dt;
   const previousFlight=this.flight,oldHeading=this.heading,oldRelative=wrap(this.heading-this.windFrom),oldX=this.x,oldZ=this.z,previousPose={x:this.x,z:this.z,height:this.height,pitch:this.pitch,pumpPulse:this.pumpPulse,roll:this.roll,heading:this.heading};
   // With local +Z forward, local +X is the rider's left. Positive input turns
   // right (decreasing scene yaw) and banks the body toward local -X.
-  const turnRate=this.standing?(this.foiling?.80:.48)*clamp(this.speed/3,.12,1):.18;this.heading=wrap(this.heading-this.steer*turnRate*dt);this.angle=Math.abs(wrap(this.heading-this.windFrom));
+  const turnRate=this.standing?(this.foiling?.80*this.gear.turn:.48)*clamp(this.speed/3,.12,1):.18;this.heading=wrap(this.heading-this.steer*turnRate*dt);this.angle=Math.abs(wrap(this.heading-this.windFrom));
   const wantedSide=-Math.sign(Math.sin(this.heading-this.windFrom))||this.wingSide;
   const force=this.wingForces();this.wingForce=force;this.apparent=force.apparent;this.drive=force.forward;if(this.stepWingDive(dt,force))return;
   // Once clear of the water, use profile drag (speed squared) plus induced
   // drag (higher at low speed while supporting the rider). The old constant
   // + large quadratic term bled off glide speed too quickly in a downwind run.
   // These are teaching-game coefficients, not a measured equipment polar.
-  const speedSquared=this.speed*this.speed,foilDrag=.012*speedSquared+3/Math.max(9,speedSquared);
-  const drag=this.foiling?foilDrag:.32+.046*speedSquared,carveDrag=Math.abs(this.steer)*Math.abs(this.speed)*.047;
+  const speedSquared=this.speed*this.speed,foilDrag=.012*speedSquared*this.gear.foilDrag+3*this.gear.induced/Math.max(9,speedSquared);
+  const drag=this.foiling?foilDrag:(.32+.046*speedSquared)*this.gear.hullDrag,carveDrag=Math.abs(this.steer)*Math.abs(this.speed)*.047;
   this.waveDrive=this.waveEnergy();const resistance=Math.sign(this.speed)*Math.min(Math.abs(this.speed)/dt,drag+carveDrag);
-  this.speed=clamp(this.speed+(this.drive+this.waveDrive-resistance)*dt,-1.5,12.8);
+  this.speed=clamp(this.speed+(this.drive+this.waveDrive-resistance)*dt,-1.5,Math.min(16.8,12.8/Math.sqrt(this.gear.foilDrag)));
   // The immersed foil resists leeway, but a backwinded wing can still shove
   // the rider sideways. Forces are softened for learning, never erased.
   this.lateralSpeed=(this.lateralSpeed+force.lateral*dt)*Math.exp(-dt*(this.foiling?2.6:1.45));
@@ -289,13 +292,13 @@ class Session{
   // it at the takeoff setting forced a touchdown below ~10.7 knots even when
   // there was ample foil lift available at a slightly higher angle of attack.
   // A finite cap preserves low-speed stalls; direct controls remain manual.
-  const neutralCl=this.assist&&this.height>.10?Math.min(.60,90*9.81/(.5*1025*.18*Math.max(1,this.speed)**2*Math.cos(this.steer*.32))):.3152;
+  const neutralCl=this.assist&&this.height>.10?Math.min(.60,this.gear.mass*9.81/(.5*1025*this.gear.area*Math.max(1,this.speed)**2*Math.cos(this.steer*.32))):.3152;
   // Positive balance shifts weight aft; positive physical pitch raises the nose
   // and foil angle of attack. Forward pressure lowers both pitch and lift.
   this.pitch=mix(this.pitch,(neutralCl-.20)/4.8+this.balance*.12,1-Math.exp(-dt*(this.assist?3.5:5)));
   const cl=clamp(.20+4.8*this.pitch,.015,.95),ventilation=this.height>.86?clamp(1-(this.height-.86)*7,0,1):1;
-  this.lift=.5*1025*.18*Math.max(0,this.speed)**2*cl*Math.cos(this.steer*.32)*ventilation;
-  if(this.standing&&this.standAmount>.85){const acceleration=(this.lift/90-9.81+force.upward)*.15-this.vertical*(this.assist?5.2:2.8);this.vertical=clamp(this.vertical+acceleration*dt,-1.8,1.5);}else this.vertical=-.2;
+  this.lift=.5*1025*this.gear.area*Math.max(0,this.speed)**2*cl*Math.cos(this.steer*.32)*ventilation;
+  if(this.standing&&this.standAmount>.85){const acceleration=(this.lift/this.gear.mass-9.81+force.upward)*.15-this.vertical*(this.assist?5.2:2.8);this.vertical=clamp(this.vertical+acceleration*dt,-1.8,1.5);}else this.vertical=-.2;
   this.x+=(Math.sin(this.heading)*this.speed-Math.cos(this.heading)*this.lateralSpeed)*dt;this.z+=(Math.cos(this.heading)*this.speed+Math.sin(this.heading)*this.lateralSpeed)*dt;
   const surface=sea(this.x,this.z,this.time,this.config.swell,this.config);
   // Height is clearance above the local surface; vertical is world velocity.
@@ -304,14 +307,15 @@ class Session{
   // genuinely cause touchdowns or ventilation and call for rider corrections.
   const flyingClear=this.standing&&this.height>.025;
   this.height+=this.vertical*dt-(surface-this.lastSea)*(flyingClear?1:.72);this.lastSea=surface;
-  this.roll=mix(this.roll,this.steer*.40+clamp(force.lateral*.035,-.10,.10),1-Math.exp(-dt*4));
+  const rollFeel=equipment.rollResponse(this.gear,this);
+  this.roll=mix(this.roll,this.steer*.40*rollFeel.gain+clamp(force.lateral*.035,-.10,.10)+rollFeel.sway,1-Math.exp(-dt*rollFeel.rate));
   if(this.waterContact(previousPose,dt))return;
   const boatHit=lakeBoat.collision(world,previousPose,this,this.time,dt);if(boatHit){this.x=boatHit.x;this.z=boatHit.z;this.lastCollision=boatHit;this.crash('You hit the pedal boat. Leave a little more room to pass.',null,{kind:'strike'});return;}
   const collision=world.sweep(previousPose,this,(x,z)=>sea(x,z,this.time,this.config.swell,this.config));
   if(collision){this.lastCollision=collision;this.x=collision.x;this.z=collision.z;this.crash(collision.kind==='shore'?'You reached shore or a rock. Turn toward deep water before the beach.':'The hydrofoil touched the bottom. Leave more room around the shallows.',this.lastSafe,{kind:this.beachStrike()?'beach-strike':'strike'});this.updateSafety();return;}
   if(Math.hypot(this.x,this.z)>world.limit){this.crash('You reached the edge of the practice bay.',{x:0,z:0});return;}
   this.updateSafety();
-  const wasFoiling=this.foiling;this.foiling=this.standing&&this.height>.13&&this.speed>3.25;
+  const wasFoiling=this.foiling;this.foiling=this.standing&&this.height>.13&&this.speed>this.gear.stallSpeed;
   if(this.height<0){const impact=this.vertical;this.height=0;this.vertical=Math.max(0,this.vertical);if(impact<-1.15)this.crash('Hard touchdown. Ease forward gently; avoid sudden pressure changes.',null,{kind:'nose-dive'});}
   if(this.mode!=='sailing')return;
   const tip=wipeouts.tipExposure(this,world,sea);
@@ -341,7 +345,7 @@ class Session{
   const water=sea(this.x,this.z,this.time,this.config.swell,this.config);this.safety=world.clearance(this,water);
   if(!this.fallTime&&this.safety.depth>3&&this.safety.foilClearance>1.2&&Math.hypot(this.x,this.z)<420)this.lastSafe={x:this.x,z:this.z};
   this.shoreAhead=false;const distance=Math.min(35,Math.max(4,this.speed*4));
-  for(let d=1;d<=distance;d+=1){const x=this.x+Math.sin(this.heading)*d,z=this.z+Math.cos(this.heading)*d;const bottom=world.bedHeight(x,z),projected=water+this.height-.865-Math.abs(Math.sin(this.roll))*.74;
+  for(let d=1;d<=distance;d+=1){const x=this.x+Math.sin(this.heading)*d,z=this.z+Math.cos(this.heading)*d;const bottom=world.bedHeight(x,z),projected=water+this.height-.865-this.gear.mastDelta-Math.abs(Math.sin(this.roll))*.74*this.gear.foilX;
    if(projected-bottom<.5||bottom>=0){this.shoreAhead=true;break;}}
  }
  powerInfo(){
@@ -365,8 +369,8 @@ class Session{
  }
  coach(){
   if(this.mode==='falling')return 'Falling into the water. Let go of the wing; climb back aboard when you are ready.';
-  if(this.mode==='riding')return this.horse.blocked?'Your horse is waiting for clear footing. Turn away from the water, rocks or wall.':this.horse.mountTime>0?'Settling into the saddle…':'Push the right pad gently to walk, farther to trot and canter, fully forward to gallop. Space or Jump clears low obstacles. Release to stop; H or Dismount gets down.';
-  if(this.mode==='walking'&&this.nearbyHorse())return this.nearbyHorse().name+' is nearby. Press H or Mount horse to explore the shore together.';
+  if(this.mode==='riding')return this.horse.blocked?'Steer or back away from the obstacle. Your horse can wade and swim through open water.':this.horse.mountTime>0?'Settling into the saddle…':this.horse.depth>.12?'Ride into the water to swim. Right pad / arrows steer and change pace; release to stop. Head for a low beach or ramp to walk out. Stop, then H / Dismount to swim beside your horse.':'Push the right pad gently to walk, farther to trot and canter, fully forward to gallop. Space or Jump clears low obstacles. Release to stop; H or Dismount gets down.';
+  if(['walking','swimming'].includes(this.mode)&&this.nearbyHorse())return this.nearbyHorse().name+' is nearby. Press H or Mount horse to explore the shore together.';
   if(['walking','swimming'].includes(this.mode)&&this.board&&this.fallMotion?.leashesDetached&&!this.landRecovery){const dx=this.board.x-this.x,dz=this.board.z-this.z,bearing=Math.round((-Math.atan2(dx,dz)*180/PI+360)%360);return this.fallMotion.needsSafeReset?'Leashes released. Your board and wing are resetting to safe water nearby.':'Board & wing: '+Math.round(Math.hypot(dx,dz))+' m · '+String(bearing).padStart(3,'0')+'°. Swim back and Climb aboard to reconnect.';}
   if(this.mode==='walking')return 'Arrows move; tap Up again quickly to jog, then run. Push the right pad farther for more speed; release to stop. WASD or the left pad looks; release to center.';
   if(this.mode==='swimming'&&this.fallReason)return 'Swim to your board and press Enter / Climb aboard. Then stand up and sheet in to keep sailing.';

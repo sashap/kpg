@@ -16,9 +16,10 @@ function create({THREE,scene,boardRig,wing,boardParts,wingParts,sea}){
   }
   return halves;
  }
- const sail=split(wing,wingParts,0,0),deck=split(boardRig,boardParts,2,.08);
+ const sail=split(wing,wingParts,0,0),deck=split(boardRig,boardParts,2,.08),bases=deck.flatMap(h=>h.children.map(o=>({o,positions:o.geometry.attributes.position.array.slice()})));let gearKey='';
  for(let i=0;i<12;i++){const o=new THREE.Mesh(new THREE.TetrahedronGeometry(.045+(i%3)*.018),chipMat);o.visible=false;scene.add(o);debris.push(o);}
  function update(s){
+  const key=JSON.stringify(s.gear?.ids||{});if(key!==gearKey){gearKey=key;for(const {o,positions} of bases){const a=o.geometry.attributes.position;for(let i=0;i<a.count;i++)a.setXYZ(i,...FoilEquipment.point([positions[i*3],positions[i*3+1],positions[i*3+2]],s.gear));a.needsUpdate=true;o.geometry.computeVertexNormals();o.geometry.computeBoundingSphere();}}
   const f=s.fallMotion,age=f?.wingAge||0,torn=!!f&&age<f.damageWingUntil,broken=!!f&&age<f.damageBoardUntil;
   for(const o of wingParts)o.visible=!torn;for(const o of boardParts)o.visible=!broken;
   for(let i=0;i<2;i++){const sign=i?1:-1;sail[i].visible=torn;sail[i].position.set(sign*.30,.07*Math.sin(age*4+i),sign*.06);sail[i].rotation.set(.09*Math.sin(age*3+i),sign*.13,sign*.18);deck[i].visible=broken;deck[i].position.set(sign*.025,i?.10:0,sign*.14);deck[i].rotation.x=i?-.17:.04;}

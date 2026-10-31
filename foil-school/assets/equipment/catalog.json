@@ -1,0 +1,360 @@
+{
+  "academy-board": {
+    "credit": "Foil Academy · original 3D model",
+    "caption": "3D studio render of your original game equipment.",
+    "source": "foil-school/app.js",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "academy-board.webp",
+        "label": "Studio view",
+        "download": "Rendered from Foil Academy game geometry"
+      }
+    ]
+  },
+  "naish-hover": {
+    "credit": "Naish · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.naish.com/products/hover-dw-crossover",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "naish-hover-0.png",
+        "label": "Deck",
+        "download": "https://cdn.shopify.com/s/files/1/0755/0877/7277/files/516.50032.000_1.png?v=1783423597&width=800&format=webp"
+      },
+      {
+        "file": "naish-hover-1.png",
+        "label": "Underside",
+        "download": "https://cdn.shopify.com/s/files/1/0755/0877/7277/files/516.50032.000_2.png?v=1783423597&width=800&format=webp"
+      }
+    ]
+  },
+  "academy-foil": {
+    "credit": "Foil Academy · original 3D model",
+    "caption": "3D studio render of your original game equipment.",
+    "source": "foil-school/app.js",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "academy-foil.webp",
+        "label": "Studio view",
+        "download": "Rendered from Foil Academy game geometry"
+      }
+    ]
+  },
+  "code-s": {
+    "credit": "Code Foils · product photography",
+    "caption": "Product-family photo; size and color shown may vary. Game kit includes an 85 cm mast.",
+    "source": "https://codefoils.com/product/s-series-front-wing/",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "code-s-0.jpg",
+        "label": "Product view",
+        "download": "https://codefoils.com/wp-content/uploads/2023/07/S-Series-front-wing-featured.jpg"
+      }
+    ]
+  },
+  "afs-silk": {
+    "credit": "AFS product photo · Surfone Leucate",
+    "caption": "Product-family photo; size and color shown may vary. Game kit includes an 85 cm mast.",
+    "source": "https://afs-foiling.com/product/silk-v2-front-wing",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "afs-silk-0.jpg",
+        "label": "Product view",
+        "download": "https://www.surfone-leucate.com/79105-thickbox_default/aile-avant-afs-silk-v2-2026.jpg"
+      }
+    ],
+    "scale": 1.9
+  },
+  "armstrong-ha": {
+    "credit": "Armstrong product photo · Kitesource",
+    "caption": "Product-family photo; size and color shown may vary. Game kit includes an 85 cm mast.",
+    "source": "https://armstrongfoils.com/products/ha-front-foil",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "armstrong-ha-0.png",
+        "label": "Product view",
+        "download": "https://kitesource.ca/cdn/shop/files/Armstrong_Foils_HA1180_Front_Foil_Top_1600x.webp?v=1701881126&width=800"
+      }
+    ]
+  },
+  "academy-wing": {
+    "credit": "Foil Academy · original 3D model",
+    "caption": "3D studio render of your original game equipment.",
+    "source": "foil-school/app.js",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "academy-wing.webp",
+        "label": "Studio view",
+        "download": "Rendered from Foil Academy game geometry"
+      }
+    ]
+  },
+  "cabrinha-mantis": {
+    "credit": "Cabrinha · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.cabrinha.com/products/2026-mantis",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "cabrinha-mantis-0.png",
+        "label": "Product view",
+        "download": "https://cdn.shopify.com/s/files/1/2016/2457/files/Mantis1_e50b1cf9-928f-423c-933b-9627f069c01b.png?v=1758200562&width=800"
+      }
+    ]
+  },
+  "cabrinha-apex": {
+    "credit": "Cabrinha · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.cabrinha.com/products/mantis-apex",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "cabrinha-apex-0.png",
+        "label": "Three-quarter",
+        "download": "https://cdn.shopify.com/s/files/1/2016/2457/files/MantisApex.png?v=1770994383&width=800&format=webp"
+      },
+      {
+        "file": "cabrinha-apex-1.png",
+        "label": "Front",
+        "download": "https://cdn.shopify.com/s/files/1/2016/2457/files/MantisApex_2.png?v=1770994383&width=800&format=webp"
+      }
+    ]
+  },
+  "naish-adx": {
+    "credit": "Naish · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.naish.com/products/adx-nvision-2025",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "naish-adx-0.png",
+        "label": "Canopy",
+        "download": "https://cdn.shopify.com/s/files/1/0755/0877/7277/files/515.58310.000_1.png?v=1783423828&width=800&format=webp"
+      },
+      {
+        "file": "naish-adx-1.png",
+        "label": "Handles",
+        "download": "https://cdn.shopify.com/s/files/1/0755/0877/7277/files/515.58310.000_3.png?v=1783423829&width=800&format=webp"
+      }
+    ]
+  },
+  "fone-asc": {
+    "credit": "F-One · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.f-one.world/en/foilboards/wingfoil-boards/rocket-wing-asc.html",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "fone-asc-0.png",
+        "label": "Deck & underside",
+        "download": "https://www.f-one.world/1100-product_main/rocket-wing-asc.jpg"
+      },
+      {
+        "file": "fone-asc-1.png",
+        "label": "Rail profile",
+        "download": "https://www.f-one.world/1099-product_main/rocket-wing-asc.jpg"
+      }
+    ]
+  },
+  "duotone-free": {
+    "credit": "Duotone · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.duotonesports.com/en/products/duotone-sky-free-2026-42260-3604",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "duotone-free-0.webp",
+        "label": "Product view",
+        "download": "https://www.duotonesports.com/system/product_picture_gallery_pictures/files/68b2/f81d/307f/a72c/eacf/f0a8/original/DTF26_SkyFree_Overview.png?format=webp&width=800&height=800&aspect_ratio=800:800"
+      }
+    ]
+  },
+  "duotone-style": {
+    "credit": "Duotone · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.duotonesports.com/en/products/duotone-sky-style-sls-2026-42260-3602",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "duotone-style-0.webp",
+        "label": "Product view",
+        "download": "https://www.duotonesports.com/system/product_picture_gallery_pictures/files/68ac/f7eb/66d9/0d22/0c54/7100/original/STYLE26-SLS-2026_Overview.png?format=webp&width=800&height=800&aspect_ratio=800:800"
+      }
+    ]
+  },
+  "armstrong-mid": {
+    "credit": "Armstrong · product photography",
+    "caption": "Midlength MkII family · 85 L shown. Selected size: 100 L.",
+    "source": "https://armstrongfoils.com/products/midlength-mk-ii-x-form-board",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "armstrong-mid-0.png",
+        "label": "Product view",
+        "download": "https://primary.jwwb.nl/public/j/w/w/temp-rxlknkqxregfocgzgjbu/midlength-mk-ii-85l-01-high.png?enable-io=true&fit=bounds&width=800"
+      }
+    ]
+  },
+  "fone-gravity": {
+    "credit": "F-One · product photography",
+    "caption": "Product-family photo; size and color shown may vary. Game kit includes an 85 cm mast.",
+    "source": "https://www.f-one.world/en/foil/front-wings/gravity-fct.html",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "fone-gravity-0.png",
+        "label": "Three-quarter",
+        "download": "https://www.f-one.world/1213-product_main/gravity-fct.jpg"
+      },
+      {
+        "file": "fone-gravity-1.png",
+        "label": "Plan view",
+        "download": "https://www.f-one.world/1230-product_main/gravity-fct.jpg"
+      }
+    ]
+  },
+  "fone-sk8": {
+    "credit": "F-One · product photography",
+    "caption": "Product-family photo; size and color shown may vary. Game kit includes an 85 cm mast.",
+    "source": "https://www.f-one.world/en/foil/front-wings/SK8.html",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "fone-sk8-0.png",
+        "label": "Three-quarter",
+        "download": "https://www.f-one.world/949-product_main/SK8.jpg"
+      },
+      {
+        "file": "fone-sk8-1.png",
+        "label": "Plan view",
+        "download": "https://www.f-one.world/950-product_main/SK8.jpg"
+      }
+    ]
+  },
+  "duotone-aero": {
+    "credit": "Duotone · product photography",
+    "caption": "Product-family photo; size and color shown may vary. Game kit includes an 85 cm mast.",
+    "source": "https://www.duotonesports.com/en/products/duotone-wing-set-aero-free-sls-2025-42240-3703",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "duotone-aero-0.webp",
+        "label": "Product view",
+        "download": "https://www.duotonesports.com/system/product_picture_gallery_pictures/files/647d/a768/ee25/2f00/cc36/417a/original/FREE-SLS-1250-FRONT2-Stab-C250.png?format=webp&width=800&height=800&aspect_ratio=800:800"
+      }
+    ]
+  },
+  "armstrong-s1": {
+    "credit": "Armstrong · product photography",
+    "caption": "Product-family photo; size and color shown may vary. Game kit includes an 85 cm mast.",
+    "source": "https://armstrongfoils.com/products/s1-front-foil",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "armstrong-s1-0.png",
+        "label": "Product view",
+        "download": "https://primary.jwwb.nl/public/j/w/w/temp-rxlknkqxregfocgzgjbu/armstrong-s1-1550-front-foil-1-high-8zp1vd.png?enable-io=true&fit=bounds&width=800"
+      }
+    ]
+  },
+  "fone-origin": {
+    "credit": "F-One · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.f-one.world/en/WING/wings/origin-v2.html",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "fone-origin-0.png",
+        "label": "Three-quarter",
+        "download": "https://www.f-one.world/973-product_main/origin-v2.jpg"
+      },
+      {
+        "file": "fone-origin-1.png",
+        "label": "Front",
+        "download": "https://www.f-one.world/972-product_main/origin-v2.jpg"
+      }
+    ]
+  },
+  "fone-strike": {
+    "credit": "F-One · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.f-one.world/en/WING/wings/strike-6.html",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "fone-strike-0.png",
+        "label": "Three-quarter",
+        "download": "https://www.f-one.world/879-product_main/strike-6.jpg"
+      },
+      {
+        "file": "fone-strike-1.png",
+        "label": "Front",
+        "download": "https://www.f-one.world/878-product_main/strike-6.jpg"
+      }
+    ]
+  },
+  "fone-swing": {
+    "credit": "F-One · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.f-one.world/en/WING/wings/swing-v5.html",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "fone-swing-0.png",
+        "label": "Three-quarter",
+        "download": "https://www.f-one.world/1046-product_main/swing-v5.jpg"
+      },
+      {
+        "file": "fone-swing-1.png",
+        "label": "Front",
+        "download": "https://www.f-one.world/1024-product_main/swing-v5.jpg"
+      }
+    ]
+  },
+  "duotone-unit": {
+    "credit": "Duotone · product photography",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://www.duotonesports.com/en/products/duotone-unit-2026-42260-3519",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "duotone-unit-0.webp",
+        "label": "Product view",
+        "download": "https://www.duotonesports.com/system/product_picture_gallery_pictures/files/6827/4635/9d67/8c00/ef08/a8a3/original/UNIT26_CC1_-_PP1-_ohne_Handle_.png?format=webp&width=800&height=800&aspect_ratio=800:800"
+      }
+    ]
+  },
+  "armstrong-xps": {
+    "credit": "Armstrong product photo · Fluid",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://armstrongfoils.com/products/a-wing-xps-mk-ii",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "armstrong-xps-0.jpg",
+        "label": "Product view",
+        "download": "https://www.fluid.no/cdn/shop/files/Armstrong-XPSMkII-09_800x800.jpg?v=1747462048"
+      }
+    ]
+  },
+  "armstrong-lightwind": {
+    "credit": "Armstrong product photo · Surf Doctor",
+    "caption": "Product-family photo; size and color shown may vary.",
+    "source": "https://armstrongfoils.com/products/a-wing-xps-lightwind-wing",
+    "retrieved": "2026-10-31",
+    "views": [
+      {
+        "file": "armstrong-lightwind-0.png",
+        "label": "Product view",
+        "download": "https://www.surfdoctor.com/cdn/shop/files/Armstrong-AWingXPSLightwind-06.png?v=1716451332&width=800"
+      }
+    ]
+  }
+}

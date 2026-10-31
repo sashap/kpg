@@ -45,9 +45,9 @@ function launch(s,cause,air,water){
  };
 }
 function wingLanding(s){const f=s.fallMotion,b=s.board,yaw=f.heading,t=clamp((f.wingAge-(f.wingMoveAt??-10))/.7,0,1),blend=t*t*(3-2*t),side=f.wingFrom?f.wingFrom.side+(f.wingOffset-f.wingFrom.side)*blend:f.wingOffset,fore=f.wingFrom?f.wingFrom.fore+(f.wingFore-f.wingFrom.fore)*blend:f.wingFore;return {x:b.x+Math.cos(yaw)*side+Math.sin(yaw)*fore,z:b.z-Math.sin(yaw)*side+Math.cos(yaw)*fore};}
-function wingContact(s){const f=s.fallMotion,p=wingLanding(s),dx=s.x-p.x,dz=s.z-p.z,c=Math.cos(f.heading+.22),a=Math.sin(f.heading+.22);return ((dx*c-dz*a)/2.2)**2+((dx*a+dz*c)/1.15)**2<1;}
+function wingContact(s){const f=s.fallMotion,p=wingLanding(s),dx=s.x-p.x,dz=s.z-p.z,c=Math.cos(f.heading+.22),a=Math.sin(f.heading+.22);return ((dx*c-dz*a)/(2.2*(s.gear?.wingScale||1)))**2+((dx*a+dz*c)/(1.15*(s.gear?.wingScale||1)))**2<1;}
 function clearEquipment(x,z,s,world,sea,options={}){
- const p={x,z,heading:options.heading??s.board?.heading??s.heading,height:0,pitch:0,roll:0,speed:0};
+ const p={x,z,gear:s.gear,heading:options.heading??s.board?.heading??s.heading,height:0,pitch:0,roll:0,speed:0,radius:.55*(s.gear?.boardX||1),length:.85*(s.gear?.boardZ||1)};
  // Recovery must remain boardable at the lowest wave, not just at this crest.
  const surface=options.safe?-Math.max(0,s.config.swell):sea(x,z,s.time,s.config.swell,s.config),c=world.clearance(p,surface);
  return Math.hypot(x,z)<world.limit-3&&!c.hit&&(!options.safe||c.foilClearance>.35)&&!world.waterContacts?.sweep(p,p,s.time,0,()=>surface);
@@ -55,7 +55,7 @@ function clearEquipment(x,z,s,world,sea,options={}){
 function wingClear(x,z,heading,side,fore,s,world,sea){
  const c=Math.cos(heading),sn=Math.sin(heading),cx=x+c*side+sn*fore,cz=z-sn*side+c*fore,ca=Math.cos(heading+.22),sa=Math.sin(heading+.22),surface=-Math.max(0,s.config.swell);
  for(const u of [-2.2,-1.1,0,1.1,2.2])for(const v of [-1,0,1]){
-  const px=cx+ca*u+sa*v,pz=cz-sa*u+ca*v,p={x:px,z:pz,height:.1,heading,speed:0,radius:.35,length:.35,below:.2,above:.7};
+  const scale=s.gear?.wingScale||1,px=cx+(ca*u+sa*v)*scale,pz=cz+(-sa*u+ca*v)*scale,p={x:px,z:pz,height:.1,heading,speed:0,radius:.35,length:.35,below:.2,above:.7};
   if(world.bedHeight(px,pz)>surface-.10||world.waterContacts?.sweep(p,p,s.time,0,()=>surface))return false;
  }
  return true;
@@ -112,7 +112,7 @@ function stepBoard(s,dt,world,sea){
  b.heading=wrap(b.heading+m.yawRate*dt);m.pitch=wrap(m.pitch+m.pitchRate*dt);m.roll=wrap(m.roll+m.rollRate*dt);
  if(m.phase==='air'){
   m.vy-=9.81*dt;m.y+=m.vy*dt;m.vx*=Math.exp(-dt*.28);m.vz*=Math.exp(-dt*.28);
-  const pose={...b,height:m.y-surface,pitch:m.pitch,roll:m.roll};
+  const pose={...b,gear:s.gear,height:m.y-surface,pitch:m.pitch,roll:m.roll};
   let lowest=Infinity;for(const a of [-.38,.38])for(const c of [-.9,1])lowest=Math.min(lowest,world.equipmentPoint([a,0,c],pose,surface).y);
   if(lowest<=surface+.025&&m.vy<0){
    m.phase='settling';m.impact=true;m.impactPitch=m.pitch;m.impactRoll=m.roll;

@@ -33,7 +33,7 @@ test('recovery rechecks equipment after an earlier successful placement',()=>{
  tick(s,1);assertReady(s);assert.ok(Math.hypot(s.board.x-bad.x,s.board.z-bad.z)<20);
 });
 test('grounded gear at every location resets above the bottom with wave-trough clearance and can be boarded',()=>{
- try{for(const id of ['academy','shoreline','third','coyote','crissy','kahului']){
+ try{for(const id of ['academy','shoreline','third','coyote','crissy','kahului','lemorne']){
   W.activate(id);const base=W.geography?W.geography.project(W.location.launch):[-207,-8];let spot=null;
   for(let r=0;r<=35&&!spot;r+=1)for(let i=0;i<32;i++){const a=i*Math.PI/16,x=base[0]+Math.sin(a)*r,z=base[1]+Math.cos(a)*r,bed=W.bedHeight(x,z);if(bed<-.15&&bed>-.85){spot={x,z};break;}}
   assert.ok(spot,id+' has a shoreline test point');const s=crashAt(spot.x,spot.z,'beach-strike',.18);s.board.motion=null;s.mode='swimming';s.fallTime=0;s.fallMotion.wingAge=5.8;

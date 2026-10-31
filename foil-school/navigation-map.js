@@ -1,6 +1,6 @@
 /* A north-up chart with CSS-pixel labels, local framing, and touch pan/zoom. */
 const FoilNavigationMap=(()=>{
- function create({canvas,world,site,session,landmarks,selected,onSelect}){
+ function create({canvas,world,site,session,landmarks,selected,onSelect,preview=false}){
   const ctx=canvas.getContext('2d'),events=new AbortController(),pointers=new Map();
   let width=1,height=1,cx=session.x,cz=session.z,range=350,markers=[],gesture=null,moved=false;
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),scale=()=>Math.min(width,height)/(range*2);
@@ -14,7 +14,7 @@ const FoilNavigationMap=(()=>{
    const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
    ctx.fillStyle='#cce3e5';ctx.fillRect(0,0,width,height);
    const g=world.geography;
-   if(g){if(g.water){ctx.fillStyle='#9eB68c';ctx.fillRect(0,0,width,height);path(g.water,'#cce3e5','#e5d6b3',3);}g.polygons.forEach(p=>path(p,'#9eb68c','#e5d6b3',3));
+   if(g){for(const f of g.features.reefs||[])path(f.points,'#92c9c2','#68aaa8',1);if(g.water){ctx.fillStyle='#9eB68c';ctx.fillRect(0,0,width,height);path(g.water,'#cce3e5','#e5d6b3',3);}g.polygons.forEach(p=>path(p,'#9eb68c','#e5d6b3',3));
     for(const f of g.features.parking||[])path(f.points,'#b9c2b8','#95a59a');
     for(const f of [...(g.features.roads||[]),...(g.features.paths||[])])path(f.points,null,'#edf0dc',2,false);
     for(const f of g.features.buildings||[])path(f.points,'#b8ada0','#8d968b');
@@ -33,11 +33,11 @@ const FoilNavigationMap=(()=>{
     ctx.font='600 12px sans-serif';let text=l.name.replace(' · horse','');if(ctx.measureText(text).width>width*.7)text=l.short;while(text.length>10&&ctx.measureText(text).width>width-30)text=text.slice(0,-2)+'…';const w=ctx.measureText(text).width+12;
     for(const dy of [-26,26,-43,43]){const box={x:clamp(x-w/2,8,width-w-8),y:y+dy-8,w,h:17};if(box.y<10||box.y+box.h>height-32||occupied.some(b=>box.x<b.x+b.w&&box.x+box.w>b.x&&box.y<b.y+b.h&&box.y+box.h>b.y))continue;label(text,box.x+w/2,box.y+8);occupied.push(box);break;}
    }
-   const gate=point(session.gate.x,session.gate.z);ctx.fillStyle='#dba657';ctx.fillRect(gate[0]-5,gate[1]-5,10,10);
-   ctx.save();ctx.translate(...rider);ctx.rotate(-session.heading);ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(10,11);ctx.lineTo(0,6);ctx.lineTo(-10,11);ctx.closePath();ctx.fillStyle='#167fa1';ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.fill();ctx.stroke();ctx.restore();label('YOU',rider[0],rider[1]+25,'#155569');
+   if(!preview&&session.gate){const gate=point(session.gate.x,session.gate.z);ctx.fillStyle='#dba657';ctx.fillRect(gate[0]-5,gate[1]-5,10,10);}
+   ctx.save();ctx.translate(...rider);ctx.rotate(-session.heading);ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(10,11);ctx.lineTo(0,6);ctx.lineTo(-10,11);ctx.closePath();ctx.fillStyle='#167fa1';ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.fill();ctx.stroke();ctx.restore();label(preview?'START':'YOU',rider[0],rider[1]+25,'#155569');
    ctx.fillStyle='#f8faf0e8';ctx.fillRect(width-42,7,35,52);ctx.fillStyle='#295a62';ctx.beginPath();ctx.moveTo(width-25,14);ctx.lineTo(width-31,29);ctx.lineTo(width-19,29);ctx.fill();ctx.font='bold 12px sans-serif';ctx.fillText('N',width-25,44);
    const ideal=80/scale(),pow=10**Math.floor(Math.log10(ideal)),meters=[1,2,5,10].map(n=>n*pow).find(n=>n>=ideal),length=meters*scale();ctx.fillStyle='#f8faf0e8';ctx.fillRect(8,height-36,length+18,28);ctx.strokeStyle='#315761';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(17,height-20);ctx.lineTo(17,height-13);ctx.lineTo(17+length,height-13);ctx.lineTo(17+length,height-20);ctx.stroke();ctx.font='11px sans-serif';ctx.fillStyle='#315761';ctx.fillText(meters>=1000?meters/1000+' km':meters+' m',17+length/2,height-26);
-   canvas.dataset.range=range.toFixed(1);canvas.dataset.center=[cx,cz].join(',');
+   canvas.dataset.site=site.id;canvas.dataset.preview=String(preview);canvas.dataset.range=range.toFixed(1);canvas.dataset.center=[cx,cz].join(',');
   }
   function near(){const launch=landmarks.find(l=>l.kind==='launch')||session,dx=launch.x-session.x,dz=launch.z-session.z,nearby=Math.hypot(dx,dz)<900;cx=session.x+(nearby?dx*.4:0);cz=session.z+(nearby?dz*.4:0);range=clamp(Math.hypot(dx,dz)*.65+150,240,550);draw();}
   function overview(){cx=0;cz=0;range=site.chartRange*1.08;draw();}
@@ -58,5 +58,21 @@ const FoilNavigationMap=(()=>{
   const observer=new ResizeObserver(draw);observer.observe(canvas);near();
   return {near,overview,focus,zoom,dispose(){observer.disconnect();events.abort();pointers.clear();}};
  }
- return {create};
+ // Lightweight references for places that have not loaded a 3D scene yet.
+ function previewReferences(site,world){
+  if(!world.geography)return [
+   ['Light Point','LIGHT',-200,180],['Harbor Village','HARBOR',220,210],['South Watch','WATCH',80,-260],['Castle Head','CASTLE',-270,-80],['White Cliffs','CLIFFS',430,-170],['Launch buoy','LAUNCH',-5,-4,'launch']
+  ].map(([name,short,x,z,kind='landmark'])=>({name,short,x,z,kind,color:'#8baea3'}));
+  const refs={
+   shoreline:[['Shoreline Boathouse','BOATHOUSE',37.43270,-122.08810],['Floating docks','DOCKS',37.43311,-122.08823],['Bird island','ISLAND',37.4327,-122.0933],['SolarBee water circulator','SOLAR CIRCULATOR',37.43356,-122.0910]],
+   third:[['San Mateo–Hayward Bridge','SAN MATEO BRIDGE',37.589,-122.2455],['Upper Launch','UPPER LAUNCH',37.574606,-122.284049],['Mariners Point','GOLF COURSE',37.5735,-122.288],['Lower Beach','LOWER BEACH',37.571612,-122.278867],['Floating rescue dock','JET SKI DOCK',37.57316,-122.27917]],
+   coyote:[['Coyote Point headland','COYOTE POINT',37.5899,-122.3227],['Coyote Point Marina','MARINA',37.5892,-122.31672],['SFO airport','SFO',37.61586,-122.38378],['Beach & Boardsports','BEACH',37.58891,-122.32772],['Coyote Point Pump Station','PUMP STATION',37.58764,-122.33243]],
+   crissy:[['Golden Gate Bridge','GOLDEN GATE',37.8198,-122.4785],['Fort Point','FORT POINT',37.8106,-122.4770],['Alcatraz Island','ALCATRAZ',37.8267,-122.4230],['Palace of Fine Arts','PALACE',37.80292,-122.4484],['Warming Hut','WARMING HUT',37.80832,-122.47073]],
+   kahului:[['Ho‘aloha Park & canoe hales','HO‘ALOHA PARK',20.89226,-156.46891],['Puunene Avenue · beach access','PUʻUNĒNĒ ACCESS',20.89323,-156.46790],['Kahului commercial harbor','CARGO PORT',20.89765,-156.46646],['West breakwater','WEST BREAKWATER',20.9003,-156.4745],['Small-boat launch','BOAT RAMP',20.89627,-156.4785]]
+  };
+  const g=world.geography;if(site.id==='lemorne')refs.lemorne=g.raw.references.map(r=>[r.name,r.short,...r.point]);const out=(refs[site.id]||[]).map(([name,short,lat,lon])=>{const [x,z]=g.project([lat,lon]);return {name,short,x,z,kind:'landmark',color:'#8baea3'};});
+  const [x,z]=g.project(site.launch);out.push({name:site.id==='lemorne'?'Kite Lagoon launch':site.id==='shoreline'?'Boathouse launch':site.id==='third'?'Lower launch · concrete ramp':site.id==='kahului'?'Ho‘aloha beach launch':'Beach launch',short:'LAUNCH',kind:'launch',color:'#8bbdc6',x,z});
+  return out;
+ }
+ return {create,previewReferences};
 })();

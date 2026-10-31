@@ -5,8 +5,14 @@ const step=(s,world,seconds)=>{for(let t=0;t<seconds;t+=1/60)H.step(s,world,1/60
 test('horse stick pressure covers walk, trot, canter and gallop; release brakes and backing stays slow',()=>{
  for(const [input,gait] of [[.25,'Walk'],[.56,'Trot'],[.79,'Canter'],[1,'Gallop']]){const s=rider();s.controls.balance=-input;step(s,flat,5);assert.equal(s.horse.gait,gait);assert.ok(Math.abs(s.horse.speed-H.targetSpeed(input))<.04);s.controls.balance=0;step(s,flat,2);assert.equal(s.horse.speed,0);const z=s.z;step(s,flat,1);assert.equal(s.z,z);s.controls.balance=1;step(s,flat,2);assert.ok(s.horse.speed<0&&s.horse.speed>=-1.05);}
 });
-test('swept full-length horse collision stops before fences, water and large steps at gallop',()=>{
- for(const world of [{...flat,blocked:(x,z)=>z>9.9&&z<10.1},{...flat,walkHeight:(x,z)=>z>10?-1:1},{...flat,walkHeight:(x,z)=>z>10?2:1}]){const s=rider();s.horse.speed=9;s.controls.balance=-1;step(s,world,3);assert.ok(s.z<9&&s.z>7,JSON.stringify(s.horse));assert.ok(s.horse.blocked);assert.ok(H.support(world,s.x,s.z,s.heading));}
+test('swept full-length horse collision stops before fences, cliffs and large steps at full gallop',()=>{
+ for(const world of [{...flat,blocked:(x,z)=>z>9.9&&z<10.1},{...flat,walkHeight:(x,z)=>z>10?-1:1},{...flat,walkHeight:(x,z)=>z>10?2:1}]){const s=rider();s.horse.speed=H.targetSpeed(1);s.controls.balance=-1;step(s,world,3);assert.ok(s.z<9&&s.z>7,JSON.stringify(s.horse));assert.ok(s.horse.blocked);assert.ok(H.support(world,s.x,s.z,s.heading));}
+});
+test('full gallop reaches 16 m/s, extends the stride, brakes promptly and carries speed into a jump',()=>{
+ const s=rider();s.controls.balance=-1;step(s,flat,4.1);assert.ok(s.horse.speed>15.9&&s.z>31,'A full push produces a much faster gallop within four seconds');
+ const phase=s.horse.phase;step(s,flat,1);const cadence=(s.horse.phase-phase)/(Math.PI*2);assert.ok(cadence>2&&cadence<2.7,'Lengthen the stride instead of spinning legs at over four cycles per second');
+ const h=s.horse,z=h.z;assert.ok(H.jump(s));while(h.jump)H.step(s,flat,1/60);assert.ok(h.z-z>17,'Galloping jumps retain forward momentum');assert.ok(H.support(flat,h.x,h.z,h.heading));
+ const stop=h.z;s.controls.balance=0;step(s,flat,2);assert.equal(h.speed,0);assert.ok(h.z-stop<15,'Release brakes within a short galloping distance');
 });
 test('horse follows a moderate slope and turns left for left input',()=>{const s=rider(),w={...flat,walkHeight:(x,z)=>1+z*.12};s.controls.balance=-.4;step(s,w,4);assert.ok(s.z>5);assert.ok(Math.abs(s.walkY-w.walkHeight(s.x,s.z))<1e-6);const a=s.heading;s.controls.steer=-1;step(s,w,.4);assert.ok(s.heading>a);});
 test('mount and dismount require proximity, stable speed and clear dry footing',()=>{const s=rider();s.mode='swimming';s.horse=null;s.x=0;s.z=0;s.walkY=1;assert.equal(H.mount(s),false);s.mode='walking';s.x=10;assert.equal(H.mount(s),false);s.x=1;assert.equal(H.mount(s),true);s.horse.speed=4;assert.equal(H.dismount(s,flat),false);step(s,flat,2);assert.equal(s.horse.speed,0);assert.equal(H.dismount(s,{...flat,blocked:()=>true}),false);assert.equal(H.dismount(s,flat),true);assert.equal(s.mode,'walking');assert.equal(s.horse,null);assert.ok(Math.hypot(s.x,s.z)>=1.2);});
@@ -14,7 +20,7 @@ test('diagonal trot, four-beat walk and gallop suspension use distinct hoof timi
  let suspension=0;const walkContacts=new Set();for(let i=0;i<200;i++){const phase=i*Math.PI*2/200,trot=[0,1,2,3].map(k=>H.foot(phase,k,3));assert.equal(trot[0].stance,trot[3].stance);assert.equal(trot[1].stance,trot[2].stance);const walk=[0,1,2,3].map(k=>H.foot(phase,k,1));walkContacts.add(walk.map(f=>+f.stance).join(''));if([0,1,2,3].every(k=>!H.foot(phase,k,8).stance))suspension++;for(const v of [1,3,5,8])for(let k=0;k<4;k++){const f=H.foot(phase,k,v);assert.ok(f.lift>=0&&f.lift<=.32);if(f.stance)assert.equal(f.lift,0);}}
  assert.ok(walkContacts.size>=4);assert.ok(suspension>0);
 });
-for(const id of ['academy','shoreline','third','coyote','crissy','kahului'])test(id+': find, mount, ride open ground and safely dismount without changing flight progress',()=>{
+for(const id of ['academy','shoreline','third','coyote','crissy','kahului','lemorne'])test(id+': find, mount, ride open ground and safely dismount without changing flight progress',()=>{
  W.activate(id);try{const s=new Session(),h=s.horses[0];assert.equal(s.horses.length,1);assert.ok(H.support(W,h.x,h.z,h.heading));s.dismount();const board={...s.board},stats={...s.stats};Object.assign(s,{mode:'walking',x:h.x+1.2,z:h.z,walkY:h.y});assert.equal(s.horseAction(),true);let best=0,heading=0;for(let i=0;i<32;i++){const a=i*Math.PI/16;let d=0;for(;d<35;d+=.3)if(!H.support(W,h.x+Math.sin(a)*d,h.z+Math.cos(a)*d,a))break;if(d>best){best=d;heading=a;}}assert.ok(best>8,id+' needs a usable route');h.heading=heading;s.controls.balance=-.3;for(let i=0;i<5*60;i++)s.step(1/60);assert.ok(h.distance>4);s.controls.balance=0;for(let i=0;i<60;i++)s.step(1/60);assert.equal(s.horseAction(),true);assert.equal(s.mode,'walking');assert.deepEqual(s.board,board);assert.deepEqual(s.stats,stats);assert.ok(!W.blocked(s.x,s.z,.32,s.walkY));}finally{W.activate('academy');}
 });
 test('Third staging path has no wall; parking fence gaps and car collision match shared layout',()=>{W.activate('third');try{const g=W.geography;assert.equal(g.levee.length,0);for(const s of g.levee)assert.ok(!g.shoreAccess.inStaging((s.a[0]+s.b[0])/2,(s.a[1]+s.b[1])/2));assert.equal(g.solids.filter(s=>s.kind==='fence').length,g.shoreAccess.fences.length);for(const car of g.parkingLayout.stalls.filter(s=>s.parked))assert.ok(W.blocked(car.x,car.z,.3));}finally{W.activate('academy');}});
@@ -51,14 +57,14 @@ test('jump travel resumes after rising clear of an obstacle, including from a pa
 });
 test('full-stride collision keeps front and rear hooves outside a car on approach',()=>{
  const car=(x,z,r=0)=>Math.abs(x)<.9+r&&Math.abs(z)<2.06+r,w={...flat,horseSurface:(x,z)=>car(x,z)?2.03:1,blocked:(x,z,r,y)=>car(x,z,r)&&y<2.03};
- for(const heading of [0,Math.PI/2,Math.PI,Math.PI*1.5,.55])for(const reverse of [false,true])for(const speed of [1.7,4,8.5]){const s=rider(w),sign=reverse?-1:1,h=s.horse;Object.assign(h,{x:-Math.sin(heading)*6*sign,z:-Math.cos(heading)*6*sign,heading,speed:speed*sign});s.controls.balance=-sign;
+ for(const heading of [0,Math.PI/2,Math.PI,Math.PI*1.5,.55])for(const reverse of [false,true])for(const speed of [1.7,4,8.5,16]){const s=rider(w),sign=reverse?-1:1,h=s.horse;Object.assign(h,{x:-Math.sin(heading)*6*sign,z:-Math.cos(heading)*6*sign,heading,speed:speed*sign});s.controls.balance=-sign;
   for(let i=0;i<360;i++){H.step(s,w,1/60);for(let k=0;k<4;k++){const f=H.foot(h.phase,k,h.speed),side=k%2?-.26:.26,fore=(k<2?.68:-.79)+f.z,x=h.x+Math.cos(heading)*side+Math.sin(heading)*fore,z=h.z-Math.sin(heading)*side+Math.cos(heading)*fore;assert.equal(car(x,z,.09),false,'A hoof enters the hood before the horse stops');}}
   assert.ok(h.blocked);assert.ok(H.support(w,h.x,h.z,h.heading));
  }
 });
-test('jump clears a low fence, while a tall wall and water still stop the horse',()=>{
+test('jump clears a low fence, while a tall wall stops the horse and water receives a swimming landing',()=>{
  for(const [height,passes] of [[.7,true],[4,false]]){const w={...flat,blocked:(x,z,r,y)=>Math.abs(z-3)<.16+r&&y<1+height},s=rider(w);s.horse.speed=4;s.controls.balance=-.55;H.jump(s);step(s,w,1.8);assert.equal(s.z>3.5,passes,JSON.stringify(s.horse));}
- const w={...flat,walkHeight:(x,z)=>z>3?-2:1},s=rider(w);s.horse.speed=5;s.controls.balance=-.7;H.jump(s);step(s,w,2);assert.ok(s.z<=3&&s.horse.y===1);
+ const w={...flat,walkHeight:(x,z)=>z>3?-2:1},s=rider(w);s.horse.speed=5;s.controls.balance=-.7;H.jump(s);step(s,w,2);assert.ok(s.z>3&&s.horse.swimming&&Math.abs(s.horse.y+1.18)<.02);
 });
 test('Coyote horse waits by the central gravel triangle; new ramp armor reaches the wall without closing the ramp',()=>{
  W.activate('coyote');try{const g=W.geography,p=g.promenade,r=p.rigging.ramp,h=H.spawn(W)[0];assert.ok(Math.hypot(h.x-p.rigging.horse.x,h.z-p.rigging.horse.z)<3);assert.ok(Math.hypot(h.x-r.x,h.z-r.z)<22);assert.ok(p.nearest(p.rigging.bench.x,p.rigging.bench.z).distance<4);const rocks=g.shoreRocks.filter(r=>r.rampArmor);assert.ok(rocks.length>32);for(const rock of rocks){const d=(rock.x-r.x)*r.nx+(rock.z-r.z)*r.nz;assert.ok(Math.abs(rock.y+rock.ry-p.rampHeight(r,d)-.55)<.08);assert.equal(p.rampAt(rock.x,rock.z,Math.max(rock.rx,rock.rz)+.2),null);}assert.ok(rocks.some(b=>b.y+b.ry>2.8));}finally{W.activate('academy');}

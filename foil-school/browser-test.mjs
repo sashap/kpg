@@ -12,7 +12,7 @@ if(process.argv[3]==='probe'){await cdp('Page.bringToFront');console.log(await e
 const frames=()=>evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
 const mode=process.argv[2]||'desktop',tablet=mode==='tablet',phone=mode==='phone';
 await cdp('Page.bringToFront');await cdp('Runtime.enable');await cdp('Log.enable');await cdp('Page.enable');await cdp('Emulation.setTouchEmulationEnabled',{enabled:tablet||phone,maxTouchPoints:5});await cdp('Emulation.setDeviceMetricsOverride',{width:tablet?1180:phone?390:1440,height:tablet?820:phone?844:960,deviceScaleFactor:1,mobile:tablet||phone});
-await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"try{localStorage.removeItem('foil-school-progress-v1')}catch{}"});
+const clearProgressScript=await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"try{localStorage.removeItem('foil-school-progress-v1')}catch{}"});
 await evaluate('window.foilTest=null');
 await cdp('Page.navigate',{url:new URL('../foil-academy.html?test&run='+Date.now(),import.meta.url).href});
 for(let i=0;i<80;i++){await new Promise(r=>setTimeout(r,150));if(await evaluate('!!window.foilTest'))break;}
@@ -20,22 +20,30 @@ assert.equal(await evaluate('!!window.foilTest'),true,JSON.stringify(errors));aw
 const screenshot=async name=>{const r=await cdp('Page.captureScreenshot',{format:'png'});await writeFile(join(tmpdir(),'foil-'+mode+'-'+name+'.png'),Buffer.from(r.data,'base64'));};
 const click=async id=>{await evaluate(`document.getElementById('${id}').scrollIntoView({block:'center'})`);await frames();const p=await evaluate(`(()=>{const r=document.getElementById('${id}').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);if(tablet||phone){await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:1}]});await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}else{await cdp('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',clickCount:1});await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',...p,button:'left',clickCount:1});}};
 await screenshot('intro');console.log('loaded',await evaluate('foilTest.renderStats'));assert.ok(await evaluate('foilTest.renderStats.programs.every(p=>p.runnable)'),'Shaders must compile');
+if(process.argv[3]==='lemorne'){await (await import('./lemorne-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='smoke'){console.log('errors',errors);assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='intro-layout'){
  for(const [width,height] of [[390,844],[375,667],[320,568],[320,480],[844,390],[667,375],[1180,820],[900,600]]){
   await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<761||height<500});await frames();
-  const layout=await evaluate(`(()=>{const m=document.getElementById('modal-card');return {scroll:m.scrollHeight,client:m.clientHeight,focus:document.activeElement.id,title:document.getElementById('modal-title').textContent,buttons:['intro-location','begin','open-lessons','free-intro'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return {id,x:r.x,right:r.right,top:r.top,bottom:r.bottom};})};})()`);
+  const layout=await evaluate(`(()=>{const m=document.getElementById('modal-card');return {scroll:m.scrollHeight,client:m.clientHeight,focus:document.activeElement.id,title:document.getElementById('modal-title').textContent,buttons:['intro-location','begin','open-lessons','free-intro','gear-intro'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return {id,x:r.x,right:r.right,top:r.top,bottom:r.bottom};})};})()`);
   assert.equal(layout.title,'Find your flight.');assert.equal(layout.focus,'begin');assert.ok(layout.scroll<=layout.client+1,JSON.stringify({width,height,layout}));for(const b of layout.buttons)assert.ok(b.x>=0&&b.right<=width&&b.top>=0&&b.bottom<=height,JSON.stringify({width,height,b}));
   if(width===320||height<400)await screenshot('intro-compact-'+width+'-'+height);
  }
- assert.deepEqual(errors,[]);console.log('Short welcome, all start/location controls visible without scrolling, and initial start-button focus passed at eight sizes');ws.close();process.exit(0);
+ await click('begin');
+ for(const [width,height] of [[320,568],[390,844],[844,390],[1180,820]]){await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});await frames();const boxes=await evaluate("Array.from(document.querySelectorAll('header button')).filter(b=>b.offsetWidth).map(b=>{const r=b.getBoundingClientRect();return {id:b.id,x:r.x,y:r.y,right:r.right,bottom:r.bottom}})");for(const b of boxes)assert.ok(b.x>=0&&b.right<=width&&b.y>=0&&b.bottom<=height,JSON.stringify({width,b}));await screenshot('equipment-toolbar-'+width);}
+ assert.deepEqual(errors,[]);console.log('Short welcome, all start/location controls visible without scrolling, initial start focus at eight sizes and equipment toolbar at four sizes passed');ws.close();process.exit(0);
 }
 if(process.argv[3]==='flight-smoothness'){await (await import('./flight-smoothness-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='downwind'){await (await import('./downwind-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='equipment-photos'){await (await import('./equipment-photos-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='equipment-geometry'){await (await import('./equipment-browser-check.mjs')).geometryCheck({evaluate,frames,click,screenshot});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='equipment'){await (await import('./equipment-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone,clearProgressScript});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='horse-swim'){await (await import('./horse-swim-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='water-recovery'){await (await import('./water-recovery-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='wipeouts'){await (await import('./wipeouts-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='wing-dive'){await (await import('./wing-dive-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='foot-jump'){await (await import('./foot-jump-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
+if(process.argv[3]==='places'){await (await import('./places-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='usability'){await (await import('./usability-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='travel'){await (await import('./travel-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='catalog'){
@@ -60,7 +68,7 @@ if(process.argv[3]==='horse-jump'){await (await import('./horse-jump-browser-che
 if(process.argv[3]==='hud'){await (await import('./hud-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='horses'){await (await import('./horse-browser-check.mjs')).check({evaluate,cdp,frames,click,screenshot,tablet,phone});assert.deepEqual(errors,[]);ws.close();process.exit(0);}
 if(process.argv[3]==='polish'){
- assert.equal(await evaluate('document.activeElement.id'),'begin');assert.equal(await evaluate("document.getElementById('intro-location').value"),'academy');assert.equal(await evaluate("document.querySelectorAll('#intro-location option').length"),6);
+ assert.equal(await evaluate('document.activeElement.id'),'begin');assert.equal(await evaluate("document.getElementById('intro-location').value"),'academy');assert.equal(await evaluate("document.querySelectorAll('#intro-location option').length"),7);
  await evaluate("window.foilTest=null;const n=document.getElementById('intro-location');n.value='shoreline';n.dispatchEvent(new Event('change',{bubbles:true}))");
  for(let i=0;i<160;i++){await new Promise(r=>setTimeout(r,150));if(await evaluate('!!window.foilTest'))break;}await frames();
  assert.equal(await evaluate("document.getElementById('intro-location').value"),'shoreline');await screenshot('intro-location');await click('begin');assert.equal(await evaluate('FoilWorld.location.id'),'shoreline');assert.equal(await evaluate('foilTest.session.lesson'),0);assert.equal(await evaluate('foilTest.session.free'),false);
@@ -82,7 +90,7 @@ if(process.argv[3]==='rig'){
 }
 if(process.argv[3]==='academy'){
  await click('open-lessons');assert.equal(await evaluate("document.querySelector('#modal-card .eyebrow').textContent"),'Foil Academy courses');assert.match(await evaluate("document.getElementById('modal-title').textContent"),/Learn the moves.Find your flow./);assert.equal(await evaluate("document.querySelectorAll('[data-lesson]').length"),19);assert.equal(await evaluate("document.querySelector('.lesson-grid').lastElementChild.id"),'chart-free');assert.equal(await evaluate("document.querySelector('#chart-free strong').textContent"),'Free Foiling');await screenshot('courses');
- await click('chart-free');assert.equal(await evaluate("document.querySelectorAll('#free-location option').length"),6);await click('conditions-apply');assert.equal(await evaluate('foilTest.session.free'),true);assert.equal(await evaluate("document.getElementById('transfer')"),null);
+ await click('chart-free');assert.equal(await evaluate("document.querySelectorAll('#free-location option').length"),7);await click('conditions-apply');assert.equal(await evaluate('foilTest.session.free'),true);assert.equal(await evaluate("document.getElementById('transfer')"),null);
  await evaluate('foilTest.session.setConditions({wind:0,swell:0,gust:0});foilTest.session.stand();foilTest.inputStep(.1)');
  const key=async(code,down)=>cdp('Input.dispatchKeyEvent',{type:down?'keyDown':'keyUp',key:code.startsWith('Key')?code.slice(3).toLowerCase():code,code,windowsVirtualKeyCode:({ArrowUp:38,ArrowDown:40,ArrowLeft:37,ArrowRight:39,KeyJ:74})[code]||0});
  await key('ArrowDown',true);await evaluate('foilTest.inputStep(.8)');await key('ArrowDown',false);const power=await evaluate('foilTest.control.trim');assert.ok(power>.29&&power<.6);await evaluate('foilTest.inputStep(.3)');assert.equal(await evaluate('foilTest.control.trim'),power,'Power latches after release');await key('ArrowUp',true);await evaluate('foilTest.inputStep(.4)');await key('ArrowUp',false);assert.ok(await evaluate('foilTest.control.trim')<power-.14);

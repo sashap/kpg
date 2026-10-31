@@ -1,4 +1,4 @@
-/* Geographic sites in metres: +X west, +Z north. Land elevations use USGS 3DEP; water depths remain modeled. */
+/* Geographic sites in metres: +X west, +Z north. Land elevations use USGS 3DEP / Copernicus GLO-30; water depths remain modeled. */
 (function(root){
 'use strict';
 const data=typeof module!=='undefined'&&module.exports?require('./location-data.js'):root.FoilLocationData;
@@ -9,24 +9,30 @@ const harborModel=typeof module!=='undefined'&&module.exports?require('./harbor-
 const kahuluiData=typeof module!=='undefined'&&module.exports?require('./kahului-data.js'):root.FoilKahuluiData;
 const playgroundModel=typeof module!=='undefined'&&module.exports?require('./playground.js'):root.FoilPlayground;
 const landmarkData=typeof module!=='undefined'&&module.exports?require('./landmark-data.js'):root.FoilLandmarkData;
+const leMorneData=typeof module!=='undefined'&&module.exports?require('./lemorne-data.js'):root.FoilLeMorneData;
+const leMorneModel=typeof module!=='undefined'&&module.exports?require('./lemorne-model.js'):root.FoilLeMorne;
 const sites=[
  {id:'academy',name:'Academy Bay',subtitle:'A sheltered island coast',description:'Castle ruins, a lighthouse, and quiet coves. The original practice bay.',limit:480,chartRange:620},
  {id:'shoreline',name:'Shoreline Park Lake',subtitle:'Mountain View, California',description:'A compact lake with its boathouse, floating docks, colorful boats, and bird island.',origin:[37.43312,-122.09025],limit:650,chartRange:650,windFrom:Math.PI/8,launch:[37.43296,-122.0882]},
  {id:'third',name:'3rd Avenue · Lower Launch',subtitle:'Foster City, California',description:'Rock-lined launch coves, the levee and Bay Trail, golf greens, and the San Mateo Bridge.',origin:[37.57318,-122.2778],start:[37.5739,-122.2782],limit:2200,chartRange:2400,windFrom:Math.PI*3/8,launch:[37.57347,-122.27946]},
  {id:'coyote',name:'Coyote Point Beach',subtitle:'San Mateo, California',description:'A wooded headland, beach promenade, marina, and SFO across the water with arriving aircraft.',origin:[37.5921,-122.3294],limit:4500,chartRange:5600,windFrom:Math.PI*3/8,launch:[37.58902,-122.32815]},
  {id:'kahului',name:'Kahului Harbor',subtitle:'Ho‘aloha Park · Maui, Hawai‘i',description:'A sandy canoe-club launch, palms, lava-rock breakwaters, working cargo piers and the West Maui mountains.',origin:[20.89415,-156.47015],launch:[20.89252,-156.46889],limit:2350,chartRange:2700,windFrom:-Math.PI/4},
- {id:'crissy',name:'Crissy Field South Beach',subtitle:'East Beach launch · San Francisco',description:'The Presidio waterfront, Golden Gate Bridge, Fort Point, Alcatraz, and the Marin Headlands.',origin:[37.8081,-122.4534],limit:3600,chartRange:4800,windFrom:Math.PI/2,launch:[37.8064,-122.4505]}
+ {id:'crissy',name:'Crissy Field South Beach',subtitle:'East Beach launch · San Francisco',description:'The Presidio waterfront, Golden Gate Bridge, Fort Point, Alcatraz, and the Marin Headlands.',origin:[37.8081,-122.4534],limit:3600,chartRange:4800,windFrom:Math.PI/2,launch:[37.8064,-122.4505]},
+ {id:'lemorne',name:'Le Morne',subtitle:'Kite Lagoon · Mauritius',description:'A turquoise reef lagoon beneath Le Morne Brabant, with pale sand, casuarina groves, palms and the island of Ilôt Fourneau.',origin:[-20.4674,57.3192],launch:[-20.46499,57.31803],limit:3600,chartRange:4200,startTack:1,windFrom:-Math.PI*3/4}
 ];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function inside(x,z,p){let odd=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])odd=!odd;}return odd;}
 function distance(x,z,p){let d=Infinity;for(let i=1;i<p.length;i++){const a=p[i-1],b=p[i],dx=b[0]-a[0],dz=b[1]-a[1],t=clamp(((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz||1),0,1);d=Math.min(d,(x-a[0]-dx*t)**2+(z-a[1]-dz*t)**2);}return Math.sqrt(d);}
-function create(id){
+function create(id,{mapOnly=false}={}){
  const site=sites.find(s=>s.id===id)||sites[0];if(site.id==='academy')return null;
- const baseRaw=site.id==='kahului'?harborModel.prepare(kahuluiData):waterfront.prepare(site.id,data[site.id]),extra=landmarkData[site.id],raw=extra?{...baseRaw,buildings:[...(baseRaw.buildings||[]),...extra.buildings],piers:[...(baseRaw.piers||[]),...extra.piers]}:baseRaw,project=([lat,lon])=>[-(lon-site.origin[1])*111320*Math.cos(site.origin[0]*Math.PI/180),(lat-site.origin[0])*111320],line=p=>p.map(project),coast=raw.coast?line(raw.coast):null,water=raw.water?line(raw.water):null,polygons=(raw.islands||[]).map(line);
- if(coast){const xs=coast.map(p=>p[0]),zs=coast.map(p=>p[1]);polygons.unshift([...coast,[Math.max(...xs)+8000,Math.min(...zs)-10000],[Math.min(...xs)-5000,Math.min(...zs)-10000],coast[0]]);}
+ const baseRaw=site.id==='lemorne'?leMorneData:site.id==='kahului'?harborModel.prepare(kahuluiData):waterfront.prepare(site.id,data[site.id]),extra=landmarkData[site.id],raw=extra?{...baseRaw,buildings:[...(baseRaw.buildings||[]),...extra.buildings],piers:[...(baseRaw.piers||[]),...extra.piers]}:baseRaw,project=([lat,lon])=>[-(lon-site.origin[1])*111320*Math.cos(site.origin[0]*Math.PI/180),(lat-site.origin[0])*111320],line=p=>p.map(project),coast=raw.coast?line(raw.coast):null,water=raw.water?line(raw.water):null,polygons=[...(raw.land||[]),...(raw.islands||[])].map(line);
+ if(coast&&!raw.land){const xs=coast.map(p=>p[0]),zs=coast.map(p=>p[1]);polygons.unshift([...coast,[Math.max(...xs)+8000,Math.min(...zs)-10000],[Math.min(...xs)-5000,Math.min(...zs)-10000],coast[0]]);}
  if(raw.marin){const p=line(raw.marin),maxZ=Math.max(...p.map(p=>p[1]));polygons.push([...p,[p.at(-1)[0],maxZ+8000],[p[0][0],maxZ+8000],p[0]]);}
  if(raw.eastCoast){const p=line(raw.eastCoast),minX=Math.min(...p.map(p=>p[0]));polygons.push([...p,[minX-10000,p.at(-1)[1]],[minX-10000,p[0][1]],p[0]]);}
  const ponds=(raw.ponds||[]).map(line);
+ const features={};for(const kind of ['buildings','piers','paths','runways','ground','parking','parkingAisles','roads','reefs','pools'])features[kind]=(raw[kind]||[]).map(f=>({...f,points:line(f.points)}));
+ // A location preview needs only projected chart geometry, not terrain or collision meshes.
+ if(mapOnly)return {site,raw,project,coast,water,polygons,ponds,features};
  const harbor=site.id==='kahului'?harborModel.create(raw,project,inside,distance):null;
  const edges=[...(water?[water]:[]),...polygons,...ponds];
  function signedShore(x,z){let land=water?!inside(x,z,water):false;for(const p of polygons)if(inside(x,z,p)){land=true;break;}for(const p of ponds)if(inside(x,z,p))land=false;let d=Infinity;for(const p of edges)d=Math.min(d,distance(x,z,p));return (land?1:-1)*d;}
@@ -37,6 +43,7 @@ function create(id){
  const openGolfBank=(x,z)=>golfBank&&inside(x,z,golfBank);
  const waterDatum=elevations.waterDatum(site.id);
  const elevationAt=(x,z)=>elevations.height(site.id,site.origin[0]+z/111320,site.origin[1]-x/(111320*Math.cos(site.origin[0]*Math.PI/180)));
+ const leMorne=site.id==='lemorne'?leMorneModel.create(raw,project,inside,distance,elevationAt):null;
  const shoreAccess=waterfront.access(site.id,project,elevationAt,waterDatum);
  const beaches=(raw.ground||[]).filter(p=>p.kind==='beach').map(p=>line(p.points));
  // The narrow rebuilt levee cannot be resolved by the bare-earth DEM. Its
@@ -46,6 +53,7 @@ function create(id){
  const detailBounds=site.id==='third'?{x0:88,x1:216,z0:-216,z1:112}:null;
  function inDetail(x,z){return detailBounds&&x>detailBounds.x0&&x<detailBounds.x1&&z>detailBounds.z0&&z<detailBounds.z1;}
  function rawHeight(x,z){const d=signedShore(x,z),measured=elevationAt(x,z),height=(measured??waterDatum)-waterDatum;
+  if(leMorne)return leMorne.height(x,z,d,height);
   // Distant terrain follows the DEM, including headlands beyond the mapped
   // local coastline. Bare-earth water pixels are not underwater bathymetry.
   if(Math.hypot(x,z)>2800)return height>.05?height:-10;
@@ -75,7 +83,7 @@ function create(id){
  function terrainHeight(x,z){if(inDetail(x,z)&&launchSurface){const s=launchSurface,u=x-s.x0,v=z-s.z0,i=Math.floor(u),j=Math.floor(v),a=u-i,b=v-j,k=j*(s.n+1)+i,h=s.h;if(a+b<=1)return h[k]+a*(h[k+1]-h[k])+b*(h[k+s.n+1]-h[k]);return h[k+s.n+2]+(1-a)*(h[k+s.n+1]-h[k+s.n+2])+(1-b)*(h[k+1]-h[k+s.n+2]);}return Math.abs(x)<=near.half&&Math.abs(z)<=near.half?sample(near,x,z):Math.abs(x)<=middle.half&&Math.abs(z)<=middle.half?sample(middle,x,z):sample(far,x,z);}
  const playground=site.id==='shoreline'?playgroundModel.create(project,terrainHeight):site.id==='coyote'?playgroundModel.createCoyote(project,terrainHeight):null;
  const shoreRocks=[],rockBins=new Map();let rockSeed=2891;const rand=()=>{rockSeed=(1664525*rockSeed+1013904223)>>>0;return rockSeed/4294967296;};
- const edge=coast||water;for(let i=1;i<edge.length;i++){const a=edge[i-1],b=edge[i],dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz);if(length<.1)continue;let nx=-dz/length,nz=dx/length;const mx=(a[0]+b[0])/2,mz=(a[1]+b[1])/2;if(signedShore(mx+nx*3,mz+nz*3)<0){nx=-nx;nz=-nz;}
+ const edge=site.id==='lemorne'?[]:coast||water;for(let i=1;i<edge.length;i++){const a=edge[i-1],b=edge[i],dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz);if(length<.1)continue;let nx=-dz/length,nz=dx/length;const mx=(a[0]+b[0])/2,mz=(a[1]+b[1])/2;if(signedShore(mx+nx*3,mz+nz*3)<0){nx=-nx;nz=-nz;}
   for(let t=.5;t<length;t+=site.id==='shoreline'?2.4:site.id==='coyote'||site.id==='third'?1.18:2.0){const x=a[0]+dx*t/length,z=a[1]+dz*t/length;if(Math.hypot(x,z)>1700)continue;const lat=site.origin[0]+z/111320,lon=site.origin[1]-x/(111320*Math.cos(site.origin[0]*Math.PI/180));
    if(site.id==='kahului'&&(lat<20.8936||lon> -156.470&&lat<20.899))continue;
    if(site.id==='crissy'&&lon> -122.470)continue;if(site.id==='coyote'&&(lon< -122.340||lon> -122.319||lon> -122.3276&&lon< -122.3246))continue;
@@ -123,7 +131,7 @@ function create(id){
   }
  }
  function rockTop(x,z,r=0){let h=-Infinity;const ix=Math.floor(x/8),iz=Math.floor(z/8);for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)for(const p of rockBins.get((ix+a)+','+(iz+b))||[]){const dx=x-p.x,dz=z-p.z,co=Math.cos(p.angle),si=Math.sin(p.angle),u=(dx*co-dz*si)/(p.rx+r),v=(dx*si+dz*co)/(p.rz+r),d=u*u+v*v;if(d<1)h=Math.max(h,p.y+p.ry*Math.sqrt(1-d));}return h;}
- const features={};for(const kind of ['buildings','piers','paths','runways','ground','parking','parkingAisles','roads'])features[kind]=(raw[kind]||[]).map(f=>({...f,points:line(f.points)}));
+
  // Buildings use their actual footprints for both walls and collision. Nearby
  // unlabeled boathouse buildings are retained too. Paths and beaches stay open.
  const solids=features.buildings.filter(b=>b.style!=='canoe-hale'&&b.style!=='shelter-solar'&&Math.hypot(...b.points[0])<site.limit+120).map(b=>{const c=b.points.reduce((a,p)=>[a[0]+p[0]/b.points.length,a[1]+p[1]/b.points.length],[0,0]);return {...b,height:b.height||(/tower/i.test(b.name)?24:5),y:Math.max(.2,terrainHeight(...c))};});
@@ -161,7 +169,7 @@ function create(id){
  function horseBlocked(x,z,r,feet){for(let i=Math.floor((x-r)/64);i<=Math.floor((x+r)/64);i++)for(let j=Math.floor((z-r)/64);j<=Math.floor((z+r)/64);j++)for(const b of solidBins.get(i+','+j)||[]){const top=b.kind==='car'?carTop(b,x,z):b.y+b.height;if(feet<top-.015&&feet+2.8>b.y&&(inside(x,z,b.points)||distance(x,z,b.points)<r))return true;}return false;}
  function rockStep(x,z){return Number.isFinite(rockTop(x,z,.5));}
  const launch=project(site.launch),castle={x:launch[0],z:launch[1],floor:0,dock:{x:launch[0],z:launch[1]},path:[],walls:[],towers:[],solids:[],platforms:[],arches:[],sites:[]};
- return {site,harbor,playground,golfBank,openGolfBank,limit:site.limit,project,coast,water,polygons,ponds,shoreRocks,ramps,promenade,trail,shoreAccess,bankHeight,floating,features,solids,addSolid,tanks,levee,lessonRV,parkingLayout,raw,surfaces:[near,middle,far,...(launchSurface?[launchSurface]:[])],near,elevationAt,waterDatum,signedShore,terrainHeight,bedHeight,walkHeight,walkSupport,blocked,horseSurface,horseBlocked,rockStep,cameraBlocked:(x,y,z,r=.18)=>walkHeight(x,z)>y-r||blocked(x,z,r,y),castle};
+ return {site,harbor,leMorne,playground,golfBank,openGolfBank,limit:site.limit,project,coast,water,polygons,ponds,shoreRocks,ramps,promenade,trail,shoreAccess,bankHeight,floating,features,solids,addSolid,tanks,levee,lessonRV,parkingLayout,raw,surfaces:[near,middle,far,...(launchSurface?[launchSurface]:[])],near,elevationAt,waterDatum,signedShore,terrainHeight,bedHeight,walkHeight,walkSupport,blocked,horseSurface,horseBlocked,rockStep,cameraBlocked:(x,y,z,r=.18)=>walkHeight(x,z)>y-r||blocked(x,z,r,y),castle};
 }
 const api={sites,create,inside,distance};root.FoilLocations=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);
